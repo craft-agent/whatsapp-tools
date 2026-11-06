@@ -3,7 +3,7 @@ import { mkdtempSync, realpathSync, rmSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { EXIT_FAILED, EXIT_OK } from "./cli"
-import { ADD_ID, READ_ID, cli, json } from "./testing"
+import { ADD_ID, READ_ID, cli, json, specs } from "./testing"
 
 const cleanups: (() => void)[] = []
 
@@ -65,5 +65,36 @@ describe("target", () => {
     const run = await cli(["target", ADD_ID, "--cwd", "/x"], "{nope")
     expect(run.code).toBe(EXIT_FAILED)
     expect(json(run).error.code).toBe("invalid_argument")
+  })
+
+  test("accepts --state-dir and passes stateDir into context for targets", async () => {
+    let seenStateDir: string | undefined
+    const checkTool = {
+      ...specs[1]!,
+      id: "demo_target_state",
+      async targets(_args: unknown, ctx: { stateDir?: string }) {
+        seenStateDir = ctx.stateDir
+        return [ctx.stateDir ?? "none"]
+      },
+    }
+    const run = await cli(["target", "demo_target_state", "--cwd", "/x", "--state-dir", "/flag/state"], "", {
+      specs: [checkTool as any],
+    })
+    expect(run.code).toBe(EXIT_OK)
+    expect(seenStateDir).toBe("/flag/state")
+    expect(json(run)).toEqual({ resources: ["/flag/state"] })
+
+    const runEqual = await cli(["target", "demo_target_state", "--cwd", "/x", "--state-dir=/flag/state/eq"], "", {
+      specs: [checkTool as any],
+    })
+    expect(runEqual.code).toBe(EXIT_OK)
+    expect(seenStateDir).toBe("/flag/state/eq")
+
+    const runEnv = await cli(["target", "demo_target_state", "--cwd", "/x"], "", {
+      specs: [checkTool as any],
+      env: { DEMO_STATE_DIR: "/env/target/state" },
+    })
+    expect(runEnv.code).toBe(EXIT_OK)
+    expect(seenStateDir).toBe("/env/target/state")
   })
 })

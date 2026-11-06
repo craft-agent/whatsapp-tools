@@ -195,8 +195,8 @@ variable, and an option or setting wins over the variable too.
 
 Lists are comma-separated in a flag or a variable. Where each harness reads them:
 
-- **OpenCode** takes the plugin `options` shown above, with lists as arrays and
-  `read_only` as a boolean, and falls back to the variables. V2 runs plugins in
+- **OpenCode** takes the plugin `options` shown above, with lists as arrays,
+  `read_only` as a boolean and `state_dir` as a path, and falls back to the variables. V2 runs plugins in
   its background service, which keeps the environment it started with: a
   variable set where `opencode run` starts has no effect until the service is
   restarted in that environment (`opencode service restart`). V1 runs plugins

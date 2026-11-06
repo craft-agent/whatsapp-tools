@@ -12,7 +12,7 @@ import {
 } from "../core"
 import { permissionResources } from "../entry/permission"
 import { PROJECT_PROFILE, type EntryProfile } from "../entry/profile"
-import { parseToolSettings } from "../entry/settings"
+import { parseStateDir, parseToolSettings } from "../entry/settings"
 import { PROJECT } from "../project"
 
 /** The exit codes of a command: it did its work, the work failed, or the command line was wrong. */
@@ -45,8 +45,8 @@ export type CliIo = {
 
 type Command =
   | { name: "list"; selected: ToolSpec[] }
-  | { name: "run"; toolId: string; cwd: string; selected: ToolSpec[] }
-  | { name: "target"; toolId: string; cwd: string }
+  | { name: "run"; toolId: string; cwd: string; selected: ToolSpec[]; stateDir: string }
+  | { name: "target"; toolId: string; cwd: string; stateDir: string }
 
 function usageError(message: string): ToolError {
   return new ToolError("invalid_argument", message)
@@ -74,10 +74,9 @@ function takeCwd(argv: string[]): { cwd: string | undefined; rest: string[] } {
 /** Reads the command line; a mistake in it, in the settings or in the tool selection is `invalid_argument`. */
 function parseCommand(argv: string[], io: Pick<CliIo, "specs" | "env" | "profile">): Command {
   const profile = io.profile ?? PROJECT_PROFILE
-  const select = (flags: string[]) => selectTools(io.specs, parseToolSettings(flags, io.env, profile), profile.toolsets)
   const [name, ...args] = argv
   if (name === "list") {
-    return { name, selected: select(args) }
+    return { name, selected: selectTools(io.specs, parseToolSettings(args, io.env, profile), profile.toolsets) }
   }
   if (name !== "run" && name !== "target") {
     const given = name === undefined ? "No command given" : `Unknown command "${name}"`
@@ -89,10 +88,17 @@ function parseCommand(argv: string[], io: Pick<CliIo, "specs" | "env" | "profile
   const { cwd, rest } = takeCwd(options)
   if (cwd === undefined) throw usageError(`Command ${name} needs ${CWD_FLAG} <dir>.`)
   if (name === "target") {
-    if (rest.length > 0) throw usageError(`Unknown option "${rest[0]}".`)
-    return { name, toolId, cwd }
+    return { name, toolId, cwd, stateDir: parseStateDir(rest, io.env, profile) }
   }
-  return { name, toolId, cwd, selected: select(rest) }
+
+  const settings = parseToolSettings(rest, io.env, profile)
+  return {
+    name,
+    toolId,
+    cwd,
+    selected: selectTools(io.specs, settings, profile.toolsets),
+    stateDir: settings.state_dir,
+  }
 }
 
 function describeSpec(spec: ToolSpec) {
@@ -135,6 +141,7 @@ async function runTool(command: Extract<Command, { name: "run" }>, io: CliIo): P
     const result = await invoke(spec, await readArguments(io), {
       cwd: command.cwd,
       ownDir: io.ownDir,
+      stateDir: command.stateDir,
       signal: io.signal,
     })
     writeJson(io, { result })
@@ -154,6 +161,7 @@ async function targetOf(command: Extract<Command, { name: "target" }>, io: CliIo
     const resources = await permissionResources(spec, await readArguments(io), {
       cwd: command.cwd,
       ownDir: io.ownDir,
+      stateDir: command.stateDir,
       signal: io.signal,
     })
     writeJson(io, { resources })

@@ -21,8 +21,22 @@ def _names(key: str, value: Any) -> str | None:
     return ",".join(value) or None
 
 
+def state_dir_flags(ctx: PluginContext) -> list[str]:
+    """Read ``state_dir`` and return ``["--state-dir", value]``, or ``[]`` when absent.
+
+    Raises:
+        SettingsError: the setting is present but not a non-empty string.
+    """
+    state_dir = ctx.get_config("state_dir")
+    if state_dir is None:
+        return []
+    if not isinstance(state_dir, str) or not state_dir.strip():
+        raise SettingsError('setting "state_dir" must be a path')
+    return ["--state-dir", state_dir]
+
+
 def settings_flags(ctx: PluginContext) -> list[str]:
-    """Read ``toolsets``, ``read_only``, ``tools`` and ``exclude_tools`` and return the flags that say the same.
+    """Read the plugin's settings and return the flags that say the same.
 
     A setting that is absent gives no flag, so the command line's own defaults
     (and ``WHATSAPP_TOOLS_*`` variables) apply. A wrong type is refused rather
@@ -49,5 +63,7 @@ def settings_flags(ctx: PluginContext) -> list[str]:
         value = ctx.get_config(key)
         if value is not None and (names := _names(key, value)):
             flags += [flag, names]
+
+    flags += state_dir_flags(ctx)
 
     return flags
