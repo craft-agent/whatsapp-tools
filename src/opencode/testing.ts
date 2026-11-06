@@ -9,6 +9,7 @@ import type { EntryProfile } from "../entry/profile"
 
 /** The profile the test plugins are built with: `alpha` is on by default, `beta` is not. */
 export const PROFILE: EntryProfile = {
+  name: "demo-tools",
   envPrefix: "DEMO",
   toolsets: { names: ["alpha", "beta"], defaults: ["alpha"] },
 }

@@ -7,6 +7,7 @@ import { runCli, type CliIo } from "./cli"
 
 /** The profile the test command lines are built with: `alpha` is on by default, `beta` is not. */
 export const PROFILE: EntryProfile = {
+  name: "demo-tools",
   envPrefix: "DEMO",
   toolsets: { names: ["alpha", "beta"], defaults: ["alpha"] },
 }
