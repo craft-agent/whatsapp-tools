@@ -2,6 +2,7 @@ import { Buffer } from "node:buffer"
 import { chmod, lstat, mkdir, readdir } from "node:fs/promises"
 import { isAbsolute, join } from "node:path"
 import { ToolError } from "../errors"
+import { maskNumbers } from "./mask"
 
 /** The default label used when pairing a device without a name. */
 export const DEFAULT_LABEL = "default"
@@ -15,8 +16,10 @@ const MAX_SOCKET_PATH_BYTES = 103
 /** Maximum character length of a bad label shown in error messages. */
 const MAX_BAD_LABEL_PREVIEW = 40
 
+/** A label the caller gave, quoted for a message: cut to a preview, with any number or JID in it masked. */
 function quoteBadLabel(value: string): string {
-  const truncated = value.length > MAX_BAD_LABEL_PREVIEW ? `${value.slice(0, MAX_BAD_LABEL_PREVIEW)}…` : value
+  const masked = maskNumbers(value)
+  const truncated = masked.length > MAX_BAD_LABEL_PREVIEW ? `${masked.slice(0, MAX_BAD_LABEL_PREVIEW)}…` : masked
   return JSON.stringify(truncated)
 }
 
@@ -137,7 +140,7 @@ export async function pickLabel(stateDir: string, account: string | undefined): 
     const label = checkLabel(account)
     if (!labels.includes(label)) {
       const known = labels.length > 0 ? `known accounts: ${labels.join(", ")}.` : "no WhatsApp account is paired yet."
-      throw new ToolError("not_found", `WhatsApp account "${label}" was not found; ${known}`)
+      throw new ToolError("not_found", `WhatsApp account ${quoteBadLabel(label)} was not found; ${known}`)
     }
     return labelPaths(stateDir, label)
   }

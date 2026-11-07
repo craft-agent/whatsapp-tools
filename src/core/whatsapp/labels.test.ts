@@ -62,6 +62,11 @@ describe("isLabel and checkLabel", () => {
     expect(isToolError(error) && error.code).toBe("invalid_argument")
     expect((error as Error).message).toContain('"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA…"')
   })
+
+  test("masks a number or JID given as a label", () => {
+    const error = thrownBy(() => checkLabel("15550000000@s.whatsapp.net"))
+    expect((error as Error).message).toContain('"<number>@s.whatsapp.net"')
+  })
 })
 
 describe("labelPaths", () => {
@@ -169,6 +174,16 @@ describe("pickLabel", () => {
     const error = await pickLabel(state, "work").catch((caught: unknown) => caught)
     expect(isToolError(error) && error.code).toBe("not_found")
     expect((error as Error).message).toContain("known accounts: personal")
+  })
+
+  test("masks a missing account that looks like a number", async () => {
+    const state = join(tempDir, "state")
+    mkdirSync(state)
+
+    const error = await pickLabel(state, "15550000000").catch((caught: unknown) => caught)
+    expect(isToolError(error) && error.code).toBe("not_found")
+    expect((error as Error).message).toContain('"<number>"')
+    expect((error as Error).message).not.toContain("15550000000")
   })
 
   test("with given account that has invalid name throws invalid_argument", async () => {
