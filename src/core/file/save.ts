@@ -74,7 +74,7 @@ function folderOf(label: string, chat: string, id: string): string[] {
 }
 
 /**
- * Downloads the file into a private folder beside the message's own (removed again whatever happens) and saves
+ * Downloads the file into a private folder inside the message's own (removed again whatever happens) and saves
  * it from there into the message's folder.
  */
 async function fetchAndSave(
@@ -85,11 +85,11 @@ async function fetchAndSave(
   machine: FileSaveHost,
   signal?: AbortSignal,
 ): Promise<SaveOutcome> {
-  const staging = join(dirname(folder), privateName(""))
+  const staging = join(folder, privateName(""))
   try {
     await ensureDirectory(staging)
     const staged = join(staging, STAGED_NAME)
-    await downloadMedia({ paths, ...message, output: staged, signal })
+    await downloadMedia({ paths, ...message, output: staged, signal, now: machine.now })
     return await saveFile(await openStaged(staged), claim, folder, signal, machine.limits)
   } finally {
     await discard(staging)
@@ -138,16 +138,19 @@ export function createFileSave(host: Partial<FileSaveHost> = {}) {
       const paths = await pickLabel(stateDir, args.account)
       const parts = folderOf(paths.label, chat, id)
       const downloadDir = await checkDownloadDir(ctx, parts)
+      const folderPath = join(downloadDir, ...parts)
 
       const message = await findMessageFile(openMirror(paths, ctx.signal), chat, id)
       const name = safeFileName(message.name, fallbackName(message.kind, id, message.type))
       const claim: FileClaim = { name, type: message.type }
-      const folder = await openMessageFolder(downloadDir, parts)
-      const result: FileSaveOutput = { chat, id, folder, note: RESULT_NOTE }
 
       // A program or an installer is refused by its name or declared type before any of it is fetched
       const early = refusedByClaim(claim)
-      if (early !== undefined) return { ...result, refused: { name, reason: early } }
+      if (early !== undefined)
+        return { chat, id, folder: folderPath, note: RESULT_NOTE, refused: { name, reason: early } }
+
+      const folder = await openMessageFolder(downloadDir, parts)
+      const result: FileSaveOutput = { chat, id, folder, note: RESULT_NOTE }
 
       ctx.signal?.throwIfAborted()
       const outcome = await plain(() => fetchAndSave(paths, { chat, id }, claim, folder, machine, ctx.signal))

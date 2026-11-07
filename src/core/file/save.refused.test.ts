@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test"
-import { readdirSync } from "node:fs"
+import { existsSync, readdirSync } from "node:fs"
 import { ELF_BYTES, PE_BYTES } from "../archive/archive.testing"
 import { MESSAGE_ID, createSaveFixture, download, saveArgs, type MediaInit, type SaveFixture } from "./save.testing"
 
@@ -31,8 +31,15 @@ describe("a file refused by its name or declared type", () => {
     expect(result.refused!.name).toBe(name)
     expect(result.refused!.reason).toContain(reason)
     expect(await t.downloadCalls()).toEqual([])
-    expect(readdirSync(t.folder)).toEqual([])
-    expect(t.siblings()).toEqual([MESSAGE_ID])
+    expect(existsSync(t.folder)).toBe(false)
+    expect(t.siblings()).toEqual([])
+  })
+
+  test("after a refusal before download, the message folder does not exist", async () => {
+    const result = await save({ name: "setup.exe", type: "" })
+    expect(result.refused).toBeDefined()
+    expect(existsSync(t.folder)).toBe(false)
+    expect(result.folder).toBe(t.folder)
   })
 
   test("is judged by the name it would be saved under, not the one it was sent with", async () => {

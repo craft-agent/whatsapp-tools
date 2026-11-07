@@ -4,16 +4,22 @@ import { z } from "zod"
 import { ToolError } from "../errors"
 import type { LabelPaths } from "./labels"
 import { MEDIA_DOWNLOAD_DEADLINE_MS, MEDIA_DOWNLOAD_OP, mediaAnswer } from "./media"
-import { callService } from "./service-client"
+import { callService, isServiceNotRunning } from "./service-client"
 import { runWacli } from "./wacli"
 
 /** wacli's text when WhatsApp's server answers that the file is gone, or that it may not be had any more. */
 const GONE_FROM_SERVER = /download failed with status code (?:403|404|410)/i
 
-/** The service's answer when it is not running, which `callService` words itself. */
-const SERVICE_NOT_RUNNING = /is not running/i
+/** The entire time budget for a media download: read-only download and phone request combined. */
+export const MEDIA_DOWNLOAD_BUDGET_MS = 240_000
+
+/** The minimum time that must remain in the download budget to ask the phone for the file. */
+export const MEDIA_PHONE_MIN_REMAINING_MS = 30_000
 
 const GONE_FROM_SERVER_MESSAGE = "The file is no longer on WhatsApp's server."
+
+const NO_TIME_FOR_PHONE =
+  "The file is no longer on WhatsApp's server and there was no time left to ask the phone; asking again is safe."
 
 /** What wacli reports of a download it made without the phone: only where it wrote the file is read. */
 const reportedDownload = z.object({ path: z.string() })
@@ -26,6 +32,10 @@ export type MediaDownload = {
   /** An absolute path in an existing folder, where nothing else is written; wacli writes the file there. */
   output: string
   signal?: AbortSignal
+  /** For tests: the current time in milliseconds; Date.now by default. */
+  now?: () => number
+  /** For tests: the total budget for the download in milliseconds; MEDIA_DOWNLOAD_BUDGET_MS by default. */
+  budgetMs?: number
 }
 
 /**
@@ -34,14 +44,14 @@ export type MediaDownload = {
  * request writes only the private file asked for, and sends nothing to anyone.
  */
 function phoneRequestError(error: unknown): unknown {
-  if (!(error instanceof ToolError)) return error
-  if (error.code === "upstream_error" && SERVICE_NOT_RUNNING.test(error.message)) {
+  if (isServiceNotRunning(error)) {
     return new ToolError(
       "upstream_error",
-      `${GONE_FROM_SERVER_MESSAGE} Asking the phone for it needs the account's sync service running (see whatsapp_account_read). ${error.message}`,
+      `${GONE_FROM_SERVER_MESSAGE} Asking the phone for it needs the account's sync service running (see whatsapp_account_read). ${(error as ToolError).message}`,
       { cause: error },
     )
   }
+  if (!(error instanceof ToolError)) return error
   if (error.code === "uncertain") {
     return new ToolError(
       "uncertain",
@@ -53,17 +63,12 @@ function phoneRequestError(error: unknown): unknown {
 }
 
 /** Asks the phone for the file through the account's sync service, which hands the request to its running sync. */
-async function askPhone({ paths, chat, id, output, signal }: MediaDownload): Promise<unknown> {
+async function askPhone({ paths, chat, id, output, signal }: MediaDownload, timeoutMs: number): Promise<unknown> {
   // A download that failed may have left a part of the file behind; the sync writes the whole file anew.
   await rm(output, { force: true })
   let data: unknown
   try {
-    data = await callService(
-      paths,
-      MEDIA_DOWNLOAD_OP,
-      { chat, id, output },
-      { mode: "write", timeoutMs: MEDIA_DOWNLOAD_DEADLINE_MS, signal },
-    )
+    data = await callService(paths, MEDIA_DOWNLOAD_OP, { chat, id, output }, { mode: "write", timeoutMs, signal })
   } catch (error) {
     throw phoneRequestError(error)
   }
@@ -81,17 +86,28 @@ async function askPhone({ paths, chat, id, output, signal }: MediaDownload): Pro
  */
 export async function downloadMedia(download: MediaDownload): Promise<void> {
   const { paths, chat, id, output, signal } = download
+  const now = download.now ?? (() => Date.now())
+  const totalBudgetMs = download.budgetMs ?? MEDIA_DOWNLOAD_BUDGET_MS
+  const startTime = now()
+
+  const readOnlyTimeoutMs = Math.min(totalBudgetMs, MEDIA_DOWNLOAD_DEADLINE_MS)
   let data: unknown
   try {
     data = await runWacli(paths, ["media", "download", "--chat", chat, "--id", id, "--output", output], {
       env,
       mode: "read",
       signal,
-      timeoutMs: MEDIA_DOWNLOAD_DEADLINE_MS,
+      timeoutMs: readOnlyTimeoutMs,
     })
   } catch (error) {
     if (!(error instanceof ToolError) || !GONE_FROM_SERVER.test(error.message)) throw error
-    data = await askPhone(download)
+    const elapsedMs = now() - startTime
+    const remainingMs = totalBudgetMs - elapsedMs
+    if (remainingMs < MEDIA_PHONE_MIN_REMAINING_MS) {
+      throw new ToolError("upstream_error", NO_TIME_FOR_PHONE)
+    }
+    const phoneTimeoutMs = Math.min(remainingMs, MEDIA_DOWNLOAD_DEADLINE_MS)
+    data = await askPhone(download, phoneTimeoutMs)
   }
   const reported = reportedDownload.safeParse(data)
   if (!reported.success || reported.data.path !== output) {

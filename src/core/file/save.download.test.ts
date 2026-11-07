@@ -43,12 +43,12 @@ describe("the download", () => {
       output,
     ])
     expect(call!.env).toEqual({ WACLI_MEDIA_ROOTS: t.paths.outbox })
-    expect(dirname(dirname(output))).toBe(dirname(t.folder))
+    expect(dirname(dirname(output))).toBe(t.folder)
     expect(dirname(output)).toMatch(/\/\.[0-9a-f]{16}$/)
     expect(output.endsWith("/file")).toBe(true)
   })
 
-  test("goes into a folder only the user can use, beside the message's own", async () => {
+  test("goes into a folder only the user can use, inside the message's own", async () => {
     t.respond(download("data", { hang: true }))
     const controller = new AbortController()
     const settled = t.save(saveArgs(), { ctx: { signal: controller.signal } }).catch((error: unknown) => error)
@@ -103,7 +103,8 @@ describe("the folder the file is downloaded into", () => {
     t.respond(download("x"))
     await t.save(saveArgs())
     expect(await t.downloadCalls()).toEqual([])
-    expect(t.siblings()).toEqual([MESSAGE_ID])
+    expect(existsSync(t.folder)).toBe(false)
+    expect(t.siblings()).toEqual([])
   })
 })
 

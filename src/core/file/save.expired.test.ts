@@ -187,3 +187,42 @@ describe("the sync service is not running", () => {
     expect(statSync(t.folder).isDirectory()).toBe(true)
   })
 })
+
+describe("the download time budget", () => {
+  test("throws upstream_error and does not ask the phone when less than 30 s remains", async () => {
+    await t.startService()
+    t.respond(GONE())
+    let time = 1_000_000
+    const error = await t.failure(saveArgs(), {
+      host: {
+        now: () => {
+          const current = time
+          time += 215_000
+          return current
+        },
+      },
+    })
+    expect(error.code).toBe("upstream_error")
+    expect(error.message).toBe(
+      "The file is no longer on WhatsApp's server and there was no time left to ask the phone; asking again is safe.",
+    )
+    expect(await t.downloadCalls()).toHaveLength(1)
+  })
+
+  test("asks the phone when at least 30 s remains of the budget", async () => {
+    await serve(fromPhone({ writeOutput: { text: "recovered" } }))
+    let time = 1_000_000
+    const result = await t.save(saveArgs(), {
+      host: {
+        now: () => {
+          const current = time
+          time += 100_000
+          return current
+        },
+      },
+    })
+    expect(result.file).toBeDefined()
+    expect(readFileSync(result.file!.path, "utf8")).toBe("recovered")
+    expect(await t.downloadCalls()).toHaveLength(2)
+  })
+})

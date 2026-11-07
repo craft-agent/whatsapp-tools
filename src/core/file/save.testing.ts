@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, readdirSync, realpathSync, rmSync } from "node:fs"
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, realpathSync, rmSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { ALICE, at, wacliChat, wacliMessage } from "../chat/read.testing"
@@ -63,7 +63,10 @@ export type SaveFixture = {
     options?: { host?: Partial<FileSaveHost>; ctx?: Partial<ToolContext> },
   ): Promise<FileSaveOutput>
   /** The error a call throws. */
-  failure(args: Record<string, unknown>, options?: { ctx?: Partial<ToolContext> }): Promise<ToolError>
+  failure(
+    args: Record<string, unknown>,
+    options?: { host?: Partial<FileSaveHost>; ctx?: Partial<ToolContext> },
+  ): Promise<ToolError>
   /** The names in the message's folder's parent: the message's folder and whatever else is there. */
   siblings(): string[]
   close(): Promise<void>
@@ -140,14 +143,15 @@ export async function createSaveFixture(): Promise<SaveFixture> {
     save: (args, options = {}) => invoke(tool(options.host), args, context(options.ctx)),
     async failure(args, options = {}) {
       try {
-        await invoke(tool(), args, context(options.ctx))
+        await invoke(tool(options.host), args, context(options.ctx))
       } catch (error) {
         if (error instanceof ToolError) return error
         throw error
       }
       throw new Error("Expected the call to fail")
     },
-    siblings: () => readdirSync(join(downloadDir, paths.label, ALICE)),
+    siblings: () =>
+      existsSync(join(downloadDir, paths.label, ALICE)) ? readdirSync(join(downloadDir, paths.label, ALICE)) : [],
     async close() {
       service?.stop()
       await service?.outcome
