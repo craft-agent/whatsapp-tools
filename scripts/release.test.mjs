@@ -17,6 +17,9 @@ const CLI_ENTRY = "dist/cli.js"
 /** The legacy manifest Codex loads the plugin from, which names the server relative to the plugin root. */
 const CODEX_MANIFEST = ".codex-plugin/plugin.json"
 
+/** Codex's per-server tool call limit in seconds, which the longest tools' five-minute calls fit in; Codex's own default is 60. */
+const CODEX_TOOL_TIMEOUT_SEC = 330
+
 /** Each MCP configuration and the variable its harness expands to the plugin's install directory. */
 const MCP_CONFIGS = {
   ".claude-plugin/plugin.json": "${CLAUDE_PLUGIN_ROOT}",
@@ -80,10 +83,16 @@ describe("MCP configurations", () => {
     })
   })
 
-  test("Codex's legacy manifest launches dist/mcp.js from the plugin root and forwards every setting variable", () => {
+  test("Codex's legacy manifest launches dist/mcp.js from the plugin root, forwards every setting variable and allows long calls", () => {
     const manifest = readJson(CODEX_MANIFEST)
     expect(manifest.mcpServers).toEqual({
-      [SERVER_NAME]: { command: "node", args: [MCP_ENTRY], cwd: ".", env_vars: settingVariables() },
+      [SERVER_NAME]: {
+        command: "node",
+        args: [MCP_ENTRY],
+        cwd: ".",
+        env_vars: settingVariables(),
+        tool_timeout_sec: CODEX_TOOL_TIMEOUT_SEC,
+      },
     })
     expect(manifest.skills).toBe("./skills")
   })

@@ -187,8 +187,9 @@ A call can take up to about five minutes. Some harnesses stop a tool call
 sooner by default, and the call then fails, though what arrived stays and the
 service syncs again:
 
-- **Codex** stops a call after 60 s. Add the server under `[mcp_servers]` (see
-  [Settings](#settings)) with `tool_timeout_sec = 330`.
+- **Codex** stops a call after 60 s by default; the plugin raises the limit to
+  330 s. A server added under `[mcp_servers]` instead of the plugin (see
+  [Settings](#settings)) needs `tool_timeout_sec = 330`.
 - **Antigravity** stops a call after 180 s. Give the server
   `"timeoutSeconds": 330` in its MCP configuration.
 
@@ -210,8 +211,8 @@ The skill is
 `whatsapp-tools:whatsapp-files` in Claude Code and `whatsapp-tools:files` in
 Hermes.
 
-A call that falls back to the phone can take a few minutes; Codex and
-Antigravity need the longer tool time limit given above under History.
+A call that falls back to the phone can take a few minutes; the tool time
+limits given above under History apply to it too.
 
 ## Adding a tool
 
@@ -317,6 +318,7 @@ Lists are comma-separated in a flag or a variable. Where each harness reads them
   command = "npx"
   args = ["-y", "@craftsamo/whatsapp-tools@<version>", "--read-only"]
   env_vars = ["WHATSAPP_TOOLS_TOOLSETS"]
+  tool_timeout_sec = 330
   ```
 
 ### Accounts and the sync service
