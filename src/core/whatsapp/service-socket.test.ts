@@ -56,6 +56,7 @@ function raw(text: string): Promise<unknown> {
 
 const echo: ServiceOperation = {
   kind: "delegated",
+  writes: true,
   async run(args, context) {
     return { args, label: context.paths.label, aborted: context.signal.aborted }
   },
@@ -72,7 +73,7 @@ describe("the service socket", () => {
   })
 
   test("returns null for an operation that returns nothing", async () => {
-    await serve({ nothing: { kind: "delegated", run: async () => undefined } })
+    await serve({ nothing: { kind: "delegated", writes: true, run: async () => undefined } })
     expect(await call("nothing")).toBeNull()
   })
 
@@ -137,6 +138,7 @@ describe("the service socket", () => {
     let mostAtOnce = 0
     const step: ServiceOperation = {
       kind: "delegated",
+      writes: true,
       async run(args) {
         const name = (args as { name: string }).name
         running++
@@ -177,7 +179,7 @@ describe("the service socket", () => {
 
   test("keeps serving after an operation fails", async () => {
     await serve({
-      boom: { kind: "delegated", run: () => Promise.reject(new Error("boom")) },
+      boom: { kind: "delegated", writes: true, run: () => Promise.reject(new Error("boom")) },
       echo,
     })
     await call("boom").catch(() => {})
@@ -189,9 +191,10 @@ describe("the service socket's queue", () => {
   /** Holds the queue with an operation that waits for `release`. */
   async function serveBlocked(release: Promise<void>, ran: string[]) {
     await serve({
-      block: { kind: "delegated", run: () => release },
+      block: { kind: "delegated", writes: true, run: () => release },
       mark: {
         kind: "delegated",
+        writes: true,
         async run(args) {
           ran.push((args as { name: string }).name)
           return args
@@ -244,6 +247,7 @@ describe("the service socket's queue", () => {
     await serve({
       slow: {
         kind: "delegated",
+        writes: true,
         run: (_args, { signal }) =>
           new Promise((_resolve, reject) => {
             signal.addEventListener("abort", () => {

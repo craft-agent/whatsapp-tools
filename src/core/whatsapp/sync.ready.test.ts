@@ -34,6 +34,7 @@ const connectedLogs = () => fixture.logs.filter((line) => line === "event connec
 /** An operation that says what it saw when it ran. */
 const look: ServiceOperation = {
   kind: "delegated",
+  writes: true,
   run: async () => ({ connected: connectedLogs(), state: fixture.status()?.state }),
 }
 
@@ -53,7 +54,7 @@ describe("a delegated operation before the child is ready", () => {
   test("is answered upstream_error, and not run, when the deadline passes before the child connects", async () => {
     const ran: string[] = []
     const { outcome, stop } = startServiceWith(fixture, NEVER_CONNECTS, {
-      mark: { kind: "delegated", run: async () => ran.push("mark") },
+      mark: { kind: "delegated", writes: true, run: async () => ran.push("mark") },
     })
     await eventually(async () => (await fixture.syncCalls()).length === 1)
 
@@ -72,7 +73,7 @@ describe("a delegated operation before the child is ready", () => {
   test("is answered upstream_error, and not run, when the child ends first", async () => {
     const ran: string[] = []
     const { outcome } = startServiceWith(fixture, NEVER_CONNECTS, {
-      mark: { kind: "delegated", run: async () => ran.push("mark") },
+      mark: { kind: "delegated", writes: true, run: async () => ran.push("mark") },
     })
     await eventually(async () => (await fixture.syncCalls()).length === 1)
     const waiting = failureOf(call("mark"))
@@ -98,7 +99,7 @@ describe("readiness after an exclusive operation", () => {
   test("is reset by the restart: the next delegated operation waits for the new child to connect", async () => {
     const { outcome, stop } = startServiceWith(fixture, HANGING_SYNC, {
       look,
-      swap: { kind: "exclusive", run: async () => "swapped" },
+      swap: { kind: "exclusive", writes: true, run: async () => "swapped" },
     })
     await eventually(() => connectedLogs() === 1)
     fixture.fake.setResponses([DOCTOR_OK, connectsAfter(800)])
@@ -112,7 +113,7 @@ describe("readiness after an exclusive operation", () => {
 
   test("needs no readiness: an exclusive operation runs while the child has not connected", async () => {
     const { outcome, stop } = startServiceWith(fixture, NEVER_CONNECTS, {
-      swap: { kind: "exclusive", run: async () => "swapped" },
+      swap: { kind: "exclusive", writes: true, run: async () => "swapped" },
     })
     await eventually(async () => (await fixture.syncCalls()).length === 1)
 
