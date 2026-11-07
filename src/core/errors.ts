@@ -8,6 +8,7 @@ export type ErrorCode =
   | "rate_limited"
   | "declined"
   | "upstream_error"
+  | "uncertain"
   | "internal_error"
 
 /** The error every tool throws for a failure a caller can act on. */
