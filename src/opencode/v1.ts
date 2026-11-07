@@ -1,6 +1,5 @@
 import { inputJsonSchema, type ToolSpec } from "../core"
 import { permissionResources } from "../entry/permission"
-import type { ToolDirectories } from "../entry/settings"
 import {
   needsPermission,
   permissionMetadata,
@@ -8,6 +7,7 @@ import {
   runTool,
   selectedTools,
   type PluginDeps,
+  type PluginDirectories,
 } from "./shared"
 import type { OpenCodePlugin, PluginOptions, V1Hooks, V1Tool, V1ToolContext } from "./types"
 
@@ -48,7 +48,7 @@ function workingDir(context: V1ToolContext): string {
   return context.worktree && context.worktree !== "/" ? context.worktree : context.directory
 }
 
-function v1Tool(spec: ToolSpec, ownDir: string | undefined, directories: ToolDirectories): V1Tool {
+function v1Tool(spec: ToolSpec, ownDir: string | undefined, directories: PluginDirectories): V1Tool {
   return {
     description: `${spec.description}${describeArguments(spec)}`,
     args: spec.input.shape,

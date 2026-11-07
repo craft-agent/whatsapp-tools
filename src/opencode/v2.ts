@@ -1,6 +1,5 @@
 import type { ToolSpec } from "../core"
 import { permissionResources } from "../entry/permission"
-import type { ToolDirectories } from "../entry/settings"
 import { loadSkills } from "./skills"
 import {
   needsPermission,
@@ -9,6 +8,7 @@ import {
   runTool,
   selectedTools,
   type PluginDeps,
+  type PluginDirectories,
 } from "./shared"
 import type { OpenCodePlugin, V2Context, V2Tool, V2ToolContext, V2ToolResult } from "./types"
 
@@ -21,7 +21,7 @@ async function sessionDirectory(ctx: V2Context, sessionID: string): Promise<stri
   }
 }
 
-function v2Tool(ctx: V2Context, spec: ToolSpec, ownDir: string | undefined, directories: ToolDirectories): V2Tool {
+function v2Tool(ctx: V2Context, spec: ToolSpec, ownDir: string | undefined, directories: PluginDirectories): V2Tool {
   return {
     name: spec.id,
     description: spec.description,

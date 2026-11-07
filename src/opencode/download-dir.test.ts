@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test"
 import { z } from "zod"
 import { defineTool, type ToolSpec } from "../core"
+import { PROJECT } from "../project"
 import { PROFILE } from "./testing"
 import type { V1ToolContext, V2Context, V2Tool } from "./types"
 import { createV1Server } from "./v1"
@@ -66,6 +67,30 @@ describe("OpenCode download_dir setting", () => {
       })({}, {})
       await tool.demo_download_tool!.execute({}, context)
       expect(recorder.execute).toBe("/home/user/Downloads/demo-tools")
+    })
+
+    test("names the program in the context of both calls", async () => {
+      const programs: Array<string | undefined> = []
+      const spec = defineTool({
+        id: "demo_program_tool",
+        title: "Program Tool",
+        description: "Program Tool",
+        toolset: "alpha",
+        class: "add",
+        input: z.object({}),
+        output: z.object({ ok: z.boolean() }),
+        async targets(_args, ctx) {
+          programs.push(ctx.programName)
+          return ["target-resource"]
+        },
+        async execute(_args, ctx) {
+          programs.push(ctx.programName)
+          return { ok: true }
+        },
+      })
+      const { tool } = await createV1Server([spec], { profile: PROFILE })({}, {})
+      await tool.demo_program_tool!.execute({}, context)
+      expect(programs).toEqual([PROJECT.name, PROJECT.name])
     })
 
     test("rejects an invalid download_dir option", async () => {

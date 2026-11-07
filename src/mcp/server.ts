@@ -85,6 +85,7 @@ export function createServer(specs: ToolSpec[], settings: EntrySettings, options
         cwd: await workingDir(extra.signal),
         ownDir: options.ownDir,
         ...toolDirectories(settings),
+        programName: PROJECT.name,
         signal: extra.signal,
         ...(confirm && { confirm }),
       }
