@@ -16,6 +16,8 @@ export type ToolContext = {
   ownDir?: string
   /** Where every account's state lives: an absolute path the entry point resolved from its settings. */
   stateDir?: string
+  /** Where received files are saved: an absolute path the entry point resolved from its settings. */
+  downloadDir?: string
   signal?: AbortSignal
   /** Asks the person to approve; absent when the harness's own approval already covers the call. */
   confirm?(request: ConfirmRequest): Promise<boolean>

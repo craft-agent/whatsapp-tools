@@ -12,7 +12,7 @@ import {
 } from "../core"
 import { permissionResources } from "../entry/permission"
 import { PROJECT_PROFILE, type EntryProfile } from "../entry/profile"
-import { parseStateDir, parseToolSettings } from "../entry/settings"
+import { parseStateDir, parseToolSettings, toolDirectories, type ToolDirectories } from "../entry/settings"
 import { PROJECT } from "../project"
 import { usageError } from "./command-args"
 import { EXIT_FAILED, EXIT_OK, EXIT_USAGE, type CommandIo } from "./command-io"
@@ -48,7 +48,7 @@ export type CliIo = {
 
 type Command =
   | { name: "list"; selected: ToolSpec[] }
-  | { name: "run"; toolId: string; cwd: string; selected: ToolSpec[]; stateDir: string }
+  | { name: "run"; toolId: string; cwd: string; selected: ToolSpec[]; directories: ToolDirectories }
   | { name: "target"; toolId: string; cwd: string; stateDir: string }
 
 /** Splits `--cwd <dir>` from the remaining arguments, which are the settings flags. */
@@ -98,7 +98,7 @@ function parseCommand(argv: string[], io: Pick<CliIo, "specs" | "env" | "profile
     toolId,
     cwd,
     selected: selectTools(io.specs, settings, profile.toolsets),
-    stateDir: settings.state_dir,
+    directories: toolDirectories(settings),
   }
 }
 
@@ -142,7 +142,7 @@ async function runTool(command: Extract<Command, { name: "run" }>, io: CliIo): P
     const result = await invoke(spec, await readArguments(io), {
       cwd: command.cwd,
       ownDir: io.ownDir,
-      stateDir: command.stateDir,
+      ...command.directories,
       signal: io.signal,
     })
     writeJson(io, { result })

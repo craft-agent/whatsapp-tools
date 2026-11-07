@@ -20,7 +20,7 @@ import {
   type Toolsets,
 } from "../core"
 import { PROJECT_PROFILE } from "../entry/profile"
-import type { EntrySettings } from "../entry/settings"
+import { toolDirectories, type EntrySettings } from "../entry/settings"
 import { PROJECT } from "../project"
 import { elicitationConfirm } from "./confirm"
 import { createWorkingDirResolver } from "./roots"
@@ -84,7 +84,7 @@ export function createServer(specs: ToolSpec[], settings: EntrySettings, options
       const ctx: ToolContext = {
         cwd: await workingDir(extra.signal),
         ownDir: options.ownDir,
-        stateDir: settings.state_dir,
+        ...toolDirectories(settings),
         signal: extra.signal,
         ...(confirm && { confirm }),
       }

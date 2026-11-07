@@ -22,3 +22,7 @@ config_schema:
   exclude_tools:
     type: list
     description: Single tools to remove by id. Wins over tools and toolsets.
+  state_dir:
+    description: Where every account's state lives; an absolute path, or one starting with ~. Defaults to $XDG_STATE_HOME/whatsapp-tools, or ~/.local/state/whatsapp-tools.
+  download_dir:
+    description: Where received files are saved; an absolute path, or one starting with ~. Defaults to ~/Downloads/whatsapp-tools.

@@ -1,12 +1,16 @@
 import { ToolError, type ToolSettings, type Toolsets } from "../core"
 import { PROJECT_PROFILE, type EntryProfile } from "./profile"
+import { toolDirectories, type ToolDirectories } from "./directory"
+import { resolveDownloadDir } from "./download-dir"
 import { resolveStateDir } from "./state-dir"
+
+export { toolDirectories, type ToolDirectories }
 
 /** Who asks the person before an administrative tool acts: the harness, or the tool through the client's form. */
 export type ConfirmMode = "harness" | "elicitation"
 
-/** The settings needed to run tools: tool selection, read-only mode, and the resolved state directory. */
-export type RunSettings = ToolSettings & { state_dir: string }
+/** The settings needed to run tools: tool selection, read-only mode, and the resolved state and download directories. */
+export type RunSettings = ToolSettings & { state_dir: string; download_dir: string }
 
 export type EntrySettings = RunSettings & { confirm: ConfirmMode }
 
@@ -15,7 +19,7 @@ const ALL_TOOLSETS = "all"
 const TRUE_VALUES: readonly string[] = ["1", "true"]
 const FALSE_VALUES: readonly string[] = ["0", "false"]
 
-type OptionName = "toolsets" | "read_only" | "tools" | "exclude_tools" | "confirm" | "state_dir"
+type OptionName = "toolsets" | "read_only" | "tools" | "exclude_tools" | "confirm" | "state_dir" | "download_dir"
 
 /** A setting's command-line flag and the end of its environment variable, which follows the profile's prefix; a boolean flag takes no value. */
 type Option = { flag: string; envSuffix: string; boolean?: true }
@@ -27,6 +31,7 @@ const OPTIONS: Record<OptionName, Option> = {
   exclude_tools: { flag: "--exclude-tools", envSuffix: "EXCLUDE_TOOLS" },
   confirm: { flag: "--confirm", envSuffix: "CONFIRM" },
   state_dir: { flag: "--state-dir", envSuffix: "STATE_DIR" },
+  download_dir: { flag: "--download-dir", envSuffix: "DOWNLOAD_DIR" },
 }
 
 function envName(name: OptionName, profile: EntryProfile): string {
@@ -130,6 +135,7 @@ export function parseSettings(
   const settings: EntrySettings = {
     confirm: "harness",
     state_dir: resolveStateDir(value("state_dir"), env, profile),
+    download_dir: resolveDownloadDir(value("download_dir"), env, profile),
   }
   const toolsets = value("toolsets")
   if (toolsets) settings.toolsets = checkToolsets(splitList(toolsets.text), toolsets.source, profile.toolsets)
@@ -191,6 +197,7 @@ const TOOL_OPTION_NAMES = [
   "tools",
   "exclude_tools",
   "state_dir",
+  "download_dir",
 ] as const satisfies readonly OptionName[]
 type ToolOptionName = (typeof TOOL_OPTION_NAMES)[number]
 
@@ -202,8 +209,8 @@ function optionError(name: string, expected: string): ToolError {
   return new ToolError("invalid_argument", `Option "${name}" must be ${expected}.`)
 }
 
-function stateDirOption(value: unknown): string {
-  if (typeof value !== "string") throw optionError("state_dir", "an absolute path")
+function directoryOption(name: "state_dir" | "download_dir", value: unknown): string {
+  if (typeof value !== "string") throw optionError(name, "an absolute path")
   return value
 }
 
@@ -255,12 +262,13 @@ export function settingsFromOptions(
     return text !== undefined ? fromText(text) : undefined
   }
 
-  const stateDirGiven =
-    given.state_dir !== undefined
-      ? { text: stateDirOption(given.state_dir), source: 'Option "state_dir"' }
-      : envText("state_dir", env, profile)
+  const directoryGiven = (name: "state_dir" | "download_dir"): SettingText | undefined =>
+    given[name] !== undefined
+      ? { text: directoryOption(name, given[name]), source: `Option "${name}"` }
+      : envText(name, env, profile)
   const settings: RunSettings = {
-    state_dir: resolveStateDir(stateDirGiven, env, profile),
+    state_dir: resolveStateDir(directoryGiven("state_dir"), env, profile),
+    download_dir: resolveDownloadDir(directoryGiven("download_dir"), env, profile),
   }
   const toolsets = resolve(
     "toolsets",

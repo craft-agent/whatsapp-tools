@@ -21,18 +21,36 @@ def _names(key: str, value: Any) -> str | None:
     return ",".join(value) or None
 
 
+def _directory_flags(ctx: PluginContext, key: str, flag: str) -> list[str]:
+    """Read the directory setting ``key`` and return ``[flag, value]``, or ``[]`` when absent.
+
+    Raises:
+        SettingsError: the setting is present but not a non-empty string.
+    """
+    value = ctx.get_config(key)
+    if value is None:
+        return []
+    if not isinstance(value, str) or not value.strip():
+        raise SettingsError(f'setting "{key}" must be a path')
+    return [flag, value]
+
+
 def state_dir_flags(ctx: PluginContext) -> list[str]:
     """Read ``state_dir`` and return ``["--state-dir", value]``, or ``[]`` when absent.
 
     Raises:
         SettingsError: the setting is present but not a non-empty string.
     """
-    state_dir = ctx.get_config("state_dir")
-    if state_dir is None:
-        return []
-    if not isinstance(state_dir, str) or not state_dir.strip():
-        raise SettingsError('setting "state_dir" must be a path')
-    return ["--state-dir", state_dir]
+    return _directory_flags(ctx, "state_dir", "--state-dir")
+
+
+def download_dir_flags(ctx: PluginContext) -> list[str]:
+    """Read ``download_dir`` and return ``["--download-dir", value]``, or ``[]`` when absent.
+
+    Raises:
+        SettingsError: the setting is present but not a non-empty string.
+    """
+    return _directory_flags(ctx, "download_dir", "--download-dir")
 
 
 def settings_flags(ctx: PluginContext) -> list[str]:
@@ -65,5 +83,6 @@ def settings_flags(ctx: PluginContext) -> list[str]:
             flags += [flag, names]
 
     flags += state_dir_flags(ctx)
+    flags += download_dir_flags(ctx)
 
     return flags
