@@ -4,8 +4,9 @@ import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { fileURLToPath } from "node:url"
-import { settingVariables } from "../src/entry/settings"
+import { forwardedVariables, settingVariables } from "../src/entry/settings"
 import { PROJECT } from "../src/project"
+import { CODEX_MANIFEST } from "./codex-env.mjs"
 import { PLUGIN_NAME } from "./package-name.mjs"
 import { DESCRIPTION_LIMIT, serverJson } from "./server-json.mjs"
 import { VERSION_FILES } from "./version-files.mjs"
@@ -13,9 +14,6 @@ import { VERSION_FILES } from "./version-files.mjs"
 const ROOT = fileURLToPath(new URL("../", import.meta.url))
 const MCP_ENTRY = "dist/mcp.js"
 const CLI_ENTRY = "dist/cli.js"
-
-/** The legacy manifest Codex loads the plugin from, which names the server relative to the plugin root. */
-const CODEX_MANIFEST = ".codex-plugin/plugin.json"
 
 /** Codex's per-server tool call limit in seconds, which the longest tools' five-minute calls fit in; Codex's own default is 60. */
 const CODEX_TOOL_TIMEOUT_SEC = 330
@@ -83,14 +81,14 @@ describe("MCP configurations", () => {
     })
   })
 
-  test("Codex's legacy manifest launches dist/mcp.js from the plugin root, forwards every setting variable and allows long calls", () => {
+  test("Codex's legacy manifest launches dist/mcp.js from the plugin root, forwards every variable the server reads and allows long calls", () => {
     const manifest = readJson(CODEX_MANIFEST)
     expect(manifest.mcpServers).toEqual({
       [SERVER_NAME]: {
         command: "node",
         args: [MCP_ENTRY],
         cwd: ".",
-        env_vars: settingVariables(),
+        env_vars: forwardedVariables(),
         tool_timeout_sec: CODEX_TOOL_TIMEOUT_SEC,
       },
     })
@@ -120,6 +118,14 @@ describe("MCP configurations", () => {
   test("src/project.ts gives the program the names package.json does", () => {
     expect(PROJECT.name).toBe(PLUGIN_NAME)
     expect(PROJECT.cli).toBe(CLI_NAME)
+  })
+
+  test("every tool variable is a variable name, listed once and not a setting's", () => {
+    for (const variable of PROJECT.toolVariables) {
+      expect(variable).toMatch(/^[A-Za-z_][A-Za-z0-9_]*$/)
+      expect(settingVariables()).not.toContain(variable)
+    }
+    expect(new Set(PROJECT.toolVariables).size).toBe(PROJECT.toolVariables.length)
   })
 })
 
