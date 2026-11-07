@@ -15,8 +15,16 @@ export type FakeResponse = {
   exit?: number
   /** Waits this long before answering. */
   sleepMs?: number
-  /** Answers, then waits until it is stopped; it exits 0 on SIGTERM. */
+  /** Answers, then waits until it is stopped; it exits 0 on SIGTERM unless `onTerm` or `ignoreTerm` says otherwise. */
   hang?: true
+  /** Lines written to stderr, each `afterMs` (0 by default) after the response started, whether it hangs or exits. */
+  stderrLines?: { line: string; afterMs?: number }[]
+  /** Exits with `exit` this long after the response started, even when it hangs. */
+  exitAfterMs?: number
+  /** What it does on SIGTERM: writes `stderr` and exits with `exit`. */
+  onTerm?: { exit: number; stderr?: string }
+  /** Ignores SIGTERM, so only SIGKILL stops it. */
+  ignoreTerm?: true
 }
 
 /** One call of the fake wacli, as it recorded it. */
@@ -26,6 +34,8 @@ export type FakeCall = {
   /** The `WACLI_*` variables it started with. */
   env: Record<string, string>
   cwd: string
+  /** The fake's process id, for a test that stops a call that hangs. */
+  pid: number
 }
 
 export type FakeWacli = {
@@ -49,6 +59,11 @@ export function envelope(data: unknown): string {
 /** The stderr of a failed wacli call that says `text`. */
 export function failure(text: string): string {
   return `${JSON.stringify({ success: false, data: null, error: text })}\n`
+}
+
+/** One event of `wacli sync --events` as the line it writes to stderr; its time is 13 digits, as wacli's are. */
+export function eventLine(name: string, data: Record<string, unknown> = {}): string {
+  return JSON.stringify({ event: name, data, ts: 1730000000000 })
 }
 
 /** A label's paths under `dir`, written out so a test does not depend on how `labels.ts` derives them. */

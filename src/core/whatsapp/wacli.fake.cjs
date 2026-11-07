@@ -2,11 +2,20 @@
 /**
  * A stand-in for wacli in tests. `wacli.testing.ts` copies it into a temp directory as
  * `wacli`, next to a `fake.json` that says how to behave:
- * `{ "version": "0.26.0", "responses": [ { "args": ["doctor"], "stdout"?, "stderr"?, "exit"?, "sleepMs"?, "hang"? } ], "default"?: { ... } }`
+ * `{ "version": "0.26.0", "responses": [ { "args": ["doctor"], "stdout"?, "stderr"?, "exit"?, "sleepMs"?, "hang"?, "stderrLines"?, "exitAfterMs"?, "onTerm"?, "ignoreTerm"? } ], "default"?: { ... } }`
  *
  * A response matches when its `args` appear in order, as one run, among the arguments left after the
  * global flags are removed. The first match answers; then `default`; else a failure envelope.
- * Every call is recorded in `calls.jsonl`: `{ argv, env: { WACLI_* }, cwd }`.
+ * `fake.json` is read on every call, so a test may change the answers between calls.
+ * Every call is recorded in `calls.jsonl`: `{ argv, env: { WACLI_* }, cwd, pid }`.
+ *
+ * What a response does, from the moment it starts (after `sleepMs`):
+ * - writes `stdout`, then `stderr`;
+ * - writes each of `stderrLines` (`{ line, afterMs? }`) to stderr, as a line, `afterMs` after the start;
+ * - with `exitAfterMs`, exits with `exit` (default 0) that long after the start, hanging or not;
+ *   with `hang` and no `exitAfterMs`, waits until it is stopped; otherwise exits when its output is done.
+ * On SIGTERM a response with `hang`, `onTerm` or `ignoreTerm` does as `onTerm` says: writes its `stderr`
+ * and exits with its `exit` (0 by default). `ignoreTerm` ignores the signal instead.
  */
 "use strict"
 
@@ -33,7 +42,10 @@ for (let i = 0; i < argv.length; i++) {
 
 const env = {}
 for (const [name, value] of Object.entries(process.env)) if (name.startsWith("WACLI_")) env[name] = value
-fs.appendFileSync(path.join(dir, "calls.jsonl"), `${JSON.stringify({ argv, env, cwd: process.cwd() })}\n`)
+fs.appendFileSync(
+  path.join(dir, "calls.jsonl"),
+  `${JSON.stringify({ argv, env, cwd: process.cwd(), pid: process.pid })}\n`,
+)
 
 function containsRun(haystack, needle) {
   for (let start = 0; start + needle.length <= haystack.length; start++) {
@@ -42,13 +54,29 @@ function containsRun(haystack, needle) {
   return false
 }
 
+/** Exits once what was written has been flushed. */
+function exitAfterFlush(code) {
+  process.stderr.write("", () => process.stdout.write("", () => process.exit(code)))
+}
+
 function respond(response) {
-  if (response.hang) process.on("SIGTERM", () => process.exit(0))
+  const onTerm = response.onTerm
+  if (response.hang || onTerm || response.ignoreTerm) {
+    process.on("SIGTERM", () => {
+      if (response.ignoreTerm) return
+      if (onTerm && onTerm.stderr) process.stderr.write(onTerm.stderr)
+      exitAfterFlush(onTerm ? onTerm.exit : 0)
+    })
+  }
   const run = () => {
     if (response.stdout) process.stdout.write(response.stdout)
     if (response.stderr) process.stderr.write(response.stderr)
+    for (const { line, afterMs } of response.stderrLines || []) {
+      setTimeout(() => process.stderr.write(`${line}\n`), afterMs || 0)
+    }
     process.exitCode = response.exit ?? 0
-    if (response.hang) setInterval(() => {}, 1000)
+    if (response.exitAfterMs !== undefined) setTimeout(() => exitAfterFlush(process.exitCode), response.exitAfterMs)
+    else if (response.hang) setInterval(() => {}, 1000)
   }
   if (response.sleepMs) setTimeout(run, response.sleepMs)
   else run()
