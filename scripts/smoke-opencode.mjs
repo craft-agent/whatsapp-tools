@@ -7,6 +7,8 @@ const PLUGIN = fileURLToPath(new URL("../dist/opencode.js", import.meta.url))
 const SERVER = fileURLToPath(new URL("../dist/mcp.js", import.meta.url))
 /** Tools the default settings list: the read tools and the write tools of the default toolsets. */
 const DEFAULT_TOOLS = ["whatsapp_chat_read", "whatsapp_contact_read", "whatsapp_history_backfill"]
+/** Tools of the toolsets that are off by default. */
+const OPT_IN_TOOLS = ["whatsapp_file_save"]
 
 function expect(condition, message) {
   if (!condition) throw new Error(message)
@@ -60,6 +62,17 @@ try {
     `Expected server to return ${JSON.stringify(expected)}, got ${JSON.stringify(served)}.`,
   )
   console.log(`server returns ${served.length} tools: ${served.join(", ")}.`)
+
+  expect(
+    OPT_IN_TOOLS.every((id) => !served.includes(id)),
+    `Expected ${OPT_IN_TOOLS.join(", ")} to be left out by default, got ${JSON.stringify(served)}.`,
+  )
+  const all = Object.keys((await plugin.server({}, { toolsets: "all" })).tool)
+  expect(
+    OPT_IN_TOOLS.every((id) => all.includes(id)),
+    `Expected toolsets "all" to give ${OPT_IN_TOOLS.join(", ")}, got ${JSON.stringify(all)}.`,
+  )
+  console.log(`${OPT_IN_TOOLS.join(", ")} come only with the toolsets that are off by default.`)
 } catch (error) {
   console.error(error)
   process.exit(1)
