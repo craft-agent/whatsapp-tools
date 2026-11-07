@@ -41,6 +41,19 @@ describe("chat read: the tool and its arguments", () => {
     ["view", { chat: ALICE, query: "x" }, "query"],
     ["view", { chat: ALICE, unread: false }, "unread"],
     ["view", { chat: ALICE, last: true }, "last"],
+    ["view", { chat: ALICE, id: "m1" }, "id"],
+    ["view", { chat: ALICE, before_count: 1 }, "before_count"],
+    ["list", { id: "m1" }, "id"],
+    ["list", { after_count: 1 }, "after_count"],
+    ["search", { query: "x", unread: true }, "unread"],
+    ["search", { query: "x", last: false }, "last"],
+    ["search", { query: "x", id: "m1" }, "id"],
+    ["search", { query: "x", after_count: 2 }, "after_count"],
+    ["around", { chat: ALICE, id: "m1", query: "x" }, "query"],
+    ["around", { chat: ALICE, id: "m1", limit: 3 }, "limit"],
+    ["around", { chat: ALICE, id: "m1", cursor: "c" }, "cursor"],
+    ["around", { chat: ALICE, id: "m1", after: "2026-11-07" }, "after"],
+    ["around", { chat: ALICE, id: "m1", before: "2026-11-07" }, "before"],
   ])("%s refuses %j, which it does not take", async (method, extra, name) => {
     const error = await t.failure({ method, ...extra })
     expect(error.code).toBe("invalid_argument")
@@ -49,33 +62,59 @@ describe("chat read: the tool and its arguments", () => {
 
   test("refuses an unknown argument and an unknown method as invalid arguments", async () => {
     expect((await t.failure({ method: "list", wacli_flag: "--cursor" })).message).toContain("unknown argument")
-    expect((await t.failure({ method: "search", query: "x" })).code).toBe("invalid_argument")
+    expect((await t.failure({ method: "export", query: "x" })).code).toBe("invalid_argument")
     expect((await t.failure({})).code).toBe("invalid_argument")
   })
 
-  test("chat is required for view, and must be a JID, never a name or a number", async () => {
-    const missing = await t.failure({ method: "view" })
-    expect(missing.code).toBe("invalid_argument")
-    expect(missing.message).toContain("chat is required for view")
-    for (const chat of [
-      "Alice",
-      "+15550100001",
-      "15550100001",
-      "",
-      "  ",
-      "15550100001@example.com",
-      "@s.whatsapp.net",
-      "alice@s.whatsapp.net",
-      `${HIDDEN.split("@")[0]}:5@lid`,
-      "120363000000000001@s.whatsapp.net@g.us",
-    ]) {
-      const error = await t.failure({ method: "view", chat })
+  test("names the four methods, search with its incomplete result, and around with its trimming", () => {
+    for (const method of ["list", "view", "search", "around"]) expect(whatsappChatRead.description).toContain(method)
+    expect(whatsappChatRead.description).toContain("`incomplete`")
+    expect(whatsappChatRead.description).toContain("`trimmed_before` and `trimmed_after`")
+    expect(whatsappChatRead.description).toContain("needs no network")
+  })
+
+  test("query is required for search, and blank text is no query", async () => {
+    for (const query of [undefined, "", "   "]) {
+      const error = await t.failure({ method: "search", query })
       expect(error.code).toBe("invalid_argument")
-      expect(error.message).toContain("chat must be a chat JID")
-      expect(error.message).toContain("Use list to find the chat's JID")
-      expect(error.message).not.toContain("15550100001")
+      expect(error.message).toContain("query is required for search")
     }
   })
+
+  test("search takes a chat only as a JID, and a limit up to 200", async () => {
+    const error = await t.failure({ method: "search", query: "hello", chat: "Alice" })
+    expect(error.message).toContain("chat must be a chat JID")
+    expect((await t.failure({ method: "search", query: "hello", limit: 0 })).message).toContain("the largest is 200")
+    expect((await t.read({ method: "search", query: "hello", limit: 1000 })).messages).toHaveLength(1)
+  })
+
+  test.each(["view", "around"])(
+    "chat is required for %s, and must be a JID, never a name or a number",
+    async (method) => {
+      const extra = method === "around" ? { id: "m1" } : {}
+      const missing = await t.failure({ method, ...extra })
+      expect(missing.code).toBe("invalid_argument")
+      expect(missing.message).toContain(`chat is required for ${method}`)
+      for (const chat of [
+        "Alice",
+        "+15550100001",
+        "15550100001",
+        "",
+        "  ",
+        "15550100001@example.com",
+        "@s.whatsapp.net",
+        "alice@s.whatsapp.net",
+        `${HIDDEN.split("@")[0]}:5@lid`,
+        "120363000000000001@s.whatsapp.net@g.us",
+      ]) {
+        const error = await t.failure({ method, chat, ...extra })
+        expect(error.code).toBe("invalid_argument")
+        expect(error.message).toContain("chat must be a chat JID")
+        expect(error.message).toContain("Use list to find the chat's JID")
+        expect(error.message).not.toContain("15550100001")
+      }
+    },
+  )
 
   test("takes every kind of JID, and drops a person's device suffix", async () => {
     t.addChats(
