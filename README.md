@@ -157,6 +157,19 @@ Hermes, and
 `whatsapp-tools:whatsapp-count-activity` and `whatsapp-tools:count-activity`,
 which says how to count chats and replies over a period.
 
+### Contacts (`contacts`)
+
+| Tool                    | What it does                                                                                                                | Class |
+| ----------------------- | --------------------------------------------------------------------------------------------------------------------------- | ----- |
+| `whatsapp_contact_read` | by `method`: `search` finds contacts by name, number or JID, `check` asks WhatsApp whether up to 20 phone numbers are on it | read  |
+
+`search` reads the account's local mirror only, with no network or running
+service needed. `check` asks WhatsApp through the label's running sync service,
+writes nothing and adds no contact. The skill is
+[`whatsapp-contacts`](skills/whatsapp-contacts/SKILL.md), shown as
+`whatsapp-tools:whatsapp-contacts` in Claude Code and `whatsapp-tools:contacts`
+in Hermes.
+
 ## Adding a tool
 
 1. Write the spec in `src/core/<domain>/<verb>.ts` with `defineTool`: an ID

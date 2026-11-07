@@ -113,7 +113,7 @@ describe("callService with an answer", () => {
     await serve((socket) =>
       socket.end('{"ok":false,"error":{"code":"rate_limited","message":"slow down for a while"}}\n'),
     )
-    for (const mode of ["read", "write"] as const) {
+    for (const mode of ["read", "ask", "write"] as const) {
       const error = await failureOf(callService(paths, "x", undefined, { mode }))
       expect([error.code, error.message]).toEqual(["rate_limited", "slow down for a while"])
     }
@@ -131,14 +131,16 @@ describe("callService when the outcome is not known", () => {
   ]
 
   for (const [name, behave] of unknownOutcomes) {
-    test(`is uncertain for a write and upstream_error for a read when ${name}`, async () => {
+    test(`is uncertain for a write and upstream_error for a read or an ask when ${name}`, async () => {
       await serve((socket) => behave(socket))
       const write = await failureOf(callService(paths, "send", {}, { mode: "write" }))
       expect(write.code).toBe("uncertain")
       expect(write.message).toContain("Check before trying again")
-      const read = await failureOf(callService(paths, "look", {}, { mode: "read" }))
-      expect(read.code).toBe("upstream_error")
-      expect(read.message).not.toContain("Check before")
+      for (const mode of ["read", "ask"] as const) {
+        const read = await failureOf(callService(paths, "look", {}, { mode }))
+        expect(read.code).toBe("upstream_error")
+        expect(read.message).not.toContain("Check before")
+      }
     })
   }
 
@@ -167,7 +169,7 @@ describe("callService with an abort signal", () => {
 
   test("rejects with an AbortError when aborted before the request was written, whatever the mode", async () => {
     await serve((socket) => socket.end('{"ok":true,"data":1}\n'))
-    for (const mode of ["read", "write"] as const) {
+    for (const mode of ["read", "ask", "write"] as const) {
       const controller = new AbortController()
       const pending = callService(paths, "send", {}, { mode, signal: controller.signal })
       const settled = pending.catch((caught: unknown) => caught)
@@ -194,16 +196,18 @@ describe("callService with an abort signal", () => {
     await eventually(() => connections.every((socket) => socket.destroyed))
   })
 
-  test("rejects with an AbortError for a read that was submitted when it is aborted while waiting", async () => {
+  test("rejects with an AbortError for a read or an ask that was submitted when it is aborted while waiting", async () => {
     await serve(() => {})
-    const controller = new AbortController()
-    const settled = callService(paths, "look", {}, { mode: "read", signal: controller.signal }).catch(
-      (caught: unknown) => caught,
-    )
-    await eventually(() => requests.length === 1)
-    controller.abort()
-    const error = (await settled) as Error
-    expect(error.name).toBe("AbortError")
-    expect(error).not.toBeInstanceOf(ToolError)
+    for (const mode of ["read", "ask"] as const) {
+      const controller = new AbortController()
+      const settled = callService(paths, "look", {}, { mode, signal: controller.signal }).catch(
+        (caught: unknown) => caught,
+      )
+      await eventually(() => requests.length === (mode === "read" ? 1 : 2))
+      controller.abort()
+      const error = (await settled) as Error
+      expect(error.name).toBe("AbortError")
+      expect(error).not.toBeInstanceOf(ToolError)
+    }
   })
 })

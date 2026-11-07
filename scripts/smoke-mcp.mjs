@@ -7,7 +7,7 @@ import { PLUGIN_NAME } from "./package-name.mjs"
 const SERVER = fileURLToPath(new URL("../dist/mcp.js", import.meta.url))
 const EXIT_USAGE = 2
 const UNKNOWN_TOOL = "unknown_nonexistent_read"
-const EXPECTED_TOOLS = ["whatsapp_account_read", "whatsapp_chat_read"]
+const EXPECTED_TOOLS = ["whatsapp_account_read", "whatsapp_chat_read", "whatsapp_contact_read"]
 
 async function listTools() {
   const client = new Client({ name: "smoke", version: "0.0.0" })

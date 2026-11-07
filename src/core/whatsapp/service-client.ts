@@ -14,7 +14,7 @@ const ANSWER_GRACE_MS = 1_000
 const UNCERTAIN_ADVICE = "Check before trying again."
 
 export type ServiceCallOptions = {
-  /** Whether the operation only reads or may write; it decides how an outcome that is not known is reported. */
+  /** What the operation may do; only `write` reports an outcome that is not known as `uncertain`, `read` and `ask` do not. */
   mode: WacliMode
   /** Abandons the call: it rejects with an `AbortError`, or `uncertain` for a write already submitted. */
   signal?: AbortSignal
@@ -27,8 +27,8 @@ export type ServiceCallOptions = {
  *
  * A failure known to happen before anything left (the service is not running, the connection was refused) is
  * `upstream_error`. Once the request was written, a closed connection, a time-out or an answer that cannot be read
- * is `uncertain` for a write and `upstream_error` for a read, and so is an abort of `signal` for a write (a read
- * rejects with an `AbortError`, as an abort before anything was written does for both). An error the service
+ * is `uncertain` for a write and `upstream_error` for a read or an ask, and so is an abort of `signal` for a write
+ * (a read or an ask rejects with an `AbortError`, as an abort before anything was written does for all). An error the service
  * answers with keeps its code.
  */
 export function callService(

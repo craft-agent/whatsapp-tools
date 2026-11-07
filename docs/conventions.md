@@ -292,7 +292,10 @@ Every entry point takes the same settings:
   and can never change what was received. The number check is the exception:
   a number tells nothing of the account behind it until WhatsApp is asked, so
   it asks through the label's service and needs it running. It still writes
-  nothing to the mirror.
+  nothing to the mirror, so wacli runs it without `--read-only` (which
+  refuses it) but its failures read as a read's: an outcome that is not known
+  is `upstream_error`, never `uncertain`, and the service, which knows which
+  of its operations write, answers a stopped or late one the same way.
 - **History starts at pairing.** The mirror holds what WhatsApp gave the
   linked device: what the phone sends while pairing, which is thin and best
   effort, and every message from then on. Asking the phone for older messages

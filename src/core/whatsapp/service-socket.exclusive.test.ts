@@ -38,7 +38,9 @@ async function surroundings() {
 
 describe("a delegated operation", () => {
   test("runs while the child runs", async () => {
-    const { outcome, stop } = await startService(fixture, { look: { kind: "delegated", run: surroundings } })
+    const { outcome, stop } = await startService(fixture, {
+      look: { kind: "delegated", writes: true, run: surroundings },
+    })
     expect(await call("look")).toEqual({ state: "running", stopped: 0, starts: 1 })
     stop()
     await outcome
@@ -48,8 +50,8 @@ describe("a delegated operation", () => {
     const started = gate()
     const ran: string[] = []
     const { outcome } = await startService(fixture, {
-      hold: { kind: "delegated", run: (_args, { signal }) => untilAborted(signal, started.open) },
-      mark: { kind: "delegated", run: async () => ran.push("mark") },
+      hold: { kind: "delegated", writes: true, run: (_args, { signal }) => untilAborted(signal, started.open) },
+      mark: { kind: "delegated", writes: true, run: async () => ran.push("mark") },
     })
     const holding = call("hold").catch((caught: unknown) => caught)
     await started.opened
@@ -68,7 +70,9 @@ describe("a delegated operation", () => {
 
 describe("an exclusive operation", () => {
   test("runs with the child stopped, then starts the child again", async () => {
-    const { outcome, stop } = await startService(fixture, { look: { kind: "exclusive", run: surroundings } })
+    const { outcome, stop } = await startService(fixture, {
+      look: { kind: "exclusive", writes: true, run: surroundings },
+    })
     expect(await call("look")).toEqual({ state: "paused", stopped: 1, starts: 1 })
     await childBack(2)
     stop()
@@ -77,8 +81,8 @@ describe("an exclusive operation", () => {
 
   test("starts the child again when the operation throws a ToolError, and returns its code", async () => {
     const { outcome, stop } = await startService(fixture, {
-      fail: { kind: "exclusive", run: () => Promise.reject(new ToolError("not_found", "no such thing")) },
-      look: { kind: "delegated", run: surroundings },
+      fail: { kind: "exclusive", writes: true, run: () => Promise.reject(new ToolError("not_found", "no such thing")) },
+      look: { kind: "delegated", writes: true, run: surroundings },
     })
     const error = (await call("fail").catch((caught: unknown) => caught)) as ToolError
     expect(error).toBeInstanceOf(ToolError)
@@ -91,7 +95,7 @@ describe("an exclusive operation", () => {
 
   test("starts the child again when the operation throws anything else, and hides the error's text", async () => {
     const { outcome, stop } = await startService(fixture, {
-      fail: { kind: "exclusive", run: () => Promise.reject(new Error("broke for +15551234567")) },
+      fail: { kind: "exclusive", writes: true, run: () => Promise.reject(new Error("broke for +15551234567")) },
     })
     const error = (await call("fail").catch((caught: unknown) => caught)) as ToolError
     expect(error.code).toBe("internal_error")
@@ -108,12 +112,14 @@ describe("an exclusive operation", () => {
     const { outcome, stop } = await startService(fixture, {
       first: {
         kind: "exclusive",
+        writes: true,
         async run() {
           order.push(`first at ${(await surroundings()).state}`)
         },
       },
       second: {
         kind: "delegated",
+        writes: true,
         async run() {
           order.push(`second at ${(await surroundings()).state}`)
         },
@@ -128,7 +134,7 @@ describe("an exclusive operation", () => {
 
   test("ends the run as failed when the child cannot be started again", async () => {
     const { outcome } = await startService(fixture, {
-      remove: { kind: "exclusive", run: () => rm(join(fixture.fake.dir, "wacli")).then(() => "done") },
+      remove: { kind: "exclusive", writes: true, run: () => rm(join(fixture.fake.dir, "wacli")).then(() => "done") },
     })
     expect(await call("remove")).toBe("done")
 
@@ -143,7 +149,7 @@ describe("an exclusive operation", () => {
   test("a stop during the operation gives up on it as uncertain and does not start the child again", async () => {
     const started = gate()
     const { outcome, stop } = await startService(fixture, {
-      wait: { kind: "exclusive", run: (_args, { signal }) => untilAborted(signal, started.open) },
+      wait: { kind: "exclusive", writes: true, run: (_args, { signal }) => untilAborted(signal, started.open) },
     })
     const pending = call("wait").catch((caught: unknown) => caught)
     await started.opened
@@ -160,8 +166,8 @@ describe("an exclusive operation", () => {
     const started = gate()
     const ran: string[] = []
     const { outcome, stop } = await startService(fixture, {
-      wait: { kind: "delegated", run: (_args, { signal }) => untilAborted(signal, started.open) },
-      mark: { kind: "delegated", run: async () => ran.push("mark") },
+      wait: { kind: "delegated", writes: true, run: (_args, { signal }) => untilAborted(signal, started.open) },
+      mark: { kind: "delegated", writes: true, run: async () => ran.push("mark") },
     })
     const pending = call("wait").catch((caught: unknown) => caught)
     await started.opened

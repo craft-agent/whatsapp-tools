@@ -12,7 +12,7 @@ CLI_NAME = "whatsapp-tools-cli"
 SKILL_PREFIX = "whatsapp-"
 
 #: The emoji each toolset is shown with; empty by default until a project adds its own.
-TOOLSET_EMOJI: dict[str, str] = {"account": "🪪", "chats": "💬"}
+TOOLSET_EMOJI: dict[str, str] = {"account": "🪪", "chats": "💬", "contacts": "📇"}
 
 __all__ = [
     "CLI_NAME",

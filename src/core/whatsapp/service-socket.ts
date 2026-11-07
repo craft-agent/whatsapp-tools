@@ -31,6 +31,8 @@ const STOPPED_WHILE_RUNNING =
   "The sync service stopped while the request was running, so the change may have taken effect. Check before trying again."
 const OUT_OF_TIME =
   "The request ran out of time in the sync service, so the change may have taken effect. Check before trying again."
+const STOPPED_WHILE_ASKING = "The sync service stopped before WhatsApp answered; nothing was changed. Try again."
+const OUT_OF_TIME_ASKING = "The sync service ran out of time before WhatsApp answered; nothing was changed. Try again."
 const INTERNAL_ERROR = "The sync service failed while running the request."
 
 /** What an operation gets to work with. */
@@ -49,6 +51,12 @@ export type ServiceOperationContext = {
  */
 export type ServiceOperation = {
   kind: "delegated" | "exclusive"
+  /**
+   * Whether the operation may change anything (the store or WhatsApp). One that does not (a number check) is
+   * answered `upstream_error` when the service stops or its deadline passes while it runs, since nothing was
+   * changed; one that does is answered `uncertain`.
+   */
+  writes: boolean
   run(args: unknown, context: ServiceOperationContext): Promise<unknown>
 }
 
@@ -118,10 +126,13 @@ export async function listenOnServiceSocket(path: string, options: ServiceSocket
     }
   }
 
-  const failureOf = (error: unknown, signal: AbortSignal, op: string): ServiceResponse => {
+  const failureOf = (error: unknown, signal: AbortSignal, operation: ServiceOperation, op: string): ServiceResponse => {
     if (isToolError(error)) return failureResponse(error.code, error.message)
     if (signal.aborted || isAbortError(error)) {
-      return failureResponse("uncertain", shutdown.signal.aborted ? STOPPED_WHILE_RUNNING : OUT_OF_TIME)
+      const stopped = shutdown.signal.aborted
+      if (!operation.writes)
+        return failureResponse("upstream_error", stopped ? STOPPED_WHILE_ASKING : OUT_OF_TIME_ASKING)
+      return failureResponse("uncertain", stopped ? STOPPED_WHILE_RUNNING : OUT_OF_TIME)
     }
     const detail = error instanceof Error ? `${error.name}: ${error.message}` : "unexpected error"
     log(`operation ${quoteOp(op)} failed: ${maskNumbers(detail).slice(0, MAX_LOGGED_ERROR)}`)
@@ -138,7 +149,7 @@ export async function listenOnServiceSocket(path: string, options: ServiceSocket
     try {
       answer(socket, { ok: true, data: (await execute(operation, request.args, signal)) ?? null })
     } catch (error) {
-      answer(socket, failureOf(error, signal, request.op))
+      answer(socket, failureOf(error, signal, operation, request.op))
     }
   }
 

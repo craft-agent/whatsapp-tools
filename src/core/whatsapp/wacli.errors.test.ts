@@ -5,7 +5,7 @@ import { envelope, failure, installFakeWacli, pathsIn, type FakeResponse, type F
 
 const paths = pathsIn("/state")
 const NUMBER = "15550000000"
-const MODES: WacliMode[] = ["read", "write"]
+const MODES: WacliMode[] = ["read", "ask", "write"]
 
 let fake: FakeWacli
 
@@ -80,6 +80,7 @@ describe("wacliError by the text of the envelope", () => {
 
   test.each([
     ["read", "upstream_error"],
+    ["ask", "upstream_error"],
     ["write", "uncertain"],
   ] as [WacliMode, ErrorCode][])("any other text is %s's unknown outcome: %s", (mode, code) => {
     const error = errorFor("something broke", mode)
@@ -95,6 +96,7 @@ describe("wacliError by the text of the envelope", () => {
     const result = { code: 1, stdout: "", stderr: '{"success":false,"data":null,"error":null}' }
     expect(wacliError(result, "write").code).toBe("uncertain")
     expect(wacliError(result, "read").code).toBe("upstream_error")
+    expect(wacliError(result, "ask").code).toBe("upstream_error")
   })
 
   test("the envelope on stderr is found past other lines", () => {
@@ -115,6 +117,9 @@ describe("a call without a usable envelope", () => {
   for (const [name, response] of cases) {
     test(`${name}: upstream_error for a read`, async () => {
       expect((await thrownBy("read", response)).code).toBe("upstream_error")
+    })
+    test(`${name}: upstream_error for an ask`, async () => {
+      expect((await thrownBy("ask", response)).code).toBe("upstream_error")
     })
     test(`${name}: uncertain for a write`, async () => {
       expect((await thrownBy("write", response)).code).toBe("uncertain")
@@ -194,6 +199,16 @@ describe("cancellation and time limits", () => {
     )
     expect((error as ToolError).code).toBe("upstream_error")
     expect((error as ToolError).message).toContain("did not answer within 0.5 s")
+  })
+
+  test("an ask that is not answered in time is upstream_error", async () => {
+    await checkWacli(fake.env)
+    fake.setResponses([{ args: ["probe"], hang: true }])
+    const error = await runWacli(paths, ["probe"], { env: fake.env, mode: "ask", timeoutMs: 500 }).catch(
+      (caught: unknown) => caught,
+    )
+    expect((error as ToolError).code).toBe("upstream_error")
+    expect((error as ToolError).message).not.toContain("may have taken effect")
   })
 
   test("a write that is not answered in time is uncertain", async () => {
