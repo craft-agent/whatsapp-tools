@@ -14,11 +14,14 @@ import { permissionResources } from "../entry/permission"
 import { PROJECT_PROFILE, type EntryProfile } from "../entry/profile"
 import { parseStateDir, parseToolSettings } from "../entry/settings"
 import { PROJECT } from "../project"
+import { usageError } from "./command-args"
+import { EXIT_FAILED, EXIT_OK, EXIT_USAGE, type CommandIo } from "./command-io"
+import { runPair } from "./pair"
+import { runRemoveCommand } from "./remove"
+import { runServiceCommand } from "./service"
+import { runSyncCommand } from "./sync"
 
-/** The exit codes of a command: it did its work, the work failed, or the command line was wrong. */
-export const EXIT_OK = 0
-export const EXIT_FAILED = 1
-export const EXIT_USAGE = 2
+export { EXIT_FAILED, EXIT_OK, EXIT_USAGE }
 
 const PROGRAM = PROJECT.cli
 const CWD_FLAG = "--cwd"
@@ -48,10 +51,6 @@ type Command =
   | { name: "run"; toolId: string; cwd: string; selected: ToolSpec[]; stateDir: string }
   | { name: "target"; toolId: string; cwd: string; stateDir: string }
 
-function usageError(message: string): ToolError {
-  return new ToolError("invalid_argument", message)
-}
-
 /** Splits `--cwd <dir>` from the remaining arguments, which are the settings flags. */
 function takeCwd(argv: string[]): { cwd: string | undefined; rest: string[] } {
   let cwd: string | undefined
@@ -80,7 +79,9 @@ function parseCommand(argv: string[], io: Pick<CliIo, "specs" | "env" | "profile
   }
   if (name !== "run" && name !== "target") {
     const given = name === undefined ? "No command given" : `Unknown command "${name}"`
-    throw usageError(`${given}; use list, run <tool-id> --cwd <dir> or target <tool-id> --cwd <dir>.`)
+    throw usageError(
+      `${given}; use list, run <tool-id> --cwd <dir>, target <tool-id> --cwd <dir>, pair, sync, service or remove.`,
+    )
   }
 
   const [toolId, ...options] = args
@@ -178,15 +179,28 @@ function errorDetail(error: unknown): string {
   return error instanceof Error ? (error.stack ?? error.message) : String(error)
 }
 
+/** The commands a person runs to set up an account, which print plain text rather than a JSON document. */
+const PERSON_COMMANDS: Partial<Record<string, (argv: string[], io: CommandIo) => Promise<number>>> = {
+  pair: runPair,
+  sync: runSyncCommand,
+  service: runServiceCommand,
+  remove: runRemoveCommand,
+}
+
 /**
  * The command line of the package, for callers that are not a harness's own
  * plugin: `list` answers with the selected tools, `run` runs one with the
  * arguments on standard input, and `target` answers with what a call would
  * write to (`{"resources": [...]}`). Standard output carries only the JSON document; a
  * mistake in the command line is one line on standard error and `EXIT_USAGE`.
- * Resolves to the exit code.
+ * `pair`, `sync`, `service` and `remove` are for a person setting up an
+ * account (see `PERSON_COMMANDS`). Resolves to the exit code.
  */
 export async function runCli(argv: string[], io: CliIo): Promise<number> {
+  const [name, ...rest] = argv
+  const personCommand = name !== undefined && Object.hasOwn(PERSON_COMMANDS, name) ? PERSON_COMMANDS[name] : undefined
+  if (personCommand) return personCommand(rest, io)
+
   let command: Command
   try {
     command = parseCommand(argv, io)
