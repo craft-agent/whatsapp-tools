@@ -5,6 +5,8 @@ import type { ChatReadInput, Method } from "./schema"
 const METHOD_ARGUMENTS = {
   list: ["query", "unread", "last", "limit", "cursor"],
   view: ["chat", "after", "before", "limit", "cursor"],
+  search: ["query", "chat", "after", "before", "limit", "cursor"],
+  around: ["chat", "id", "before_count", "after_count"],
 } as const satisfies Record<Method, readonly (keyof ChatReadInput)[]>
 
 const SHARED_ARGUMENTS: readonly (keyof ChatReadInput)[] = ["method", "account"]

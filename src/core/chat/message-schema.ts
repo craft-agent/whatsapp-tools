@@ -60,6 +60,7 @@ export const messageEntry = z.object({
     .string()
     .nullable()
     .describe("`me` for the user's own messages, else the sender's name; null when wacli has no name."),
+  chat: chatRef.optional().describe("search: the chat the message is in."),
   from_cut: z
     .literal(true)
     .optional()
