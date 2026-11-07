@@ -43,6 +43,7 @@ export async function commandFixture(responses: FakeResponse[] = []): Promise<Co
       env: fake.env,
       stdout: (text) => (stdout += text),
       stderr: (text) => (stderr += text),
+      stdoutIsTTY: false,
       ...overrides,
     })
     return { done, output: () => ({ stdout, stderr }) }

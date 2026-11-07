@@ -3,6 +3,7 @@ import { existsSync } from "node:fs"
 import { eventLine } from "../core/whatsapp/wacli.testing"
 import {
   AUTH_OK,
+  CODE_EVENTS,
   NOT_PAIRED,
   PAIR_CODE,
   PHONE,
@@ -18,8 +19,13 @@ import { runPair } from "./pair"
 
 const SCAN_INSTRUCTION = "On your phone, open WhatsApp > Linked devices > Link a device, and scan this code:"
 const PAIR_CODE_STEPS = "WhatsApp > Linked devices > Link a device > Link with phone number instead"
-/** The explicit white and black backgrounds the code is painted with, so it scans on any terminal theme. */
-const QR_COLORS = [/\x1b\[47m/, /\x1b\[40m/]
+const RENEWED_INSTRUCTION = "WhatsApp renewed the code; scan this one instead:"
+/** The fixed 256-colour white and near-black the code is painted with, so it scans on any terminal theme. */
+const QR_COLORS = [/\x1b\[48;5;231m/, /\x1b\[38;5;232m/]
+/** Moves the cursor up over a drawing and clears from there, to draw a renewed code in its place. */
+const REDRAW = /\x1b\[\d+F\x1b\[0J/
+
+const qr = (code: string, afterMs: number) => ({ line: eventLine("qr_code", { code }), afterMs })
 
 let fixture: CommandFixture
 
@@ -111,7 +117,6 @@ describe("runPair", () => {
   })
 
   test("draws a renewed code once, and a repeated one not at all", async () => {
-    const qr = (code: string, afterMs: number) => ({ line: eventLine("qr_code", { code }), afterMs })
     fixture = await commandFixture([
       NOT_PAIRED,
       { ...AUTH_OK, stderrLines: [qr("first-code", 0), qr("first-code", 20), qr("second-code", 40)] },
@@ -120,7 +125,37 @@ describe("runPair", () => {
     const { stdout } = await fixture.run(runPair)
 
     expect(stdout.split(SCAN_INSTRUCTION)).toHaveLength(2)
-    expect(stdout.split("WhatsApp renewed the code; scan this one instead:")).toHaveLength(2)
+    expect(stdout.split(RENEWED_INSTRUCTION)).toHaveLength(2)
+    expect(stdout).not.toMatch(REDRAW)
+  })
+
+  test("replaces the drawing in place on a terminal, under the instructions printed once", async () => {
+    fixture = await commandFixture([
+      NOT_PAIRED,
+      { ...AUTH_OK, stderrLines: [qr("first-code", 0), qr("second-code", 20)] },
+    ])
+
+    const { code, stdout } = await fixture.run(runPair, [], { stdoutIsTTY: true })
+
+    expect(code).toBe(EXIT_OK)
+    const [first = "", rest = ""] = stdout.split(REDRAW)
+    const drawing = first.slice(first.indexOf("\n\n") + 2)
+    const lines = drawing.split("\n").length - 1
+    expect(first.startsWith(SCAN_INSTRUCTION)).toBe(true)
+    expect(lines).toBeGreaterThan(0)
+    expect(stdout).toContain(`${drawing}\x1b[${lines}F\x1b[0J`)
+    expect(rest.startsWith("\x1b[38;5;")).toBe(true)
+    expect(stdout.split(SCAN_INSTRUCTION)).toHaveLength(2)
+    expect(stdout).not.toContain(RENEWED_INSTRUCTION)
+  })
+
+  test("prints a code renewed after the pairing code below it, not over it", async () => {
+    fixture = await commandFixture([NOT_PAIRED, { ...AUTH_OK, stderrLines: [...CODE_EVENTS, qr("second-code", 40)] }])
+
+    const { stdout } = await fixture.run(runPair, [], { stdoutIsTTY: true })
+
+    expect(stdout.indexOf(PAIR_CODE_STEPS)).toBeLessThan(stdout.indexOf(RENEWED_INSTRUCTION))
+    expect(stdout).not.toMatch(REDRAW)
   })
 
   test("reports a failure on standard error as one line and exits 1, with no code or number in it", async () => {
