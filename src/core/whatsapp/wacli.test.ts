@@ -212,6 +212,13 @@ describe("runWacli", () => {
     expect(call?.argv).toEqual(["--store", paths.store, "--json", "--read-only", "chats", "list"])
   })
 
+  test("runs an ask without --read-only, which wacli refuses for asking WhatsApp", async () => {
+    fake.setResponses([{ args: ["contacts", "check"], stdout: envelope([]) }])
+    await runWacli(paths, ["contacts", "check", "--", "+15550000001"], { env: fake.env, mode: "ask" })
+    const [call] = await commandCalls()
+    expect(call?.argv).toEqual(["--store", paths.store, "--json", "contacts", "check", "--", "+15550000001"])
+  })
+
   test("runs a write without --read-only", async () => {
     fake.setResponses([{ args: ["send", "text"], stdout: envelope({ id: "A1" }) }])
     await runWacli(paths, ["send", "text", "--to", "1@s.whatsapp.net"], { env: fake.env, mode: "write" })

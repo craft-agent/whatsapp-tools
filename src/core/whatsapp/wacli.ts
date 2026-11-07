@@ -50,8 +50,12 @@ const STORE_LOCKED = /store is locked|timed out waiting for store lock/i
 const REFUSED =
   /^(?:error:\s*)?(?:read-only mode:|unknown (?:flag|command|shorthand flag)|required flag|invalid argument|accepts \d+ arg)/i
 
-/** Whether a call only reads (and runs with `--read-only`) or may write. */
-export type WacliMode = "read" | "write"
+/**
+ * What a call may do. `read` only reads the store and runs with `--read-only`. `ask` writes nothing either but asks
+ * WhatsApp, which wacli refuses under `--read-only`, so it runs without the flag. `write` may change the store or
+ * WhatsApp. Only `write` reports an unknown outcome as `uncertain`; the other two report `upstream_error`.
+ */
+export type WacliMode = "read" | "ask" | "write"
 
 export type WacliRunOptions = {
   /** The caller's environment; `wacliEnv` picks what wacli gets from it. */
@@ -186,7 +190,7 @@ export async function checkWacli(
   return info
 }
 
-/** The arguments for wacli on one label's store, followed by `args`; `--read-only` only for a read. */
+/** The arguments for wacli on one label's store, followed by `args`; `--read-only` only when `readOnly`. */
 export function wacliArgs(paths: LabelPaths, args: string[], { readOnly }: { readOnly: boolean }): string[] {
   return ["--store", paths.store, "--json", ...(readOnly ? ["--read-only"] : []), ...args]
 }
@@ -247,7 +251,7 @@ function failureError(text: string, mode: WacliMode): ToolError {
   if (STORE_LOCKED.test(text)) {
     return new ToolError(
       "upstream_error",
-      "The account's store is held by another wacli process, normally its sync service; writes must go through the service.",
+      "The account's store is held by another wacli process, normally its sync service; a call that needs the store must go through the service.",
     )
   }
   return unknownOutcome(mode, `wacli reported an error (${detail || "no message"})`)
@@ -255,8 +259,8 @@ function failureError(text: string, mode: WacliMode): ToolError {
 
 /**
  * The error for a wacli call that did not succeed: by the text of the envelope wacli wrote on failure, since
- * wacli exits with 0 or 1 only. A call whose outcome is unknown is `upstream_error` for a read and `uncertain`
- * for a write. `timeoutMs` is the limit the call ran under.
+ * wacli exits with 0 or 1 only. A call whose outcome is unknown is `upstream_error` for a read or an ask and
+ * `uncertain` for a write. `timeoutMs` is the limit the call ran under.
  */
 export function wacliError(result: ExecResult, mode: WacliMode, timeoutMs = DEFAULT_TIMEOUT_MS): ToolError {
   if (result.timedOut) return unknownOutcome(mode, `wacli did not answer within ${timeoutMs / 1000} s`)
@@ -269,7 +273,7 @@ export function wacliError(result: ExecResult, mode: WacliMode, timeoutMs = DEFA
 }
 
 /**
- * Runs wacli on one label's store and returns the `data` of its envelope. A read runs with `--read-only`. Failures
+ * Runs wacli on one label's store and returns the `data` of its envelope. Only a `read` runs with `--read-only`. Failures
  * throw as `wacliError` says; an abort rejects with the `AbortError` untouched.
  */
 export async function runWacli(paths: LabelPaths, args: string[], options: WacliRunOptions): Promise<unknown> {
