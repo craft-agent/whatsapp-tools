@@ -30,6 +30,11 @@ export type FakeResponse = {
    * backfill stores what the phone sends. The next `setMirror` or `setResponses` of the test writes its own copy over them.
    */
   addMessages?: Record<string, unknown>[]
+  /**
+   * The content the response writes to the file named after `--output`, as a download does. Without a `stdout` it
+   * prints the success envelope of that download; `{output}` in `stdout` or `stderr` stands for the file's path.
+   */
+  writeOutput?: { base64: string } | { text: string }
 }
 
 /**
