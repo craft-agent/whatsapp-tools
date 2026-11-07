@@ -1,5 +1,6 @@
 import { z } from "zod"
 import { ToolError } from "../errors"
+import { backfillOperation, HISTORY_BACKFILL_OP, type BackfillLimits } from "./backfill"
 import type { ServiceOperationContext, ServiceOperations } from "./service-socket"
 import { runWacli } from "./wacli"
 
@@ -57,10 +58,18 @@ async function checkContacts(args: unknown, { paths, env, signal }: ServiceOpera
   return results.data
 }
 
+/** What a caller may change in the service's operations; tests shorten the time limits. */
+export type ServiceOperationOptions = {
+  backfill?: BackfillLimits
+}
+
 /**
  * The operations the sync service takes from its callers. `contacts_check` runs while the sync runs, so wacli hands
- * the check to it, and writes nothing.
+ * the check to it, and writes nothing. `history_backfill` runs with the sync stopped, and writes the local mirror.
  */
-export function serviceOperations(): ServiceOperations {
-  return { [CONTACTS_CHECK_OP]: { kind: "delegated", writes: false, run: checkContacts } }
+export function serviceOperations({ backfill }: ServiceOperationOptions = {}): ServiceOperations {
+  return {
+    [CONTACTS_CHECK_OP]: { kind: "delegated", writes: false, run: checkContacts },
+    [HISTORY_BACKFILL_OP]: backfillOperation(backfill),
+  }
 }
