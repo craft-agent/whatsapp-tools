@@ -25,16 +25,17 @@ const KINDS: ReadonlyMap<string, ChatKind> = new Map<string, ChatKind>([
 
 /**
  * The chat JID `text` names, with a person's device suffix removed, or `invalid_argument` saying that a chat is a
- * JID and where to find it. The text is not echoed, since it may be a number.
+ * JID and where to find it (`finder` names what lists the chats, `list` for a method of the chat tool). The text is
+ * not echoed, since it may be a number.
  */
-export function parseChatJid(text: string | undefined, name: string, method: string): string {
+export function parseChatJid(text: string | undefined, name: string, method: string, finder = "list"): string {
   const jid = text?.trim()
   const phone = jid === undefined ? null : PHONE_JID.exec(jid)
   if (phone) return `${phone[1]}@${PHONE_SERVER}`
   if (jid !== undefined && OTHER_JIDS.some((form) => form.test(jid))) return jid
   throw new ToolError(
     "invalid_argument",
-    `${name} ${text === undefined ? `is required for ${method}` : "must be a chat JID"}: …@s.whatsapp.net, …@lid, …@g.us, …@newsletter or …@broadcast, never a name or a number. Use list to find the chat's JID.`,
+    `${name} ${text === undefined ? `is required for ${method}` : "must be a chat JID"}: …@s.whatsapp.net, …@lid, …@g.us, …@newsletter or …@broadcast, never a name or a number. Use ${finder} to find the chat's JID.`,
   )
 }
 

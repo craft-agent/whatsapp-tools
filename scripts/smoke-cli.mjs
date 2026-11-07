@@ -10,6 +10,8 @@ const EXIT_USAGE = 2
 const UNKNOWN_TOOL = "unknown_nonexistent_read"
 /** Read tools that every setting lists, since the default toolsets include theirs. */
 const READ_TOOLS = ["whatsapp_chat_read", "whatsapp_contact_read"]
+/** Write tools of the default toolsets: listed unless the setting is read-only, which registers no write tool. */
+const WRITE_TOOLS = ["whatsapp_history_backfill"]
 
 function expect(condition, message) {
   if (!condition) throw new Error(message)
@@ -39,6 +41,11 @@ async function listsTheServersTools() {
     expect(
       READ_TOOLS.every((id) => listed.some((tool) => tool.id === id)),
       `Expected ${label} to list ${READ_TOOLS.join(", ")}, got ${run.stdout}`,
+    )
+    const readOnly = settings.includes("--read-only")
+    expect(
+      WRITE_TOOLS.every((id) => listed.some((tool) => tool.id === id) !== readOnly),
+      `Expected ${label} to ${readOnly ? "leave out" : "list"} ${WRITE_TOOLS.join(", ")}, got ${run.stdout}`,
     )
     const expected = await mcpToolNames(settings)
     expect(

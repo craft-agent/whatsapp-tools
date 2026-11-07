@@ -12,6 +12,7 @@ from . import project
 from .runtime import CliError, Runtime, agent_cwd
 
 #: How long one call may take, in seconds: a ceiling above what a tool call is expected to take.
+#: ``project.TOOL_TIMEOUT_SECONDS`` gives a longer one to the tools that need it.
 RUN_TIMEOUT_SECONDS = 150
 
 #: The toolset name of a tool in ``hermes tools``: the package's toolset after this prefix.
@@ -52,7 +53,7 @@ def make_handler(runtime: Runtime, tool_id: str, flags: list[str]) -> Callable[.
             result = runtime.run(
                 ["run", tool_id, "--cwd", agent_cwd(), *flags],
                 stdin=json.dumps(args),
-                timeout=RUN_TIMEOUT_SECONDS,
+                timeout=project.TOOL_TIMEOUT_SECONDS.get(tool_id, RUN_TIMEOUT_SECONDS),
             )
         except CliError as error:
             return error_result(str(error))
