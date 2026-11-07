@@ -31,6 +31,8 @@ export type CommandIo = {
   profile?: EntryProfile
   /** Whether standard input is an interactive terminal. */
   isTTY?: boolean
+  /** Whether standard output is a terminal, where a drawing can be replaced in place; defaults to `process.stdout.isTTY`. */
+  stdoutIsTTY?: boolean
   /** Reads a line of input with an optional prompt; used for interactive confirmations. */
   readLine?(prompt: string): Promise<string | undefined>
   /** The node binary and the CLI script to put in the service; default `process.execPath` and the realpath of `process.argv[1]`. */

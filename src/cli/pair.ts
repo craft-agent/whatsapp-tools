@@ -1,9 +1,9 @@
-import { renderANSI } from "uqr"
 import { DEFAULT_LABEL, checkLabel } from "../core/whatsapp/labels"
 import { normalizePhone, pairDevice } from "../core/whatsapp/pairing"
 import { PROJECT } from "../project"
 import { handleCommandError, parseCommandStateDir, parseFlagArgs, usageError } from "./command-args"
 import { EXIT_OK, type CommandIo } from "./command-io"
+import { drawQr } from "./qr"
 
 const SCAN_INSTRUCTION = "On your phone, open WhatsApp > Linked devices > Link a device, and scan this code:"
 const RENEWED_INSTRUCTION = "WhatsApp renewed the code; scan this one instead:"
@@ -11,9 +11,6 @@ const PAIR_CODE_INSTRUCTION =
   "On your phone, open WhatsApp > Linked devices > Link a device > Link with phone number instead, and enter this code:"
 const WAIT_NOTE =
   "Keep this window open: after the scan, the first sync runs for a short while before this command finishes."
-
-/** Light modules around the code, which a scanner needs; uqr's ANSI renderer paints them white on any theme. */
-const QR_BORDER = 2
 
 const HISTORY_NOTE =
   "The phone keeps sending older history for a while; it reaches the mirror once the sync service runs."
@@ -58,10 +55,6 @@ function parsePair(argv: string[], io: CommandIo): PairCommand {
   }
 }
 
-function endWithLineBreak(text: string): string {
-  return text.endsWith("\n") ? text : `${text}\n`
-}
-
 function messageCount(count: number): string {
   return `${count} ${count === 1 ? "message" : "messages"}`
 }
@@ -82,8 +75,11 @@ export async function runPair(argv: string[], io: CommandIo): Promise<number> {
     return handleCommandError(error, io, { mode: "usage" })
   }
 
+  const inPlace = io.stdoutIsTTY ?? Boolean(process.stdout.isTTY)
   let lastQrCode: string | undefined
   let lastPairCode: string | undefined
+  /** The lines of the drawing at the bottom of the terminal, which a renewed code replaces; 0 when there is none. */
+  let drawnLines = 0
   try {
     const result = await pairDevice({
       stateDir: command.stateDir,
@@ -95,14 +91,17 @@ export async function runPair(argv: string[], io: CommandIo): Promise<number> {
       signal: io.signal ?? new AbortController().signal,
       onQrCode(code) {
         if (code === lastQrCode) return
-        const instruction = lastQrCode === undefined ? SCAN_INSTRUCTION : RENEWED_INSTRUCTION
-        io.stdout(`${instruction}\n\n${endWithLineBreak(renderANSI(code, { border: QR_BORDER }))}`)
-        if (lastQrCode === undefined) io.stdout(`\n${WAIT_NOTE}\n`)
+        const drawing = `${drawQr(code)}\n`
+        if (lastQrCode === undefined) io.stdout(`${SCAN_INSTRUCTION}\n${WAIT_NOTE}\n\n${drawing}`)
+        else if (drawnLines > 0) io.stdout(`\x1b[${drawnLines}F\x1b[0J${drawing}`)
+        else io.stdout(`${RENEWED_INSTRUCTION}\n\n${drawing}`)
+        drawnLines = inPlace ? drawing.split("\n").length - 1 : 0
         lastQrCode = code
       },
       onPairCode(code) {
         if (code === lastPairCode) return
         io.stdout(`${PAIR_CODE_INSTRUCTION}\n\n  ${code}\n\n${WAIT_NOTE}\n`)
+        drawnLines = 0
         lastPairCode = code
       },
     })
