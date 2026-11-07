@@ -8,7 +8,7 @@ import { labelPaths, listLabels, pickLabel, type LabelPaths } from "../whatsapp/
 import { maskNumbers } from "../whatsapp/mask"
 import { isServiceRunning } from "../whatsapp/service-lock"
 import { readServiceStatus } from "../whatsapp/service-status"
-import { checkWacli, runWacli } from "../whatsapp/wacli"
+import { WacliTooOldError, checkWacli, runWacli } from "../whatsapp/wacli"
 
 const DOCTOR_TIMEOUT_MS = 20_000
 
@@ -65,8 +65,7 @@ async function readWacli(signal: AbortSignal | undefined): Promise<Wacli> {
   } catch (error) {
     if (!(error instanceof ToolError)) throw error
     if (error.code === "not_found") return { version: null, supported: false }
-    const outdatedVersion = /^wacli (\d+\.\d+\.\d+) is older than /.exec(error.message)
-    if (error.code === "upstream_error" && outdatedVersion) return { version: outdatedVersion[1]!, supported: false }
+    if (error instanceof WacliTooOldError) return { version: error.version, supported: false }
     throw error
   }
 }

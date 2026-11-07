@@ -5,6 +5,7 @@ import { ToolError } from "../errors"
 import {
   FALLBACK_DIRS,
   WACLI_MIN_VERSION,
+  WacliTooOldError,
   checkWacli,
   findWacli,
   parseVersion,
@@ -130,6 +131,8 @@ describe("checkWacli", () => {
     expect((error as ToolError).message).toBe(
       `wacli 0.25.9 is older than ${WACLI_MIN_VERSION}, which these tools need; update wacli (https://github.com/openclaw/wacli).`,
     )
+    expect(error).toBeInstanceOf(WacliTooOldError)
+    expect((error as WacliTooOldError).version).toBe("0.25.9")
   })
 
   test("refuses output that is not a version", async () => {

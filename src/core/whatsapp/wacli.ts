@@ -65,6 +65,19 @@ export type WacliRunOptions = {
 /** The wacli found on the machine and its version. */
 export type WacliInfo = { program: string; version: string }
 
+/** The `upstream_error` for an installed wacli older than `WACLI_MIN_VERSION`, carrying the version it found. */
+export class WacliTooOldError extends ToolError {
+  readonly version: string
+
+  constructor(version: string) {
+    super(
+      "upstream_error",
+      `wacli ${version} is older than ${WACLI_MIN_VERSION}, which these tools need; update wacli (${WACLI_URL}).`,
+    )
+    this.version = version
+  }
+}
+
 /** What wacli prints for every call that is asked for JSON. */
 export type Envelope = { success: boolean; data?: unknown; error?: unknown }
 
@@ -167,12 +180,7 @@ export async function checkWacli(
   }
   const version = parsed.join(".")
   const minimum = parseVersion(WACLI_MIN_VERSION)!
-  if (isOlder(parsed, minimum)) {
-    throw new ToolError(
-      "upstream_error",
-      `wacli ${version} is older than ${WACLI_MIN_VERSION}, which these tools need; update wacli (${WACLI_URL}).`,
-    )
-  }
+  if (isOlder(parsed, minimum)) throw new WacliTooOldError(version)
   const info = { program, version }
   checked.set(program, info)
   return info
