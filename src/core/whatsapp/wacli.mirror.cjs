@@ -1,9 +1,11 @@
 /**
- * The mirror of the fake wacli (`wacli.fake.cjs`): the reads of `chats`, `messages`, `polls` and `calls` answered
- * from `fake.json`'s `mirror`, in wacli's own JSON shapes and as wacli v0.26 orders and bounds them:
+ * The mirror of the fake wacli (`wacli.fake.cjs`): the reads of `chats`, `messages`, `polls`, `calls` and `contacts`
+ * answered from `fake.json`'s `mirror`, in wacli's own JSON shapes and as wacli v0.26 orders and bounds them:
  * `{ "chats": [ { jid, kind, name, last_message_ts, archived, pinned, muted_until, unread, unread_count } ],
  *    "messages": [ { ChatJID, MsgID, Timestamp, … } ], "polls": [ { chat_jid, msg_id, question, … } ],
- *    "calls": [ { chat_jid, msg_id, timestamp, … } ] }`
+ *    "calls": [ { chat_jid, msg_id, timestamp, … } ],
+ *    "contacts": [ { jid, phone, name, alias, system_name, updated_at } ],
+ *    "check": { "<digits>": { registered, responded?, jid? } } }`
  *
  * Its full-text mode only stands in for wacli's ordering: it matches each word as a substring, where FTS5 matches
  * whole tokens or their prefixes, so a test must not rely on a match inside a word.
@@ -19,6 +21,8 @@
  *   `mirror.relevance` (message ids, best first) switches the search to answer as wacli's full-text search does.
  * - `polls list [--chat j] [--limit n]`: a limit of 0 means every poll.
  * - `calls list [--chat j] [--after t] [--before t] [--limit n] [--asc]`: ordered like messages, by `timestamp`.
+ * - `contacts search [--limit n] -- <query>`: see `contactsSearch`.
+ * - `contacts check -- <phone>...`: see `contactsCheck`; like wacli's, it refuses `--read-only`.
  */
 "use strict"
 
@@ -33,6 +37,12 @@ function flagValue(args, name) {
     if (args[i].startsWith(`${name}=`)) return args[i].slice(name.length + 1)
   }
   return undefined
+}
+
+/** The arguments before the `--` that ends the flags, or all of them without one. */
+function flagsOf(args) {
+  const dash = args.indexOf("--")
+  return dash < 0 ? args : args.slice(0, dash)
 }
 
 function success(data) {
@@ -101,7 +111,7 @@ function holds(message, chats, needle) {
 function messagesSearch(args, mirror) {
   const { messages = [], chats = [], relevance } = mirror
   const dash = args.indexOf("--")
-  const flags = dash < 0 ? args : args.slice(0, dash)
+  const flags = flagsOf(args)
   const query = dash < 0 ? "" : (args[dash + 1] ?? "")
   if (query.trim() === "") return failure("query is required")
   const needles = relevance ? query.toLowerCase().split(/\s+/).filter(Boolean) : [query.toLowerCase()]
@@ -154,12 +164,64 @@ function chatsList(args, chats) {
 }
 
 /**
- * The answer for `args` (the command line without the global flags) from `mirror`, as `{ stdout?, stderr?, exit? }`,
- * or undefined when the command is not one of the mirror's reads.
+ * `contacts search [--limit n] -- <query>` (the fake takes the query only after `--`, as the tool passes it): the
+ * contacts whose name, alias, system name, phone or JID holds the query, case folded, ordered by name (the JID for a
+ * contact without one) and then JID, at most `--limit` of them (50 when 0 or less); `null` data for none, as wacli
+ * prints a nil list.
  */
-function answer(args, mirror) {
+function contactsSearch(args, contacts) {
+  const dash = args.indexOf("--")
+  const flags = flagsOf(args)
+  const positional = dash < 0 ? [] : args.slice(dash + 1)
+  if (positional.length !== 1) return failure(`accepts 1 arg(s), received ${positional.length}`)
+  const needle = positional[0].toLowerCase()
+  const label = (contact) => contact.name || contact.jid
+  const kept = contacts
+    .filter((contact) =>
+      [contact.name, contact.alias, contact.system_name, contact.phone, contact.jid].some((field) =>
+        (field ?? "").toLowerCase().includes(needle),
+      ),
+    )
+    .sort((a, b) => (label(a) < label(b) ? -1 : label(a) > label(b) ? 1 : a.jid < b.jid ? -1 : a.jid > b.jid ? 1 : 0))
+    .slice(0, limitOf(flags))
+  return success(kept.length > 0 ? kept : null)
+}
+
+/**
+ * `contacts check -- <phone>...`: one `{ query, phone, jid?, registered, responded }` per phone, in the order given.
+ * `mirror.check` says what WhatsApp answers for the phone's digits; a number it has no entry for is left out of the
+ * answer (`responded: false`), as wacli reports a number WhatsApp omitted. An entry answers (`responded: true`)
+ * unless it says otherwise. Without a running sync wacli would connect on its own, which the fake does not model:
+ * it answers as the sync does. Under `--read-only` it refuses, as wacli does.
+ */
+function contactsCheck(args, check, readOnly) {
+  if (readOnly) return failure("read-only mode: command would intentionally modify WhatsApp or the local store")
+  const phones = args.slice(2).filter((arg) => arg !== "--")
+  if (phones.length === 0) return failure("requires at least 1 arg(s), only received 0")
+  return success(
+    phones.map((query) => {
+      const phone = query.replace(/\D/g, "")
+      const entry = check[phone]
+      if (!entry) return { query, phone, registered: false, responded: false }
+      const registered = entry.registered === true
+      return {
+        query,
+        phone,
+        ...(registered && entry.jid ? { jid: entry.jid } : {}),
+        registered,
+        responded: entry.responded ?? true,
+      }
+    }),
+  )
+}
+
+/**
+ * The answer for `args` (the command line without the global flags) from `mirror`, as `{ stdout?, stderr?, exit? }`,
+ * or undefined when the command is not one of the mirror's reads. `readOnly` is whether the call carried `--read-only`.
+ */
+function answer(args, mirror, readOnly = false) {
   const command = `${args[0]} ${args[1]}`
-  const { chats = [], messages = [], polls = [], calls = [] } = mirror
+  const { chats = [], messages = [], polls = [], calls = [], contacts = [], check = {} } = mirror
   switch (command) {
     case "chats list":
       return chatsList(args, chats)
@@ -190,6 +252,10 @@ function answer(args, mirror) {
       const page = window(args, calls, (row) => row.timestamp)
       return success({ calls: page.length > 0 ? page : null })
     }
+    case "contacts search":
+      return contactsSearch(args, contacts)
+    case "contacts check":
+      return contactsCheck(args, check, readOnly)
     default:
       return undefined
   }

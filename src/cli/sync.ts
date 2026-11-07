@@ -1,5 +1,6 @@
 import { isToolError } from "../core"
 import { pickLabel } from "../core/whatsapp/labels"
+import { serviceOperations } from "../core/whatsapp/operations"
 import { runSync } from "../core/whatsapp/sync"
 import { handleCommandError, parseCommandStateDir, parseFlagArgs } from "./command-args"
 import { EXIT_OK, type CommandIo } from "./command-io"
@@ -56,6 +57,7 @@ export async function runSyncCommand(argv: string[], io: CommandIo): Promise<num
       env: io.env,
       signal: io.signal ?? new AbortController().signal,
       log: logLine(io),
+      operations: serviceOperations(),
     })
     return outcome.exitCode
   } catch (error) {

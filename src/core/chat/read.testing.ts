@@ -84,7 +84,7 @@ export type ChatFixture = {
   fake: FakeWacli
   stateDir: string
   /** The mirror the fake reads from; `sync` publishes a change to it. */
-  mirror: Required<Omit<FakeMirror, "relevance">> & Pick<FakeMirror, "relevance">
+  mirror: Required<Omit<FakeMirror, "relevance" | "contacts" | "check">> & Pick<FakeMirror, "relevance">
   /** Adds chats to the mirror. */
   addChats(...chats: Record<string, unknown>[]): void
   /** Adds messages to the mirror, in the order they arrive. */

@@ -30,13 +30,21 @@ export type FakeResponse = {
 /**
  * The mirror the fake answers reads from, in wacli's own JSON shapes (`wacli.mirror.cjs` says which reads and how):
  * the chats `chats list` prints, the messages of `messages list` (listed in the order they arrived), the polls of
- * `polls list` and the call events of `calls list`.
+ * `polls list`, the call events of `calls list`, the contacts of `contacts search` and the answers of `contacts check`.
  */
 export type FakeMirror = {
   chats?: Record<string, unknown>[]
   messages?: Record<string, unknown>[]
   polls?: Record<string, unknown>[]
   calls?: Record<string, unknown>[]
+  /** The contacts `contacts search` looks through, as `{ jid, phone, name, alias, system_name, updated_at }`. */
+  contacts?: Record<string, unknown>[]
+  /**
+   * What WhatsApp answers `contacts check` by the number's digits: whether it is registered, whether it answered for
+   * the number at all (`responded`, true unless the entry says otherwise) and the JID of a registered one. A number
+   * with no entry is left out of WhatsApp's answer.
+   */
+  check?: Record<string, { registered: boolean; responded?: boolean; jid?: string }>
   /** Makes `messages search` answer as wacli's full-text search: hits in this order of message ids, `fts: true`. */
   relevance?: string[]
 }
