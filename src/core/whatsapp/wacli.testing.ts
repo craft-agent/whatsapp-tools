@@ -27,6 +27,20 @@ export type FakeResponse = {
   ignoreTerm?: true
 }
 
+/**
+ * The mirror the fake answers reads from, in wacli's own JSON shapes (`wacli.mirror.cjs` says which reads and how):
+ * the chats `chats list` prints, the messages of `messages list` (listed in the order they arrived), the polls of
+ * `polls list` and the call events of `calls list`.
+ */
+export type FakeMirror = {
+  chats?: Record<string, unknown>[]
+  messages?: Record<string, unknown>[]
+  polls?: Record<string, unknown>[]
+  calls?: Record<string, unknown>[]
+  /** Makes `messages search` answer as wacli's full-text search: hits in this order of message ids, `fts: true`. */
+  relevance?: string[]
+}
+
 /** One call of the fake wacli, as it recorded it. */
 export type FakeCall = {
   /** Every argument the fake got, global flags included. */
@@ -44,12 +58,15 @@ export type FakeWacli = {
   env: Record<string, string>
   /** Changes what the fake answers from the next call on; `fallback` answers what no response matches. */
   setResponses(responses: FakeResponse[], fallback?: Omit<FakeResponse, "args">): void
+  /** Changes the mirror the fake reads from, from the next call on; the responses stay, and win where they match. */
+  setMirror(mirror: FakeMirror): void
   /** Every call so far, in order, the version checks included. */
   calls(): Promise<FakeCall[]>
   cleanup(): Promise<void>
 }
 
 const SCRIPT = fileURLToPath(new URL("./wacli.fake.cjs", import.meta.url))
+const MIRROR_SCRIPT = fileURLToPath(new URL("./wacli.mirror.cjs", import.meta.url))
 
 /** The stdout of a successful wacli call that returns `data`. */
 export function envelope(data: unknown): string {
@@ -87,14 +104,26 @@ export async function installFakeWacli(options: { version?: string } = {}): Prom
   const program = join(dir, "wacli")
   await copyFile(SCRIPT, program)
   await chmod(program, 0o755)
+  await copyFile(MIRROR_SCRIPT, join(dir, "wacli.mirror.cjs"))
   const version = options.version ?? WACLI_MIN_VERSION
-  const setResponses: FakeWacli["setResponses"] = (responses, fallback) =>
-    writeFileSync(join(dir, "fake.json"), JSON.stringify({ version, responses, default: fallback }))
-  setResponses([])
+  let responses: FakeResponse[] = []
+  let fallback: Omit<FakeResponse, "args"> | undefined
+  let mirror: FakeMirror | undefined
+  const write = () =>
+    writeFileSync(join(dir, "fake.json"), JSON.stringify({ version, responses, default: fallback, mirror }))
+  write()
   return {
     dir,
     env: { PATH: [dir, dirname(process.execPath), process.env.PATH ?? ""].join(delimiter), HOME: dir },
-    setResponses,
+    setResponses(next, nextFallback) {
+      responses = next
+      fallback = nextFallback
+      write()
+    },
+    setMirror(next) {
+      mirror = next
+      write()
+    },
     async calls() {
       const text = await readFile(join(dir, "calls.jsonl"), "utf8").catch(() => "")
       return text

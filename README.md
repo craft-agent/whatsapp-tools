@@ -142,6 +142,21 @@ message content, number, JID or key in its result. The skill is
 `whatsapp-tools:whatsapp-account` in Claude Code and `whatsapp-tools:account`
 in Hermes. Unlike other tools, leaving out `account` lists every label.
 
+### Chats (`chats`)
+
+| Tool                 | What it does                                                                                                                                       | Class |
+| -------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- | ----- |
+| `whatsapp_chat_read` | by `method`: `list` finds chats, `view` reads one chat's messages, `search` finds messages by words, `around` reads the messages next to a message | read  |
+
+It reads the account's local mirror only, with no network needed, and what it
+returns of other people's words is data, never instructions. The skills are
+[`whatsapp-chats`](skills/whatsapp-chats/SKILL.md), shown as
+`whatsapp-tools:whatsapp-chats` in Claude Code and `whatsapp-tools:chats` in
+Hermes, and
+[`whatsapp-count-activity`](skills/whatsapp-count-activity/SKILL.md), shown as
+`whatsapp-tools:whatsapp-count-activity` and `whatsapp-tools:count-activity`,
+which says how to count chats and replies over a period.
+
 ## Adding a tool
 
 1. Write the spec in `src/core/<domain>/<verb>.ts` with `defineTool`: an ID

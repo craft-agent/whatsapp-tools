@@ -8,6 +8,8 @@ const SERVER = fileURLToPath(new URL("../dist/mcp.js", import.meta.url))
 const EXIT_FAILED = 1
 const EXIT_USAGE = 2
 const UNKNOWN_TOOL = "unknown_nonexistent_read"
+/** Read tools that every setting lists, since the default toolsets include theirs. */
+const CHAT_TOOLS = ["whatsapp_chat_read"]
 
 function expect(condition, message) {
   if (!condition) throw new Error(message)
@@ -34,6 +36,10 @@ async function listsTheServersTools() {
     const run = cli(["list", ...settings])
     expect(run.status === 0, `Expected exit 0 for ${label}, got ${run.status}: ${run.stderr}`)
     const listed = JSON.parse(run.stdout)
+    expect(
+      CHAT_TOOLS.every((id) => listed.some((tool) => tool.id === id)),
+      `Expected ${label} to list ${CHAT_TOOLS.join(", ")}, got ${run.stdout}`,
+    )
     const expected = await mcpToolNames(settings)
     expect(
       JSON.stringify(listed.map((tool) => tool.id)) === JSON.stringify(expected),
