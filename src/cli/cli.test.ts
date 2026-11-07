@@ -140,6 +140,23 @@ describe("run", () => {
     expect(json(run).error.code).toBe("internal_error")
     expect(json(run).error.message).toContain("cancelled")
   })
+
+  test("passes stateDir from parsed settings to execute", async () => {
+    let capturedStateDir: string | undefined
+    const checkTool = {
+      ...specs[0]!,
+      id: "demo_thing_read",
+      async execute(_args: unknown, ctx: { stateDir?: string }) {
+        capturedStateDir = ctx.stateDir
+        return { tool: "demo_thing_read", cwd: "/x" }
+      },
+    }
+    const run = await cli(["run", "demo_thing_read", "--cwd", "/x", "--state-dir", "/custom/state"], "", {
+      specs: [checkTool as any],
+    })
+    expect(run.code).toBe(EXIT_OK)
+    expect(capturedStateDir).toBe("/custom/state")
+  })
 })
 
 describe("usage", () => {
@@ -161,6 +178,9 @@ describe("usage", () => {
     [["run", ADD_ID, "--cwd", "/x", "--confirm", "harness"], "--confirm"],
     [["target", ADD_ID], "--cwd"],
     [["target", ADD_ID, "--cwd", "/x", "--read-only"], "--read-only"],
+    [["target", ADD_ID, "--cwd", "/x", "--toolsets", "all"], "--toolsets"],
+    [["target", ADD_ID, "--cwd", "/x", "--state-dir"], "--state-dir"],
+    [["target", ADD_ID, "--cwd", "/x", "--state-dir", "rel/path"], "--state-dir"],
   ])("%j is one line on stderr, exit 2 and nothing on stdout", async (argv, message) => {
     const run = await cli(argv as string[])
     expect(run.code).toBe(EXIT_USAGE)

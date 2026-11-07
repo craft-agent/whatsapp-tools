@@ -22,11 +22,13 @@ ANY_RESOURCE = "*"
 HOOK_NAME = "pre_tool_call"
 
 
-def resolve_resources(runtime: Runtime, tool_id: str, args: Any) -> list[str]:
+def resolve_resources(
+    runtime: Runtime, tool_id: str, args: Any, flags: list[str] | None = None
+) -> list[str]:
     """The resources a call writes to, as ``target`` prints them, or ``["*"]`` when they cannot be told."""
     try:
         result = runtime.run(
-            ["target", tool_id, "--cwd", agent_cwd()],
+            ["target", tool_id, "--cwd", agent_cwd(), *(flags or [])],
             stdin=json.dumps(args if isinstance(args, dict) else {}),
             timeout=TARGET_TIMEOUT_SECONDS,
         )
@@ -43,7 +45,9 @@ def rule_key(tool_id: str, resources: list[str]) -> str:
     return f"{project.PLUGIN_NAME}:{tool_id}:{json.dumps(resources, separators=(',', ':'))}"
 
 
-def make_hook(runtime: Runtime, tools: list[ToolInfo]) -> Callable[..., dict[str, str] | None]:
+def make_hook(
+    runtime: Runtime, tools: list[ToolInfo], flags: list[str] | None = None
+) -> Callable[..., dict[str, str] | None]:
     """The ``pre_tool_call`` hook: it sends every call of these tools but a read to the person's approval.
 
     Whether a person is there to ask, and what happens when none is, is
@@ -55,7 +59,7 @@ def make_hook(runtime: Runtime, tools: list[ToolInfo]) -> Callable[..., dict[str
         tool = by_id.get(tool_name)
         if tool is None or tool.write_class == READ_CLASS:
             return None
-        resources = resolve_resources(runtime, tool.id, args)
+        resources = resolve_resources(runtime, tool.id, args, flags)
         subject = tool.title if resources == [ANY_RESOURCE] else f"{tool.title} on {', '.join(resources)}"
         key = rule_key(tool.id, resources)
         if ANY_RESOURCE in resources:
@@ -67,6 +71,8 @@ def make_hook(runtime: Runtime, tools: list[ToolInfo]) -> Callable[..., dict[str
     return hook
 
 
-def register_approval(ctx: PluginContext, runtime: Runtime, tools: list[ToolInfo]) -> None:
+def register_approval(
+    ctx: PluginContext, runtime: Runtime, tools: list[ToolInfo], flags: list[str] | None = None
+) -> None:
     """Hold every non-read call of ``tools`` for approval."""
-    ctx.register_hook(HOOK_NAME, make_hook(runtime, tools))
+    ctx.register_hook(HOOK_NAME, make_hook(runtime, tools, flags))

@@ -14,6 +14,8 @@ export type ToolContext = {
   cwd: string
   /** A directory that is never the caller's working tree (where these tools are installed); a tool must refuse to treat it as the caller's tree. */
   ownDir?: string
+  /** Where every account's state lives: an absolute path the entry point resolved from its settings. */
+  stateDir?: string
   signal?: AbortSignal
   /** Asks the person to approve; absent when the harness's own approval already covers the call. */
   confirm?(request: ConfirmRequest): Promise<boolean>

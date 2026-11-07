@@ -157,4 +157,14 @@ describe("calls", () => {
     await call(client, "demo_thing_create")
     expect(calls[0]!.ctx.signal).toBeInstanceOf(AbortSignal)
   })
+
+  test("passes stateDir from settings into ctx.stateDir", async () => {
+    const calls: Call[] = []
+    const { client } = await connect(
+      [tool("demo_thing_create", "alpha", "add", calls)],
+      settings({ state_dir: "/custom/state/dir" }),
+    )
+    await call(client, "demo_thing_create", { count: 1 })
+    expect(calls[0]?.ctx.stateDir).toBe("/custom/state/dir")
+  })
 })

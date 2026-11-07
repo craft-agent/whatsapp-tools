@@ -130,6 +130,18 @@ Add the server to the host's MCP configuration. Flags go in `args`:
 
 Each toolset comes with a skill that tells an agent how to use its tools.
 
+### Account (`account`)
+
+| Tool                    | What it does                                                                                              | Class |
+| ----------------------- | --------------------------------------------------------------------------------------------------------- | ----- |
+| `whatsapp_account_read` | each label: pairing, sync service state, last sync and activity, wacli support and the person's next step | read  |
+
+It reads local state only: no network, no running service needed, and no
+message content, number, JID or key in its result. The skill is
+[`whatsapp-account`](skills/whatsapp-account/SKILL.md), shown as
+`whatsapp-tools:whatsapp-account` in Claude Code and `whatsapp-tools:account`
+in Hermes. Unlike other tools, leaving out `account` lists every label.
+
 ## Adding a tool
 
 1. Write the spec in `src/core/<domain>/<verb>.ts` with `defineTool`: an ID
@@ -195,8 +207,8 @@ variable, and an option or setting wins over the variable too.
 
 Lists are comma-separated in a flag or a variable. Where each harness reads them:
 
-- **OpenCode** takes the plugin `options` shown above, with lists as arrays and
-  `read_only` as a boolean, and falls back to the variables. V2 runs plugins in
+- **OpenCode** takes the plugin `options` shown above, with lists as arrays,
+  `read_only` as a boolean and `state_dir` as a path, and falls back to the variables. V2 runs plugins in
   its background service, which keeps the environment it started with: a
   variable set where `opencode run` starts has no effect until the service is
   restarted in that environment (`opencode service restart`). V1 runs plugins
@@ -246,7 +258,8 @@ binary). They never drive WhatsApp Web or read another client's data.
   the sync service so it runs the new release.
 - **Each linked device has a label**, 1 to 24 lowercase letters, digits and
   `_` (`default` when pairing names none). A tool's `account` argument picks
-  the label; leave it out when only one device is paired.
+  the label; leave it out when only one device is paired. The account tool
+  instead lists every label when `account` is absent.
 - **Each label keeps its state in one directory**, `<state_dir>/<label>/`
   (mode 700): wacli's store (the session keys, its mirror of your messages,
   downloaded media), the sync service's socket, and the copies of files being
@@ -266,6 +279,50 @@ binary). They never drive WhatsApp Web or read another client's data.
 - **wacli is not an official client.** WhatsApp has no API for personal
   accounts, and it may limit or ban an account it finds using an unofficial
   one.
+
+### Pairing a device and running the sync service
+
+Install [wacli 0.26 or later](https://github.com/openclaw/wacli) first: on
+macOS, `brew install openclaw/tap/wacli`; elsewhere, a release binary. macOS
+and Linux are supported; Windows is
+[#11](https://github.com/craft-agent/whatsapp-tools/issues/11).
+
+```sh
+# On the phone, WhatsApp > Linked devices > Link a device, then scan the QR.
+whatsapp-tools-cli pair --account work
+
+# Start syncing at logon, and restart after a failure.
+whatsapp-tools-cli service install --account work
+whatsapp-tools-cli service status
+```
+
+`--account` may be left out when only one label exists (`pair` names a new
+one `default`), and every command takes `--state-dir` like the tools. With
+several labels, add `--account work` to `service status` too.
+
+Every command below follows `whatsapp-tools-cli`:
+
+| Command                                                      | What it does                                                                                                            |
+| ------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------- |
+| `pair [--account <label>] [--phone <number>]`                | pairs this machine from a QR code, or with `--phone` prints a code to enter on the phone, then waits for the first sync |
+| `sync [--account <label>]`                                   | runs the sync service in the foreground, logging to standard error, until stopped                                       |
+| `service install \| uninstall \| status [--account <label>]` | registers/starts the service as a launchd agent (macOS) or systemd user unit (Linux), removes it, or reports its state  |
+| `remove --account <label> [--yes]`                           | uninstalls the service, logs the device out when possible and deletes the label's keys and history after confirmation   |
+
+- **The service records this package's paths**, so run `service install`
+  again after updating the package. On macOS its log is
+  `~/Library/Logs/io.github.craft-agent.whatsapp-tools/<label>.log`; on Linux,
+  `journalctl --user -u <unit>` as `service status` shows, and
+  `loginctl enable-linger` keeps it running while you are logged out.
+- **A phone takes at most four linked devices**, and each label is one of
+  them. WhatsApp unlinks a device unused for 30 days, and every linked device
+  when the phone has been unused for 14 days; a running service keeps the
+  linked device in use, not the phone.
+- **To pair a revoked label again**, run `pair` again: the dead session is
+  deleted and the mirror is kept. Use a new label for a different account.
+- **Removing a label logs the device out when possible.** If it cannot,
+  remove the linked device on the phone under WhatsApp > Linked devices too.
+- `whatsapp_account_read` tells an agent which step a label needs.
 
 ## Layout
 

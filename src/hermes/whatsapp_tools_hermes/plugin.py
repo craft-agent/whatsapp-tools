@@ -9,7 +9,7 @@ from .context import PluginContext
 from .listing import list_tools
 from . import project
 from .runtime import Unavailable, locate_runtime
-from .settings import SettingsError, settings_flags
+from .settings import SettingsError, settings_flags, state_dir_flags
 from .skills import register_skills
 from .tools import register_tools
 
@@ -32,5 +32,5 @@ def register(ctx: PluginContext) -> None:
         return
 
     register_tools(ctx, runtime, tools, flags)
-    register_approval(ctx, runtime, tools)
+    register_approval(ctx, runtime, tools, state_dir_flags(ctx))
     register_skills(ctx, runtime.skills_dir)

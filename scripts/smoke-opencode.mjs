@@ -45,7 +45,7 @@ try {
     JSON.stringify(added.sort()) === JSON.stringify(expected),
     `Expected setup to register ${JSON.stringify(expected)}, got ${JSON.stringify(added)}.`,
   )
-  console.log(`setup registers ${added.length} tools (as many as the MCP server lists) and ${skills.length} skills.`)
+  console.log(`setup registers ${added.length} tools (${added.join(", ")}) and ${skills.length} skills.`)
 
   const { tool } = await plugin.server({}, {})
   const served = Object.keys(tool).sort()
@@ -53,7 +53,7 @@ try {
     JSON.stringify(served) === JSON.stringify(expected),
     `Expected server to return ${JSON.stringify(expected)}, got ${JSON.stringify(served)}.`,
   )
-  console.log(`server returns ${served.length} tools.`)
+  console.log(`server returns ${served.length} tools: ${served.join(", ")}.`)
 } catch (error) {
   console.error(error)
   process.exit(1)

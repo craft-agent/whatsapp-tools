@@ -5,6 +5,7 @@ import type { EntryProfile } from "./profile"
 /** Fixtures the settings tests share. */
 
 export const profile: EntryProfile = {
+  name: "demo-tools",
   envPrefix: "DEMO",
   toolsets: { names: ["alpha", "beta", "gamma"], defaults: ["alpha"] },
 }

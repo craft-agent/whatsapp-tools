@@ -41,6 +41,20 @@ class SettingsFlagsTest(unittest.TestCase):
     def test_false_and_empty_settings_give_no_flag(self) -> None:
         self.assertEqual(self.flags(toolsets=[], read_only=False, tools=[], exclude_tools=[]), [])
 
+    def test_state_dir_flag(self) -> None:
+        self.assertEqual(
+            settings.state_dir_flags(StubContext({"state_dir": "/custom/path"})), ["--state-dir", "/custom/path"]
+        )
+        self.assertEqual(settings.state_dir_flags(StubContext({})), [])
+
+    def test_state_dir_included_in_settings_flags(self) -> None:
+        self.assertEqual(self.flags(state_dir="/custom/path"), ["--state-dir", "/custom/path"])
+
+    def test_invalid_state_dir_refused(self) -> None:
+        for value in (123, True, "", "   ", []):
+            with self.subTest(value=value), self.assertRaises(settings.SettingsError):
+                settings.state_dir_flags(StubContext({"state_dir": value}))
+
     def test_a_wrong_type_is_refused(self) -> None:
         for config in (
             {"toolsets": "things"},
@@ -48,6 +62,8 @@ class SettingsFlagsTest(unittest.TestCase):
             {"read_only": "true"},
             {"tools": "demo_thing_read"},
             {"exclude_tools": [1]},
+            {"state_dir": 123},
+            {"state_dir": ""},
         ):
             with self.subTest(config=config), self.assertRaises(settings.SettingsError):
                 self.flags(**config)

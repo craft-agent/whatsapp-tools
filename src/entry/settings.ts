@@ -1,17 +1,21 @@
 import { ToolError, type ToolSettings, type Toolsets } from "../core"
 import { PROJECT_PROFILE, type EntryProfile } from "./profile"
+import { resolveStateDir } from "./state-dir"
 
 /** Who asks the person before an administrative tool acts: the harness, or the tool through the client's form. */
 export type ConfirmMode = "harness" | "elicitation"
 
-export type EntrySettings = ToolSettings & { confirm: ConfirmMode }
+/** The settings needed to run tools: tool selection, read-only mode, and the resolved state directory. */
+export type RunSettings = ToolSettings & { state_dir: string }
+
+export type EntrySettings = RunSettings & { confirm: ConfirmMode }
 
 const CONFIRM_MODES: readonly ConfirmMode[] = ["harness", "elicitation"]
 const ALL_TOOLSETS = "all"
 const TRUE_VALUES: readonly string[] = ["1", "true"]
 const FALSE_VALUES: readonly string[] = ["0", "false"]
 
-type OptionName = "toolsets" | "read_only" | "tools" | "exclude_tools" | "confirm"
+type OptionName = "toolsets" | "read_only" | "tools" | "exclude_tools" | "confirm" | "state_dir"
 
 /** A setting's command-line flag and the end of its environment variable, which follows the profile's prefix; a boolean flag takes no value. */
 type Option = { flag: string; envSuffix: string; boolean?: true }
@@ -22,6 +26,7 @@ const OPTIONS: Record<OptionName, Option> = {
   tools: { flag: "--tools", envSuffix: "TOOLS" },
   exclude_tools: { flag: "--exclude-tools", envSuffix: "EXCLUDE_TOOLS" },
   confirm: { flag: "--confirm", envSuffix: "CONFIRM" },
+  state_dir: { flag: "--state-dir", envSuffix: "STATE_DIR" },
 }
 
 function envName(name: OptionName, profile: EntryProfile): string {
@@ -122,7 +127,10 @@ export function parseSettings(
   const value = (name: OptionName): SettingText | undefined =>
     flags[name] !== undefined ? { text: flags[name], source: OPTIONS[name].flag } : envText(name, env, profile)
 
-  const settings: EntrySettings = { confirm: "harness" }
+  const settings: EntrySettings = {
+    confirm: "harness",
+    state_dir: resolveStateDir(value("state_dir"), env, profile),
+  }
   const toolsets = value("toolsets")
   if (toolsets) settings.toolsets = checkToolsets(splitList(toolsets.text), toolsets.source, profile.toolsets)
   const readOnly = value("read_only")
@@ -146,7 +154,7 @@ export function parseToolSettings(
   argv: string[],
   env: Record<string, string | undefined>,
   profile: EntryProfile = PROJECT_PROFILE,
-): ToolSettings {
+): RunSettings {
   const { flag } = OPTIONS.confirm
   if (argv.some((arg) => arg === flag || arg.startsWith(`${flag}=`))) {
     throw new ToolError("invalid_argument", `Option ${flag} is not available here.`)
@@ -159,7 +167,31 @@ export function parseToolSettings(
   return settings
 }
 
-const TOOL_OPTION_NAMES = ["toolsets", "read_only", "tools", "exclude_tools"] as const satisfies readonly OptionName[]
+/**
+ * Reads only the `state_dir` setting from a command line that takes no other
+ * setting, for commands that select no tools: any other settings flag is
+ * `invalid_argument`. The flag wins over its environment variable.
+ */
+export function parseStateDir(
+  argv: string[],
+  env: Record<string, string | undefined>,
+  profile: EntryProfile = PROJECT_PROFILE,
+): string {
+  const flags = readFlags(argv)
+  const other = (Object.keys(flags) as OptionName[]).find((name) => name !== "state_dir")
+  if (other !== undefined)
+    throw new ToolError("invalid_argument", `Option ${OPTIONS[other].flag} is not available here.`)
+  const given = flags.state_dir !== undefined ? { text: flags.state_dir, source: OPTIONS.state_dir.flag } : undefined
+  return resolveStateDir(given ?? envText("state_dir", env, profile), env, profile)
+}
+
+const TOOL_OPTION_NAMES = [
+  "toolsets",
+  "read_only",
+  "tools",
+  "exclude_tools",
+  "state_dir",
+] as const satisfies readonly OptionName[]
 type ToolOptionName = (typeof TOOL_OPTION_NAMES)[number]
 
 function stringList(value: unknown): string[] | undefined {
@@ -168,6 +200,11 @@ function stringList(value: unknown): string[] | undefined {
 
 function optionError(name: string, expected: string): ToolError {
   return new ToolError("invalid_argument", `Option "${name}" must be ${expected}.`)
+}
+
+function stateDirOption(value: unknown): string {
+  if (typeof value !== "string") throw optionError("state_dir", "an absolute path")
+  return value
 }
 
 function toolsetsOption(value: unknown, toolsets: Toolsets): string[] | "all" | undefined {
@@ -201,7 +238,7 @@ export function settingsFromOptions(
   options: Record<string, unknown> | undefined,
   env: Record<string, string | undefined>,
   profile: EntryProfile = PROJECT_PROFILE,
-): ToolSettings {
+): RunSettings {
   const given = options ?? {}
   const unknown = Object.keys(given).find((name) => !(TOOL_OPTION_NAMES as readonly string[]).includes(name))
   if (unknown !== undefined) {
@@ -218,7 +255,13 @@ export function settingsFromOptions(
     return text !== undefined ? fromText(text) : undefined
   }
 
-  const settings: ToolSettings = {}
+  const stateDirGiven =
+    given.state_dir !== undefined
+      ? { text: stateDirOption(given.state_dir), source: 'Option "state_dir"' }
+      : envText("state_dir", env, profile)
+  const settings: RunSettings = {
+    state_dir: resolveStateDir(stateDirGiven, env, profile),
+  }
   const toolsets = resolve(
     "toolsets",
     (value) => toolsetsOption(value, profile.toolsets),
