@@ -1,6 +1,6 @@
 {
   "mcpServers": {
-    "agent-tool-starter": {
+    "whatsapp-tools": {
       "command": "node",
       "args": ["${PLUGIN_ROOT}/dist/mcp.js"]
     }
