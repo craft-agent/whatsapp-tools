@@ -45,7 +45,7 @@ async function listsTheServersTools() {
         `Expected a described tool, got ${JSON.stringify(tool)}`,
       )
     }
-    console.log(`${label} gives the ${listed.length} tools the MCP server lists.`)
+    console.log(`${label} gives the ${listed.length} tools the MCP server lists: ${expected.join(", ")}.`)
   }
 }
 
