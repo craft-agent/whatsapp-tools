@@ -3,12 +3,30 @@ import { homedir } from "node:os"
 import { resolve } from "node:path"
 import { PROJECT } from "../project"
 import type { EntryProfile } from "./profile"
-import { parseDirectorySettings, parseSettings, parseStateDir, parseToolSettings } from "./settings"
+import { parseDirectorySettings, parseSettings, parseStateDir, parseToolSettings, settingVariables } from "./settings"
 import { failure, profile } from "./settings.testing"
 
 const parse = (argv: string[], env: Record<string, string | undefined> = {}) => parseSettings(argv, env, profile)
 const parseTool = (argv: string[], env: Record<string, string | undefined> = {}) =>
   parseToolSettings(argv, env, profile)
+
+describe("settingVariables", () => {
+  test("names each setting's variable under the profile's prefix", () => {
+    expect(settingVariables(profile)).toEqual([
+      "DEMO_TOOLSETS",
+      "DEMO_READ_ONLY",
+      "DEMO_TOOLS",
+      "DEMO_EXCLUDE_TOOLS",
+      "DEMO_CONFIRM",
+      "DEMO_STATE_DIR",
+      "DEMO_DOWNLOAD_DIR",
+    ])
+  })
+
+  test("uses the package's own prefix by default", () => {
+    expect(settingVariables()).toEqual(settingVariables({ ...profile, envPrefix: PROJECT.envPrefix }))
+  })
+})
 
 describe("parseSettings", () => {
   test("defaults to the harness confirming and no other setting", () => {
