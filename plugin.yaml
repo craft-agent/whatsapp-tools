@@ -6,6 +6,7 @@ requires_hermes: ">=0.22"
 provides_tools:
   - whatsapp_account_read
   - whatsapp_chat_read
+  - whatsapp_contact_read
 provides_hooks:
   - pre_tool_call
 config_schema:
