@@ -93,6 +93,62 @@ describe("the fake wacli's mirror", () => {
     expect((await ask("calls", "list", "--chat", "c@g.us")).calls).toBeNull()
   })
 
+  describe("search and context", () => {
+    const text = (id: string, chat: string, timestamp: string, Text: string, more = {}) => ({
+      ...message(id, chat, timestamp),
+      Text,
+      ...more,
+    })
+    const rows = [
+      text("s1", "a@s.whatsapp.net", "2026-11-07T05:00:01Z", "Red apple"),
+      text("s2", "a@s.whatsapp.net", "2026-11-07T05:00:02Z", "green APPLE pie"),
+      text("s3", "c@g.us", "2026-11-07T05:00:02Z", "no fruit", { MediaCaption: "apple tree" }),
+      text("s4", "a@s.whatsapp.net", "2026-11-07T05:00:03Z", "apple", { deleted_at: "2026-11-07T06:00:00Z" }),
+      text("s5", "a@s.whatsapp.net", "2026-11-07T05:00:04Z", "-v flag"),
+    ]
+    beforeEach(() => fake.setMirror({ ...MIRROR, messages: rows }))
+
+    test("searches like wacli's LIKE: the whole query, any case, newest first, deleted rows left out", async () => {
+      const found = await ask("messages", "search", "--limit", "2", "--", "apple")
+      expect(ids(found)).toEqual(["s3", "s2"])
+      expect(found).toMatchObject({ fts: false, page: { has_more: true, next_cursor: null } })
+      expect(ids(await ask("messages", "search", "--chat", "a@s.whatsapp.net", "--", "APPLE"))).toEqual(["s2", "s1"])
+      expect(ids(await ask("messages", "search", "--after", "2026-11-07T05:00:01Z", "--", "apple"))).toEqual([
+        "s3",
+        "s2",
+      ])
+      expect((await ask("messages", "search", "--", "apple green")).messages).toBeNull()
+      expect(ids(await ask("messages", "search", "--", "-v"))).toEqual(["s5"])
+      expect(
+        (await ask("messages", "search", "--", "Crew")).messages.map((row: { MsgID: string }) => row.MsgID),
+      ).toEqual(["s3"])
+    })
+
+    test("answers as the full-text search with a relevance order: every word, best match first, fts true", async () => {
+      fake.setMirror({ ...MIRROR, messages: rows, relevance: ["s2", "s1"] })
+      const found = await ask("messages", "search", "--", "APPLE red")
+      expect(ids(found)).toEqual(["s1"])
+      const ranked = await ask("messages", "search", "--limit", "2", "--", "apple")
+      expect(ids(ranked)).toEqual(["s2", "s1"])
+      expect(ranked).toMatchObject({ fts: true, page: { has_more: true } })
+    })
+
+    test("gives the rows around a message oldest first, and fails as wacli does for a missing one", async () => {
+      const context = (id: string, before: string, after: string) =>
+        ask("messages", "context", "--chat", "a@s.whatsapp.net", `--id=${id}`, "--before", before, "--after", after)
+      expect((await context("s2", "5", "5")).map((row: { MsgID: string }) => row.MsgID)).toEqual([
+        "s1",
+        "s2",
+        "s4",
+        "s5",
+      ])
+      expect((await context("s2", "0", "1")).map((row: { MsgID: string }) => row.MsgID)).toEqual(["s2", "s4"])
+      await expect(context("s3", "1", "1")).rejects.toMatchObject({
+        message: expect.stringContaining("no rows in result set"),
+      })
+    })
+  })
+
   test("a response that matches wins over the mirror, and other commands are left to it", async () => {
     fake.setResponses([
       { args: ["chats", "list"], stdout: envelope([]) },

@@ -37,6 +37,8 @@ export type FakeMirror = {
   messages?: Record<string, unknown>[]
   polls?: Record<string, unknown>[]
   calls?: Record<string, unknown>[]
+  /** Makes `messages search` answer as wacli's full-text search: hits in this order of message ids, `fts: true`. */
+  relevance?: string[]
 }
 
 /** One call of the fake wacli, as it recorded it. */

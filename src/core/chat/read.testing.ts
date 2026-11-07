@@ -84,7 +84,7 @@ export type ChatFixture = {
   fake: FakeWacli
   stateDir: string
   /** The mirror the fake reads from; `sync` publishes a change to it. */
-  mirror: Required<FakeMirror>
+  mirror: Required<Omit<FakeMirror, "relevance">> & Pick<FakeMirror, "relevance">
   /** Adds chats to the mirror. */
   addChats(...chats: Record<string, unknown>[]): void
   /** Adds messages to the mirror, in the order they arrive. */
@@ -110,7 +110,7 @@ export async function createChatFixture(): Promise<ChatFixture> {
   const originalPath = process.env.PATH
   process.env.PATH = fake.env.PATH
   resetWacliCache()
-  const mirror: Required<FakeMirror> = { chats: [], messages: [], polls: [], calls: [] }
+  const mirror: ChatFixture["mirror"] = { chats: [], messages: [], polls: [], calls: [] }
   const sync = () => fake.setMirror(mirror)
   sync()
 
