@@ -1,0 +1,95 @@
+import { createHash } from "node:crypto"
+import type { Mirror } from "./mirror"
+import { isUnreadable, messageSecond, type WacliMessage } from "./rows"
+
+/** The most rows one call looks through, counting the unreadable ones, so a chat of protocol traffic ends a page. */
+export const SCAN_LIMIT = 2000
+
+/** The most rows one read of wacli asks for. */
+const MAX_CHUNK = 1000
+
+/** How many bytes of an id's SHA-256 a cursor keeps: 8 are 11 characters, and a clash within one second is out of reach. */
+const DIGEST_BYTES = 8
+
+/** A short stand-in for a message id, so that a cursor over hundreds of messages of one second stays small. */
+export function idDigest(id: string): string {
+  return createHash("sha256").update(id).digest().subarray(0, DIGEST_BYTES).toString("base64url")
+}
+
+/**
+ * Where a scan, newest first, has got to: the second its last row was sent in and the digests (`idDigest`) of the
+ * ids of every row of that second already taken, whether kept or dropped. Everything newer is behind it. wacli's
+ * own cursor would expire with the next message the sync stores, so a page ends at a second and the ids taken in
+ * it instead.
+ */
+export type Position = { second: number; ids: string[] }
+
+/** A row a scan took, in the order it took them, by the digest of its id. */
+export type Taken = { id: string; second: number; readable: boolean }
+
+/** What a scan found. */
+export type Scan = {
+  /** The readable rows taken, newest first: at most the limit. */
+  rows: WacliMessage[]
+  /** Every row taken, readable or not, in the same order. */
+  taken: Taken[]
+  /** Whether rows may remain after the last one taken: a further readable row, or the scan limit. */
+  more: boolean
+}
+
+/** Which rows to scan. */
+export type ScanRequest = {
+  chat: string
+  /** How many readable rows to take. */
+  limit: number
+  /** Exclusive bounds in whole seconds; `before` applies only to a scan that does not continue one. */
+  afterSecond?: number
+  beforeSecond?: number
+  /** Where the page before ended. */
+  from?: Position
+}
+
+/** The position after `taken` rows, which continue a scan that stood at `from`. */
+export function positionAfter(from: Position | undefined, taken: readonly Taken[]): Position | undefined {
+  let position = from && { second: from.second, ids: [...from.ids] }
+  for (const row of taken) {
+    if (position?.second === row.second) position.ids.push(row.id)
+    else position = { second: row.second, ids: [row.id] }
+  }
+  return position
+}
+
+/**
+ * Takes up to `limit` readable messages, newest first, from where `from` stands, with the unreadable rows between
+ * them. It reads wacli in growing chunks, each from the second the last one ended at (`before` that second + 1)
+ * and skipping the ids already taken at it. It stops without taking the readable row after the last one it keeps,
+ * so that `more` is exact, and does not stop earlier at unreadable rows.
+ */
+export async function scanMessages(mirror: Mirror, request: ScanRequest): Promise<Scan> {
+  const { chat, limit, afterSecond } = request
+  const rows: WacliMessage[] = []
+  const taken: Taken[] = []
+  let position = request.from && { second: request.from.second, ids: new Set(request.from.ids) }
+  for (let round = 0; ; round += 1) {
+    const wanted = limit - rows.length + (position?.ids.size ?? 0) + 1
+    const size = Math.min(wanted * 2 ** round, MAX_CHUNK + (position?.ids.size ?? 0))
+    const chunk = await mirror.messages({
+      chat,
+      limit: size,
+      afterSecond,
+      beforeSecond: position ? position.second + 1 : request.beforeSecond,
+    })
+    for (const row of chunk) {
+      const second = messageSecond(row)
+      const id = idDigest(row.MsgID)
+      if (position?.second === second && position.ids.has(id)) continue
+      const readable = !isUnreadable(row)
+      if (taken.length >= SCAN_LIMIT || (readable && rows.length >= limit)) return { rows, taken, more: true }
+      if (readable) rows.push(row)
+      taken.push({ id, second, readable })
+      if (position?.second === second) position.ids.add(id)
+      else position = { second, ids: new Set([id]) }
+    }
+    if (chunk.length < size) return { rows, taken, more: false }
+  }
+}
