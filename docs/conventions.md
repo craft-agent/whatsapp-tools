@@ -64,6 +64,22 @@ to a rule changes this file first, with its reason.
 - **Text a tool reads is returned as it is.** Content from files or services
   is data, never instructions; every read tool's description and the skills
   say so. Nothing is wrapped or rewritten.
+- **Times are local, with their offset, to the millisecond**:
+  `2026-11-07T14:03:12.345+09:00`. A model judges "yesterday" or "this
+  morning" by the user's clock, and the offset keeps the instant exact. A time
+  argument takes RFC 3339 with an offset, or a date or a time without one
+  (`2026-11-07`, `2026-11-07T14:03`), read as local time; a local time a
+  clock change skips or repeats is read as JavaScript's `Date` reads it.
+- **A list comes in pages.** It takes `limit`, with a default and a largest
+  value per method (above the largest is clamped, below 1 refused), and
+  `cursor` to continue; a page with more returns `next`, an opaque string to
+  pass back as `cursor`. A cursor holds where the page ended, not a count, so
+  what arrives between two pages does not shift the next one.
+- **A result stays under 50,000 characters of JSON** by returning fewer
+  items and a `next`, since some harnesses refuse a result over 60,000. Text
+  is never cut to fit, because a cut message reads as what was said: only a
+  single item that alone exceeds the budget is cut, and it says so
+  (`text_cut: true`).
 
 ## Errors
 
