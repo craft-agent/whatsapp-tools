@@ -78,6 +78,20 @@ describe("spawnWacli output", () => {
     await wacli.exited
     expect(seen).toEqual(["a", "b"])
   })
+
+  test("hands a line the raw-line callback takes over unmasked, and keeps it from the masked callback", async () => {
+    fake.setResponses([{ args: ["run"], stderr: "secret 12345678\nplain 15551234567\n" }])
+    const raw: string[] = []
+    const masked: string[] = []
+    const wacli = spawnWacli(join(fake.dir, "wacli"), ["run"], {
+      env: fake.env,
+      onRawStderrLine: (line) => line.startsWith("secret") && raw.push(line) > 0,
+      onStderrLine: (line) => masked.push(line),
+    })
+    await wacli.exited
+    expect(raw).toEqual(["secret 12345678"])
+    expect(masked).toEqual(["plain <number>"])
+  })
 })
 
 describe("spawnWacli ending", () => {
