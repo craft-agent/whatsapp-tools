@@ -2,13 +2,13 @@ import { z } from "zod"
 import { clampLimit, encodeCursor, fingerprint, fitItems, notACursor, readCursor, type Cuttable } from "../pages"
 import { MS_PER_SECOND, formatLocalTime } from "../time"
 import { mapConcurrently } from "./concurrent"
-import { chatKind, chatNumber } from "./jid"
+import { chatHeader } from "./header"
+import { chatKind } from "./jid"
 import { readKinds } from "./kinds"
 import { toMessageEntry } from "./message"
 import { cutMessage, messageTextLength } from "./message-cut"
 import { DATA_NOTE, type MessageEntry } from "./message-schema"
 import type { Mirror } from "./mirror"
-import { chatNameFields } from "./names"
 import { isUnreadable, type WacliChat } from "./rows"
 import { LAST_MESSAGE_ROWS, LIMITS, type ChatEntry, type ChatReadInput, type ChatReadOutput } from "./schema"
 
@@ -49,14 +49,10 @@ function chatEntry(chat: WacliChat, nowSecond: number): ChatEntry {
   const seconds = activity(chat)
   const unread = Math.max(0, chat.unread_count)
   const entry: ChatEntry = {
-    id: chat.jid,
-    kind: chatKind(chat.kind),
-    ...chatNameFields(chat.name),
+    ...chatHeader(chat.jid, chatKind(chat.kind), chat.name),
     unread,
     last_activity_at: seconds > 0 ? formatLocalTime(seconds * MS_PER_SECOND) : null,
   }
-  const number = chatNumber(chat.jid)
-  if (number !== undefined) entry.number = number
   if (chat.unread && unread === 0) entry.marked_unread = true
   if (chat.archived) entry.archived = true
   if (chat.pinned) entry.pinned = true

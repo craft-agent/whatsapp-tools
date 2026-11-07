@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto"
+import { MS_PER_SECOND } from "../time"
 import type { Mirror } from "./mirror"
 import { isUnreadable, messageSecond, type WacliMessage } from "./rows"
 
@@ -57,6 +58,43 @@ export function positionAfter(from: Position | undefined, taken: readonly Taken[
     else position = { second: row.second, ids: [row.id] }
   }
   return position
+}
+
+/** Whole seconds bounded strictly after `ms`: rounded down, so that `> second` matches every instant after `ms`. */
+export function secondAfter(ms: number | undefined): number | undefined {
+  return ms === undefined ? undefined : Math.floor(ms / MS_PER_SECOND)
+}
+
+/** Whole seconds bounded strictly before `ms`: rounded up, so that `< second` matches every instant before `ms`. */
+export function secondBefore(ms: number | undefined): number | undefined {
+  return ms === undefined ? undefined : Math.ceil(ms / MS_PER_SECOND)
+}
+
+/** The rows taken up to and including the `kept`-th readable one: what a page that stopped there consumed. */
+export function takenThrough(taken: readonly Taken[], kept: number): Taken[] {
+  let readable = 0
+  for (const [index, row] of taken.entries()) {
+    if (row.readable) readable += 1
+    if (readable === kept) return taken.slice(0, index + 1)
+  }
+  return [...taken]
+}
+
+/**
+ * What a page that showed `shown` of `total` readable rows consumed from `all`: the rows taken, the unreadable
+ * count, and the position reached.
+ */
+export function pageProgress(
+  all: readonly Taken[],
+  shown: number,
+  total: number,
+  from: Position | undefined,
+): { stopped: boolean; unreadable: number; position: Position | undefined } {
+  const stopped = shown < total
+  const taken = stopped ? takenThrough(all, shown) : all
+  const unreadable = taken.filter((row) => !row.readable).length
+  const position = positionAfter(from, taken)
+  return { stopped, unreadable, position }
 }
 
 /**
