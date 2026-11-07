@@ -1,12 +1,12 @@
 {
-  "name": "agent-tool-starter",
-  "version": "0.1.0",
-  "description": "A starter for tool packages that coding agents call: one implementation delivered to every harness.",
+  "name": "whatsapp-tools",
+  "version": "0.0.0",
+  "description": "WhatsApp tools for coding agents: chats, messages, contacts, history, received files and sends.",
   "author": {
     "name": "craftsamo",
-    "url": "https://github.com/craftsamo"
+    "url": "https://github.com/craft-agent"
   },
-  "homepage": "https://github.com/craftsamo/agent-tool-starter#readme",
-  "repository": "https://github.com/craftsamo/agent-tool-starter",
+  "homepage": "https://github.com/craft-agent/whatsapp-tools#readme",
+  "repository": "https://github.com/craft-agent/whatsapp-tools",
   "license": "MIT"
 }

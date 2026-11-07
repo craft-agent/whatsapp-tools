@@ -1,64 +1,6 @@
-# agent-tool-starter
+# whatsapp-tools
 
-A starter for tool packages that coding agents call: one implementation delivered to every harness.
-
-<!-- starter -->
-
-## Using this starter
-
-This repository is a GitHub template. A project made from it implements its
-tools once in `src/core/`, and the skeleton delivers them to each harness
-below. Everything that names the package (its npm name, plugin and server
-names, tool prefix, setting variables, Hermes package and manifests) is
-renamed in one step.
-
-1. On GitHub, choose **Use this template** and create the repository, then
-   clone it.
-2. Install, then run the setup once, from the clone:
-
-   ```sh
-   corepack enable
-   pnpm install
-   pnpm run setup -- --prefix <prefix> --description "<one line>" --dry-run
-   pnpm run setup -- --prefix <prefix> --description "<one line>"
-   ```
-
-   The name and owner default to those of the clone's `origin`. The setup
-   shows every change and asks before writing; `--dry-run` writes nothing.
-
-3. Rebuild and check, then commit the result:
-
-   ```sh
-   pnpm install
-   pnpm run build && pnpm run manifests
-   pnpm run typecheck && pnpm test && pnpm run smoke
-   ```
-
-| Option           | Default                         | Meaning                                                     |
-| ---------------- | ------------------------------- | ----------------------------------------------------------- |
-| `--prefix`       | (required)                      | the tool ID prefix, one lowercase word: `git` gives `git_*` |
-| `--description`  | (required)                      | the one-line description of the package and its plugins     |
-| `--name`         | the `origin` repository's name  | the package, plugin, server and program name, in kebab-case |
-| `--owner`        | the `origin` repository's owner | the GitHub owner the URLs and the registry name use         |
-| `--scope`        | `@<owner>`                      | the npm scope                                               |
-| `--marketplace`  | `<owner>`                       | the plugin marketplace name of Claude Code and Codex        |
-| `--author`       | `<owner>`                       | the author in the manifests and the license holder          |
-| `--author-url`   | `https://github.com/<owner>`    | the author URL in the plugin manifests                      |
-| `--publisher`    | `<author>`                      | the marketplace publisher in the plugin catalogs            |
-| `--keep-example` |                                 | keep the example notes tools, renamed to the prefix         |
-| `--dry-run`      |                                 | show the changes without writing                            |
-| `--yes`          |                                 | write without asking                                        |
-
-The setup removes the example notes tools unless `--keep-example` is given,
-drops `"private": true` so the package can be published, starts its version
-at `0.0.0` whatever the starter's release was, and deletes itself
-and this section. It also writes `opencode.jsonc`, whose `starter`
-reference lets an agent in OpenCode read this repository beside the
-project; add the project's own references there. It refuses to run on a
-working tree with uncommitted changes. To take later improvements of the
-starter, add it as a remote and merge its default branch.
-
-<!-- /starter -->
+WhatsApp tools for coding agents: chats, messages, contacts, history, received files and sends.
 
 | Harness        | Delivery                                       | Pinned by                      |
 | -------------- | ---------------------------------------------- | ------------------------------ |
@@ -83,7 +25,7 @@ commands below, `<version>` is a release's version (`1.2.3`) and `<sha>` is the
 commit its tag names:
 
 ```sh
-gh api repos/craftsamo/agent-tool-starter/commits/v<version> --jq .sha
+gh api repos/craft-agent/whatsapp-tools/commits/v<version> --jq .sha
 ```
 
 ### OpenCode
@@ -92,8 +34,8 @@ OpenCode V2 takes the package and its options in `opencode.json`:
 
 ```json
 {
-  "plugins": [{ "package": "@craftsamo/agent-tool-starter@<version>", "options": { "read_only": false } }],
-  "permissions": [{ "action": "example_*", "resource": "*", "effect": "ask" }]
+  "plugins": [{ "package": "@craftsamo/whatsapp-tools@<version>", "options": { "read_only": false } }],
+  "permissions": [{ "action": "whatsapp_*", "resource": "*", "effect": "ask" }]
 }
 ```
 
@@ -101,48 +43,48 @@ OpenCode V1 takes the package as a string, or as a pair with its options:
 
 ```json
 {
-  "plugin": [["@craftsamo/agent-tool-starter@<version>", { "read_only": false }]],
-  "permission": { "example_*": "ask" }
+  "plugin": [["@craftsamo/whatsapp-tools@<version>", { "read_only": false }]],
+  "permission": { "whatsapp_*": "ask" }
 }
 ```
 
 OpenCode allows any action no rule names, so the plugin's request is granted
-silently unless a rule says `ask`. Read tools never ask, so the `example_*` glob
+silently unless a rule says `ask`. Read tools never ask, so the `whatsapp_*` glob
 is safe.
 
 V1 registers no skills. Unpack the package and copy its `skills/*` folders into
 `~/.config/opencode/skills/`:
 
 ```sh
-npm pack @craftsamo/agent-tool-starter@<version>
-tar -xzf craftsamo-agent-tool-starter-<version>.tgz
+npm pack @craftsamo/whatsapp-tools@<version>
+tar -xzf craftsamo-whatsapp-tools-<version>.tgz
 mkdir -p ~/.config/opencode/skills
 cp -r package/skills/* ~/.config/opencode/skills/
-rm -rf package craftsamo-agent-tool-starter-<version>.tgz
+rm -rf package craftsamo-whatsapp-tools-<version>.tgz
 ```
 
 ### Claude Code
 
 ```sh
-claude plugin marketplace add craftsamo/agent-tool-starter#v<version>
-claude plugin install agent-tool-starter@craftsamo
+claude plugin marketplace add craft-agent/whatsapp-tools#v<version>
+claude plugin install whatsapp-tools@craft-agent
 ```
 
 ### Codex
 
 ```sh
-codex plugin marketplace add craftsamo/agent-tool-starter --ref v<version>
-codex plugin add agent-tool-starter@craftsamo
+codex plugin marketplace add craft-agent/whatsapp-tools --ref v<version>
+codex plugin add whatsapp-tools@craft-agent
 ```
 
 Codex turns `-` into `_` in server names, so it shows the tools as
-`mcp__agent_tool_starter__example_*`. It starts the MCP server in the plugin's
+`mcp__whatsapp_tools__whatsapp_*`. It starts the MCP server in the plugin's
 install directory, which is never the caller's working tree.
 
 ### Grok Build
 
 ```sh
-grok plugin install craftsamo/agent-tool-starter@v<version> --trust
+grok plugin install craft-agent/whatsapp-tools@v<version> --trust
 ```
 
 Grok starts the MCP server in the session's working directory.
@@ -151,10 +93,10 @@ Grok starts the MCP server in the session's working directory.
 
 Install from the tree of the release tag, never from the default branch, which
 has no built `dist/`; Antigravity clones the tag into
-`~/.gemini/config/plugins/agent-tool-starter`.
+`~/.gemini/config/plugins/whatsapp-tools`.
 
 ```sh
-agy plugin install https://github.com/craftsamo/agent-tool-starter/tree/v<version>
+agy plugin install https://github.com/craft-agent/whatsapp-tools/tree/v<version>
 ```
 
 ### Hermes Agent
@@ -162,8 +104,8 @@ agy plugin install https://github.com/craftsamo/agent-tool-starter/tree/v<versio
 Hermes installs a commit, not a tag, and the plugin installs disabled:
 
 ```sh
-hermes plugins install craftsamo/agent-tool-starter --ref <sha>
-hermes plugins enable agent-tool-starter
+hermes plugins install craft-agent/whatsapp-tools --ref <sha>
+hermes plugins enable whatsapp-tools
 ```
 
 If a Hermes gateway is already running, restart it (`hermes gateway restart`) to
@@ -176,9 +118,9 @@ Add the server to the host's MCP configuration. Flags go in `args`:
 ```json
 {
   "mcpServers": {
-    "agent-tool-starter": {
+    "whatsapp-tools": {
       "command": "npx",
-      "args": ["-y", "@craftsamo/agent-tool-starter@<version>", "--read-only"]
+      "args": ["-y", "@craftsamo/whatsapp-tools@<version>", "--read-only"]
     }
   }
 }
@@ -187,25 +129,6 @@ Add the server to the host's MCP configuration. Flags go in `args`:
 ## Tools and skills
 
 Each toolset comes with a skill that tells an agent how to use its tools.
-
-<!-- example -->
-
-### Notes (`notes`)
-
-An example toolset: Markdown notes in the working tree's `notes/` folder,
-shown to make every part of the tool contract visible with no outside program.
-
-| Tool                  | What it does                                                | Class |
-| --------------------- | ----------------------------------------------------------- | ----- |
-| `example_note_read`   | `view` one note, or `list` the notes with their sizes       | read  |
-| `example_note_create` | create `notes/<name>.md`; never overwrites an existing note | add   |
-
-The skill is [`example-notes`](skills/example-notes/SKILL.md), shown as
-`agent-tool-starter:example-notes` in Claude Code and
-`agent-tool-starter:notes` in Hermes. A write names the note's absolute path
-as its target, so an "always" answer covers that note only.
-
-<!-- /example -->
 
 ## Adding a tool
 
@@ -225,30 +148,24 @@ as its target, so an "always" answer covers that note only.
 
 [`docs/conventions.md`](docs/conventions.md) has the rules each step follows.
 
-<!-- example -->
-
-`src/core/example/` is a worked example of all of them.
-
-<!-- /example -->
-
 ## Reads and writes
 
 Every read tool is named `<prefix>_<domain>_read`. Reads can run unasked;
 writes are confirmed by the harness.
 
-| Harness     | Reads without asking                                                                                                     |
-| ----------- | ------------------------------------------------------------------------------------------------------------------------ |
-| OpenCode    | always; the plugin asks only before a write                                                                              |
-| Claude Code | the rule `mcp__plugin_agent-tool-starter_agent-tool-starter__*_read` in `permissions.allow` of `~/.claude/settings.json` |
-| Codex       | always; Codex runs tools that declare `readOnlyHint` unasked, as the read tools do                                       |
-| Grok Build  | `grok --allow 'MCPTool(agent-tool-starter__*_read)' --allow 'MCPTool(example_*_read)'` (both rules; see below)           |
-| Antigravity | the rule `mcp(agent-tool-starter_agent-tool-starter/<tool id>)` in `permissions.allow`, one for each read tool           |
-| Hermes      | always; the plugin asks only before a write                                                                              |
+| Harness     | Reads without asking                                                                                             |
+| ----------- | ---------------------------------------------------------------------------------------------------------------- |
+| OpenCode    | always; the plugin asks only before a write                                                                      |
+| Claude Code | the rule `mcp__plugin_whatsapp-tools_whatsapp-tools__*_read` in `permissions.allow` of `~/.claude/settings.json` |
+| Codex       | always; Codex runs tools that declare `readOnlyHint` unasked, as the read tools do                               |
+| Grok Build  | `grok --allow 'MCPTool(whatsapp-tools__*_read)' --allow 'MCPTool(whatsapp_*_read)'` (both rules; see below)      |
+| Antigravity | the rule `mcp(whatsapp-tools_whatsapp-tools/<tool id>)` in `permissions.allow`, one for each read tool           |
+| Hermes      | always; the plugin asks only before a write                                                                      |
 
 Where a write is asked about, and where it is not:
 
 - **OpenCode** grants any action no rule names, so a write runs unasked unless
-  a rule asks for it: add the `example_*` rule shown under [OpenCode](#opencode).
+  a rule asks for it: add the `whatsapp_*` rule shown under [OpenCode](#opencode).
 - **Codex** under `codex exec`, and **Grok Build** under `grok -p`, refuse a
   write they cannot ask about, unless it is allowed beforehand.
 - **Grok Build** calls the plugin's tools through its `use_tool` tool, and the
@@ -257,7 +174,7 @@ Where a write is asked about, and where it is not:
   that first call. The second rule matches the short name; a write still
   matches neither.
 - **Antigravity** asks before any MCP tool no rule allows, reads included, and
-  names the plugin's server `agent-tool-starter_agent-tool-starter` (plugin,
+  names the plugin's server `whatsapp-tools_whatsapp-tools` (plugin,
   then server). `agy -p` refuses a tool it cannot ask about.
 - **Hermes** `hermes chat -q` refuses a write it cannot ask about; `hermes -z`
   and `--yolo` skip approval, so writes then run unasked.
@@ -267,13 +184,14 @@ Where a write is asked about, and where it is not:
 Every entry point takes the same settings. A flag wins over its environment
 variable, and an option or setting wins over the variable too.
 
-| Setting         | Flag              | Variable                           | Meaning                                                                       |
-| --------------- | ----------------- | ---------------------------------- | ----------------------------------------------------------------------------- |
-| `toolsets`      | `--toolsets`      | `AGENT_TOOL_STARTER_TOOLSETS`      | the toolsets that are on, or `all`; default those `src/project.ts` names      |
-| `read_only`     | `--read-only`     | `AGENT_TOOL_STARTER_READ_ONLY`     | registers no tool that writes; wins over every other setting                  |
-| `tools`         | `--tools`         | `AGENT_TOOL_STARTER_TOOLS`         | single tools to add by ID, whatever their toolset                             |
-| `exclude_tools` | `--exclude-tools` | `AGENT_TOOL_STARTER_EXCLUDE_TOOLS` | single tools to remove by ID; wins over `tools` and `toolsets`                |
-| `confirm`       | `--confirm`       | `AGENT_TOOL_STARTER_CONFIRM`       | MCP server only: `harness` (default) or `elicitation`, as the conventions say |
+| Setting         | Flag              | Variable                       | Meaning                                                                       |
+| --------------- | ----------------- | ------------------------------ | ----------------------------------------------------------------------------- |
+| `toolsets`      | `--toolsets`      | `WHATSAPP_TOOLS_TOOLSETS`      | the toolsets that are on, or `all`; default those `src/project.ts` names      |
+| `read_only`     | `--read-only`     | `WHATSAPP_TOOLS_READ_ONLY`     | registers no tool that writes; wins over every other setting                  |
+| `tools`         | `--tools`         | `WHATSAPP_TOOLS_TOOLS`         | single tools to add by ID, whatever their toolset                             |
+| `exclude_tools` | `--exclude-tools` | `WHATSAPP_TOOLS_EXCLUDE_TOOLS` | single tools to remove by ID; wins over `tools` and `toolsets`                |
+| `confirm`       | `--confirm`       | `WHATSAPP_TOOLS_CONFIRM`       | MCP server only: `harness` (default) or `elicitation`, as the conventions say |
+| `state_dir`     | `--state-dir`     | `WHATSAPP_TOOLS_STATE_DIR`     | where every label's state lives; default `$XDG_STATE_HOME/whatsapp-tools`     |
 
 Lists are comma-separated in a flag or a variable. Where each harness reads them:
 
@@ -283,13 +201,13 @@ Lists are comma-separated in a flag or a variable. Where each harness reads them
   variable set where `opencode run` starts has no effect until the service is
   restarted in that environment (`opencode service restart`). V1 runs plugins
   in its own process.
-- **Hermes** takes `plugins.entries.agent-tool-starter.settings` in
+- **Hermes** takes `plugins.entries.whatsapp-tools.settings` in
   `config.yaml`:
 
   ```yaml
   plugins:
     entries:
-      agent-tool-starter:
+      whatsapp-tools:
         settings:
           read_only: false
           exclude_tools: []
@@ -310,11 +228,44 @@ Lists are comma-separated in a flag or a variable. Where each harness reads them
   environment, and `env` sets fixed values.
 
   ```toml
-  [mcp_servers.agent-tool-starter]
+  [mcp_servers.whatsapp-tools]
   command = "npx"
-  args = ["-y", "@craftsamo/agent-tool-starter@<version>", "--read-only"]
-  env_vars = ["AGENT_TOOL_STARTER_TOOLSETS"]
+  args = ["-y", "@craftsamo/whatsapp-tools@<version>", "--read-only"]
+  env_vars = ["WHATSAPP_TOOLS_TOOLSETS"]
   ```
+
+### Accounts and the sync service
+
+The tools use a WhatsApp account as a linked device of the user's phone, the
+way WhatsApp Web does, through [wacli](https://github.com/openclaw/wacli),
+which you install yourself (`brew install openclaw/tap/wacli`, or a release
+binary). They never drive WhatsApp Web or read another client's data.
+
+- **wacli 0.26 or later.** WhatsApp stops serving old clients until wacli
+  catches up with its protocol, so keep it updated; after an update, restart
+  the sync service so it runs the new release.
+- **Each linked device has a label**, 1 to 24 lowercase letters, digits and
+  `_` (`default` when pairing names none). A tool's `account` argument picks
+  the label; leave it out when only one device is paired.
+- **Each label keeps its state in one directory**, `<state_dir>/<label>/`
+  (mode 700): wacli's store (the session keys, its mirror of your messages,
+  downloaded media), the sync service's socket, and the copies of files being
+  sent. `state_dir` defaults to `$XDG_STATE_HOME/whatsapp-tools`, or
+  `~/.local/state/whatsapp-tools`. wacli's own accounts in `~/.wacli` are not
+  used. Keep the directory out of backups you share: the keys read and send as
+  you.
+- **A sync service runs for each label**: it keeps the mirror current, and
+  every send and every other write goes through it, so the tools that write
+  need it running. Reads work with or without it. History starts when the
+  device is paired, with what the phone sends then; older messages can be
+  asked of the phone, best effort.
+- **WhatsApp unlinks a device unused for 30 days**, and every linked device
+  when the phone has been unused for 14; a phone takes four linked devices at
+  most. A running service keeps the device in use. An unlinked label is paired
+  again from the phone.
+- **wacli is not an official client.** WhatsApp has no API for personal
+  accounts, and it may limit or ban an account it finds using an unofficial
+  one.
 
 ## Layout
 
@@ -324,10 +275,10 @@ Lists are comma-separated in a flag or a variable. Where each harness reads them
   the project's names.
 - `src/tools.ts` — the list of every tool, which each entry point registers.
 - `src/mcp/` — the MCP server, built to `dist/mcp.js` and run by
-  `agent-tool-starter`.
+  `whatsapp-tools`.
 - `src/opencode/` — the OpenCode plugin, built to `dist/opencode.js`.
 - `src/cli/` — the command line the Hermes plugin calls, built to `dist/cli.js`
-  and run by `agent-tool-starter-cli`.
+  and run by `whatsapp-tools-cli`.
 - `src/hermes/`, `plugin.yaml` and `__init__.py` — the Hermes plugin.
 - `skills/` — one skill per toolset, `skills/<name>/SKILL.md`, which every
   harness that takes skills loads from the package or plugin root.
