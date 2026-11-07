@@ -33,6 +33,8 @@ export type WacliProcess = {
   pid: number | undefined
   /** Settles once the process ended and its output was delivered; rejects when the program could not be started. */
   exited: Promise<WacliExit>
+  /** Resolves true once the process has started, false when the program could not be started; never rejects. */
+  spawned: Promise<boolean>
   /** Sends SIGTERM, then SIGKILL after the grace period, and resolves once the process is gone. Safe to call again. */
   stop(): Promise<void>
 }
@@ -77,6 +79,10 @@ export function spawnWacli(
   { env, onStdoutLine, onStderrLine, onRawStderrLine, stopGraceMs = DEFAULT_STOP_GRACE_MS }: WacliSpawnOptions,
 ): WacliProcess {
   const child = spawn(program, args, { env, shell: false, stdio: ["ignore", "pipe", "pipe"] })
+  const spawned = new Promise<boolean>((resolve) => {
+    child.once("spawn", () => resolve(true))
+    child.once("error", () => resolve(false))
+  })
 
   const stdout = lineSplitter((line) => onStdoutLine?.(line))
   const stderr = lineSplitter((line) => {
@@ -124,5 +130,5 @@ export function spawnWacli(
     await exited.catch(() => {})
   }
 
-  return { pid: child.pid, exited, stop }
+  return { pid: child.pid, exited, spawned, stop }
 }

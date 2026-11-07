@@ -1,5 +1,5 @@
 import { setTimeout as delay } from "node:timers/promises"
-import { ToolError } from "../errors"
+import { ToolError, isToolError } from "../errors"
 import { ensureLabelDir, type LabelPaths } from "./labels"
 import { acquireServiceLock } from "./service-lock"
 import {
@@ -8,6 +8,7 @@ import {
   type ServiceOperation,
   type ServiceOperationContext,
   type ServiceOperations,
+  type ServiceRunning,
   type ServiceSocket,
 } from "./service-socket"
 import { startSyncChild, waitUntilReady, type SyncChild } from "./sync-child"
@@ -25,9 +26,15 @@ export const ALREADY_RUNNING_REASON = "already running"
 /** The pause between an operation that ran with the child stopped and the child starting again. */
 const DEFAULT_RESTART_DELAY_MS = 1_000
 
+/** How long a child started again after an exclusive operation must stay up before the caller is told it runs. */
+const DEFAULT_STARTED_GRACE_MS = 1_000
+
 const NOT_CONNECTED = "The sync service is not connected; try again shortly."
 
 const NOT_CONNECTED_YET = "The sync service is not connected yet; nothing was sent."
+
+const NOT_RESTARTED =
+  "The sync service did not start syncing again, so the mirror receives nothing until the service is started."
 
 export type SyncOptions = {
   /** The state root; the label's directory is created in it. */
@@ -44,9 +51,16 @@ export type SyncOptions = {
   now?(): Date
   /** The pause before the child starts again after an operation that ran with it stopped; one second by default. */
   restartDelayMs?: number
+  /**
+   * How long a child started again after an operation that ran with it stopped must stay up before the operation's
+   * caller is told the service runs (`service_running`); one second by default.
+   */
+  startedGraceMs?: number
   /** How long a wacli left behind by a killed service may take to exit after SIGTERM before it is killed; 15 seconds by default. */
   staleStopGraceMs?: number
 }
+
+type ExclusiveOperation = Extract<ServiceOperation, { kind: "exclusive" }>
 
 /** What the supervision of one run works on. */
 type Run = {
@@ -64,7 +78,14 @@ function outcomeLine({ state, reason }: SyncOutcome): string {
 
 /** Runs the sync child and the socket until something ends them; resolves with the outcome, with nothing left running. */
 async function supervise({ paths, options, program, recorder }: Run): Promise<SyncOutcome> {
-  const { env, signal, log, operations = {}, restartDelayMs = DEFAULT_RESTART_DELAY_MS } = options
+  const {
+    env,
+    signal,
+    log,
+    operations = {},
+    restartDelayMs = DEFAULT_RESTART_DELAY_MS,
+    startedGraceMs = DEFAULT_STARTED_GRACE_MS,
+  } = options
   const ending = new Ending()
   // Typed by assertion: it is assigned inside closures, where flow analysis would narrow it to `undefined`.
   let child = undefined as SyncChild | undefined
@@ -94,28 +115,46 @@ async function supervise({ paths, options, program, recorder }: Run): Promise<Sy
     })
   }
 
-  /** Starts the child again after an exclusive operation, unless the service is ending; a failure to start ends it. */
-  const restartChild = async () => {
+  /**
+   * Starts the child again after an exclusive operation, unless the service is ending; a failure to start ends it.
+   * Resolves whether the child was started and still runs `startedGraceMs` later: a child that ends at once takes the
+   * service with it.
+   */
+  const restartChild = async (): Promise<boolean> => {
     await delay(restartDelayMs, undefined, { signal: ending.signal }).catch(() => {})
-    if (ending.settled) return
+    if (ending.settled) return false
     try {
       recorder.set("starting")
       startChild()
     } catch (error) {
       ending.end({ kind: "child", reason: `wacli could not be started again: ${errorText(error)}`, loggedOut: false })
+      return false
     }
+    const started = child!
+    if (!(await started.started)) return false
+    const endedSoon = await Promise.race([
+      started.ended.then(() => true),
+      delay(startedGraceMs, false, { signal: ending.signal }).catch(() => true),
+    ])
+    return !endedSoon && !ending.settled
   }
 
-  const runExclusive = async (operation: ServiceOperation, args: unknown, context: ServiceOperationContext) => {
+  const runExclusive = async (operation: ExclusiveOperation, args: unknown, context: ServiceOperationContext) => {
     const stopping = child!
     child = undefined
     recorder.set("paused")
+    let result: Record<string, unknown>
     try {
       await stopping.stop()
-      return await operation.run(args, context)
-    } finally {
-      await restartChild()
+      result = await operation.run(args, context)
+    } catch (error) {
+      const running = await restartChild()
+      if (!running && isToolError(error)) {
+        throw new ToolError(error.code, `${error.message} ${NOT_RESTARTED}`, { cause: error })
+      }
+      throw error
     }
+    return { ...result, service_running: await restartChild() } satisfies ServiceRunning
   }
 
   /**
