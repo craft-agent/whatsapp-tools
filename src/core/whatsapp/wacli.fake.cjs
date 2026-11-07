@@ -2,10 +2,12 @@
 /**
  * A stand-in for wacli in tests. `wacli.testing.ts` copies it into a temp directory as
  * `wacli`, next to a `fake.json` that says how to behave:
- * `{ "version": "0.26.0", "responses": [ { "args": ["doctor"], "stdout"?, "stderr"?, "exit"?, "sleepMs"?, "hang"?, "stderrLines"?, "exitAfterMs"?, "onTerm"?, "ignoreTerm"? } ], "default"?: { ... } }`
+ * `{ "version": "0.26.0", "responses": [ { "args": ["doctor"], "stdout"?, "stderr"?, "exit"?, "sleepMs"?, "hang"?, "stderrLines"?, "exitAfterMs"?, "onTerm"?, "ignoreTerm"? } ], "default"?: { ... }, "mirror"?: { ... } }`
  *
  * A response matches when its `args` appear in order, as one run, among the arguments left after the
- * global flags are removed. The first match answers; then `default`; else a failure envelope.
+ * global flags are removed. The first match answers; then the optional `mirror` (`wacli.mirror.cjs` says how it
+ * answers the reads of chats, messages, polls and calls, given in wacli's own JSON shapes); then `default`; else a
+ * failure envelope.
  * `fake.json` is read on every call, so a test may change the answers between calls.
  * Every call is recorded in `calls.jsonl`: `{ argv, env: { WACLI_* }, cwd, pid }`.
  *
@@ -86,8 +88,10 @@ if (args.length === 1 && args[0] === "version") {
   process.stdout.write(`${config.version}\n`)
 } else {
   const found = (config.responses || []).find((response) => containsRun(args, response.args))
+  const fromMirror = !found && config.mirror && require(path.join(dir, "wacli.mirror.cjs")).answer(args, config.mirror)
   respond(
     found ||
+      fromMirror ||
       config.default || {
         stderr: `${JSON.stringify({ success: false, data: null, error: "unknown command" })}\n`,
         exit: 1,
