@@ -1,3 +1,4 @@
+import { isRecord } from "./json-record"
 import type { LabelPaths } from "./labels"
 import { runWacli } from "./wacli"
 
@@ -6,10 +7,6 @@ const DOCTOR_TIMEOUT_MS = 20_000
 
 /** What `doctor` says of the label's session: usable (or not told), no device paired, or revoked by WhatsApp. */
 export type SessionState = "ok" | "not_paired" | "revoked"
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value)
-}
 
 /** What `doctor` says of the label's session and of the process holding its store. */
 export type SessionReport = {

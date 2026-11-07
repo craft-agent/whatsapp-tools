@@ -1,4 +1,5 @@
 import { readFileSync, renameSync, rmSync, writeFileSync } from "node:fs"
+import { isRecord } from "./json-record"
 import type { LabelPaths } from "./labels"
 import { maskNumbers } from "./mask"
 
@@ -23,10 +24,6 @@ export type ServiceStatus = {
   last_event?: ServiceEvent
   /** Why, in words without content, ids or numbers; numbers are masked on writing. */
   reason?: string
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value)
 }
 
 function isState(value: unknown): value is ServiceState {

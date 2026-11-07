@@ -1,4 +1,5 @@
 import type { ErrorCode } from "../errors"
+import { isRecord } from "./json-record"
 
 /**
  * One request on the sync service's socket, as one line of JSON ending in a line break. `deadline_ms` is how long
@@ -25,10 +26,6 @@ const ERROR_CODES: Record<ErrorCode, true> = {
   upstream_error: true,
   uncertain: true,
   internal_error: true,
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value)
 }
 
 function parseJson(line: string): unknown {

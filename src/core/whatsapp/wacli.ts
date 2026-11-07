@@ -3,6 +3,7 @@ import { access, stat } from "node:fs/promises"
 import { delimiter, join } from "node:path"
 import { ToolError, isAbortError } from "../errors"
 import { exec, type ExecOptions, type ExecResult } from "../exec"
+import { isRecord } from "./json-record"
 import type { LabelPaths } from "./labels"
 import { maskNumbers } from "./mask"
 
@@ -180,10 +181,6 @@ export async function checkWacli(
 /** The arguments for wacli on one label's store, followed by `args`; `--read-only` only for a read. */
 export function wacliArgs(paths: LabelPaths, args: string[], { readOnly }: { readOnly: boolean }): string[] {
   return ["--store", paths.store, "--json", ...(readOnly ? ["--read-only"] : []), ...args]
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value)
 }
 
 function parseEnvelope(line: string): Envelope | undefined {

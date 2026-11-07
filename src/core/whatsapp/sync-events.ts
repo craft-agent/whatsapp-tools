@@ -1,3 +1,4 @@
+import { isRecord } from "./json-record"
 import { MASK, maskNumbers } from "./mask"
 
 /** The event after which wacli ends its sync with exit 0 because WhatsApp ended the session. */
@@ -26,10 +27,6 @@ const MAX_LOGGED_NUMBER = 100_000
 
 /** A JSON string literal, or the mask. */
 const STRING_OR_MASK = new RegExp(String.raw`"(?:[^"\\]|\\.)*"|${MASK}`, "g")
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value)
-}
 
 /**
  * The event on a line of wacli's standard error, or undefined for any other line. The line may be masked already,
