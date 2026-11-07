@@ -7,6 +7,7 @@ import { PLUGIN_NAME } from "./package-name.mjs"
 const SERVER = fileURLToPath(new URL("../dist/mcp.js", import.meta.url))
 const EXIT_USAGE = 2
 const UNKNOWN_TOOL = "unknown_nonexistent_read"
+const EXPECTED_TOOLS = ["whatsapp_account_read", "whatsapp_chat_read"]
 
 async function listTools() {
   const client = new Client({ name: "smoke", version: "0.0.0" })
@@ -16,8 +17,8 @@ async function listTools() {
     if (serverName !== PLUGIN_NAME)
       throw new Error(`Expected the server to be named ${PLUGIN_NAME}, got ${serverName}.`)
     const { tools } = await client.listTools()
-    if (!tools.some((tool) => tool.name === "whatsapp_account_read")) {
-      throw new Error("Expected whatsapp_account_read to be listed.")
+    for (const name of EXPECTED_TOOLS) {
+      if (!tools.some((tool) => tool.name === name)) throw new Error(`Expected ${name} to be listed.`)
     }
     console.log(
       `The MCP server ${serverName} lists ${tools.length} tools: ${tools.map((tool) => tool.name).join(", ")}.`,
