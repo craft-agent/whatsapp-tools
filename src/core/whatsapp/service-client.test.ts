@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test"
 import { spawn } from "node:child_process"
 import { mkdir, rm } from "node:fs/promises"
 import { createServer, type Server, type Socket } from "node:net"
-import { callService } from "./service-client"
+import { callService, isServiceNotRunning, serviceNotRunningMessage } from "./service-client"
 import type { LabelPaths } from "./labels"
 import { ToolError } from "../errors"
 import { eventually, shortTempDir } from "./sync.testing"
@@ -53,12 +53,14 @@ async function failureOf(promise: Promise<unknown>): Promise<ToolError> {
   return error as ToolError
 }
 
-const SENT_NOTHING = 'The sync service for account "main" is not running; start it first.'
+const SENT_NOTHING = serviceNotRunningMessage("main")
 
 describe("callService when the service is not running", () => {
   test("is upstream_error naming the account when there is no socket", async () => {
     const error = await failureOf(callService(paths, "send", {}, { mode: "write" }))
     expect([error.code, error.message]).toEqual(["upstream_error", SENT_NOTHING])
+    expect(isServiceNotRunning(error)).toBe(true)
+    expect(isServiceNotRunning(new ToolError("upstream_error", "other"))).toBe(false)
   })
 
   test("is the same when a socket file was left behind by a service that is gone", async () => {

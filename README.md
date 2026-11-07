@@ -192,6 +192,27 @@ service syncs again:
 - **Antigravity** stops a call after 180 s. Give the server
   `"timeoutSeconds": 330` in its MCP configuration.
 
+### Files (`files`)
+
+| Tool                 | What it does                                                                                      | Class |
+| -------------------- | ------------------------------------------------------------------------------------------------- | ----- |
+| `whatsapp_file_save` | saves one message's file into `download_dir`, inspecting archives and unpacking one when asked to | add   |
+
+Off by default: turn it on with the `files` toolset. A message's file goes into
+its own folder under `download_dir` (`~/Downloads/whatsapp-tools` by default),
+private and never executable, and nothing is overwritten. Programs,
+installers, disk images, macro documents and archives that cannot be read are
+refused; zip, tar and gzipped tar are inspected first and unpacked only when
+asked. On macOS each saved file carries the quarantine flag. A file WhatsApp's
+server no longer keeps is asked of the phone through the running sync service.
+The skill is
+[`whatsapp-files`](skills/whatsapp-files/SKILL.md), shown as
+`whatsapp-tools:whatsapp-files` in Claude Code and `whatsapp-tools:files` in
+Hermes.
+
+A call that falls back to the phone can take a few minutes; Codex and
+Antigravity need the longer tool time limit given above under History.
+
 ## Adding a tool
 
 1. Write the spec in `src/core/<domain>/<verb>.ts` with `defineTool`: an ID
@@ -254,11 +275,12 @@ variable, and an option or setting wins over the variable too.
 | `exclude_tools` | `--exclude-tools` | `WHATSAPP_TOOLS_EXCLUDE_TOOLS` | single tools to remove by ID; wins over `tools` and `toolsets`                |
 | `confirm`       | `--confirm`       | `WHATSAPP_TOOLS_CONFIRM`       | MCP server only: `harness` (default) or `elicitation`, as the conventions say |
 | `state_dir`     | `--state-dir`     | `WHATSAPP_TOOLS_STATE_DIR`     | where every label's state lives; default `$XDG_STATE_HOME/whatsapp-tools`     |
+| `download_dir`  | `--download-dir`  | `WHATSAPP_TOOLS_DOWNLOAD_DIR`  | where received files are saved; default `~/Downloads/whatsapp-tools`          |
 
 Lists are comma-separated in a flag or a variable. Where each harness reads them:
 
 - **OpenCode** takes the plugin `options` shown above, with lists as arrays,
-  `read_only` as a boolean and `state_dir` as a path, and falls back to the variables. V2 runs plugins in
+  `read_only` as a boolean and `state_dir` and `download_dir` as paths, and falls back to the variables. V2 runs plugins in
   its background service, which keeps the environment it started with: a
   variable set where `opencode run` starts has no effect until the service is
   restarted in that environment (`opencode service restart`). V1 runs plugins

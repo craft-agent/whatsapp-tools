@@ -13,6 +13,7 @@ const EXPECTED_TOOLS = [
   "whatsapp_contact_read",
   "whatsapp_history_backfill",
 ]
+const OPT_IN_TOOLS = ["whatsapp_file_save"]
 
 async function listTools() {
   const client = new Client({ name: "smoke", version: "0.0.0" })
@@ -41,6 +42,28 @@ async function listTools() {
   }
 }
 
+/** Tools of the toolsets that are off by default: listed with `--toolsets all`, and not otherwise. */
+async function listsOptInToolsOnlyWhenAsked() {
+  for (const [args, listed] of [
+    [[], false],
+    [["--toolsets", "all"], true],
+  ]) {
+    const client = new Client({ name: "smoke", version: "0.0.0" })
+    await client.connect(new StdioClientTransport({ command: process.execPath, args: [SERVER, ...args] }))
+    try {
+      const names = (await client.listTools()).tools.map((tool) => tool.name)
+      for (const name of OPT_IN_TOOLS) {
+        if (names.includes(name) !== listed) {
+          throw new Error(`Expected ${name} to be ${listed ? "listed" : "left out"} with [${args.join(" ")}].`)
+        }
+      }
+    } finally {
+      await client.close()
+    }
+  }
+  console.log(`${OPT_IN_TOOLS.join(", ")} are listed only with --toolsets all.`)
+}
+
 function rejectsBadSettings() {
   const run = spawnSync(process.execPath, [SERVER, "--toolsets", "bogus"], { encoding: "utf8", stdio: "pipe" })
   if (run.status !== EXIT_USAGE) {
@@ -52,6 +75,7 @@ function rejectsBadSettings() {
 
 try {
   await listTools()
+  await listsOptInToolsOnlyWhenAsked()
   rejectsBadSettings()
 } catch (error) {
   console.error(error)

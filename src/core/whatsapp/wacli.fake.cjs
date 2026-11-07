@@ -2,7 +2,7 @@
 /**
  * A stand-in for wacli in tests. `wacli.testing.ts` copies it into a temp directory as
  * `wacli`, next to a `fake.json` that says how to behave:
- * `{ "version": "0.26.0", "responses": [ { "args": ["doctor"], "stdout"?, "stderr"?, "exit"?, "sleepMs"?, "hang"?, "stderrLines"?, "exitAfterMs"?, "onTerm"?, "ignoreTerm"?, "addMessages"? } ], "default"?: { ... }, "mirror"?: { ... } }`
+ * `{ "version": "0.26.0", "responses": [ { "args": ["doctor"], "stdout"?, "stderr"?, "exit"?, "sleepMs"?, "hang"?, "stderrLines"?, "exitAfterMs"?, "onTerm"?, "ignoreTerm"?, "addMessages"?, "writeOutput"? } ], "default"?: { ... }, "mirror"?: { ... } }`
  *
  * A response matches when its `args` appear in order, as one run, among the arguments left after the
  * global flags are removed. The first match answers; then the optional `mirror` (`wacli.mirror.cjs` says how it
@@ -14,7 +14,10 @@
  * What a response does, from the moment it starts (after `sleepMs`):
  * - appends `addMessages` to the mirror's `messages` in `fake.json`, as a backfill stores what the phone sends, so
  *   the reads after it (the history coverage included) see them; it needs a `mirror`;
- * - writes `stdout`, then `stderr`;
+ * - writes `writeOutput` (`{ base64 }` or `{ text }`) to the file named after `--output`, as `media download` does,
+ *   and, when the response has no `stdout`, prints the success envelope of a download for that file
+ *   (`chat`, `id`, `path`, `bytes`, and `source: "phone"` when the call carried `--retry-on-phone`);
+ * - writes `stdout`, then `stderr`, with `{output}` in either replaced by the file named after `--output`;
  * - writes each of `stderrLines` (`{ line, afterMs? }`) to stderr, as a line, `afterMs` after the start;
  * - with `exitAfterMs`, exits with `exit` (default 0) that long after the start, hanging or not;
  *   with `hang` and no `exitAfterMs`, waits until it is stopped; otherwise exits when its output is done.
@@ -72,6 +75,27 @@ function storeMessages(messages) {
   fs.writeFileSync(file, JSON.stringify({ ...current, mirror }))
 }
 
+/** The value after `flag` in the call's arguments, else undefined. */
+function valueAfter(flag) {
+  const index = argv.indexOf(flag)
+  return index < 0 ? undefined : argv[index + 1]
+}
+
+/** Writes the response's `writeOutput` to the file named after `--output`; returns the envelope a download prints for it. */
+function writeDownload({ base64, text }) {
+  const output = valueAfter("--output")
+  const bytes = base64 !== undefined ? Buffer.from(base64, "base64") : Buffer.from(text ?? "")
+  fs.writeFileSync(output, bytes)
+  const data = { chat: valueAfter("--chat"), id: valueAfter("--id"), path: output, bytes: bytes.length }
+  if (argv.includes("--retry-on-phone")) data.source = "phone"
+  return `${JSON.stringify({ success: true, data, error: null })}\n`
+}
+
+/** `text` with `{output}` replaced by the file named after `--output`. */
+function withOutput(text) {
+  return text.replaceAll("{output}", valueAfter("--output") ?? "")
+}
+
 function respond(response) {
   const onTerm = response.onTerm
   if (response.hang || onTerm || response.ignoreTerm) {
@@ -83,8 +107,10 @@ function respond(response) {
   }
   const run = () => {
     if (response.addMessages) storeMessages(response.addMessages)
-    if (response.stdout) process.stdout.write(response.stdout)
-    if (response.stderr) process.stderr.write(response.stderr)
+    const downloaded = response.writeOutput ? writeDownload(response.writeOutput) : undefined
+    const stdout = response.stdout ?? downloaded
+    if (stdout) process.stdout.write(withOutput(stdout))
+    if (response.stderr) process.stderr.write(withOutput(response.stderr))
     for (const { line, afterMs } of response.stderrLines || []) {
       setTimeout(() => process.stderr.write(`${line}\n`), afterMs || 0)
     }

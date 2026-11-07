@@ -157,6 +157,47 @@ describe("run", () => {
     expect(run.code).toBe(EXIT_OK)
     expect(capturedStateDir).toBe("/custom/state")
   })
+
+  test("passes downloadDir from the flag, the environment or the default to execute", async () => {
+    let capturedDownloadDir: string | undefined
+    const checkTool = {
+      ...specs[0]!,
+      id: "demo_thing_read",
+      async execute(_args: unknown, ctx: { downloadDir?: string }) {
+        capturedDownloadDir = ctx.downloadDir
+        return { tool: "demo_thing_read", cwd: "/x" }
+      },
+    }
+    const argv = ["run", "demo_thing_read", "--cwd", "/x"]
+    const env = { HOME: "/home/user", DEMO_DOWNLOAD_DIR: "/env/downloads" }
+
+    await cli([...argv, "--download-dir", "/flag/downloads"], "", { specs: [checkTool as any], env })
+    expect(capturedDownloadDir).toBe("/flag/downloads")
+    await cli(argv, "", { specs: [checkTool as any], env })
+    expect(capturedDownloadDir).toBe("/env/downloads")
+    await cli(argv, "", { specs: [checkTool as any], env: { HOME: "/home/user" } })
+    expect(capturedDownloadDir).toBe("/home/user/Downloads/demo-tools")
+  })
+
+  test("names the program in ctx.programName", async () => {
+    let capturedProgram: string | undefined
+    const checkTool = {
+      ...specs[0]!,
+      id: "demo_thing_read",
+      async execute(_args: unknown, ctx: { programName?: string }) {
+        capturedProgram = ctx.programName
+        return { tool: "demo_thing_read", cwd: "/x" }
+      },
+    }
+    await cli(["run", "demo_thing_read", "--cwd", "/x"], "", { specs: [checkTool as any] })
+    expect(capturedProgram).toBe(PROJECT.name)
+  })
+
+  test("refuses a relative --download-dir", async () => {
+    const run = await cli(["run", ADD_ID, "--cwd", "/x", "--download-dir", "rel/path"])
+    expect(run.code).toBe(EXIT_USAGE)
+    expect(run.stderr).toContain("--download-dir")
+  })
 })
 
 describe("usage", () => {
@@ -179,6 +220,8 @@ describe("usage", () => {
     [["target", ADD_ID], "--cwd"],
     [["target", ADD_ID, "--cwd", "/x", "--read-only"], "--read-only"],
     [["target", ADD_ID, "--cwd", "/x", "--toolsets", "all"], "--toolsets"],
+    [["target", ADD_ID, "--cwd", "/x", "--download-dir", "rel/path"], "--download-dir"],
+    [["target", ADD_ID, "--cwd", "/x", "--tools", ADD_ID], "--tools"],
     [["target", ADD_ID, "--cwd", "/x", "--state-dir"], "--state-dir"],
     [["target", ADD_ID, "--cwd", "/x", "--state-dir", "rel/path"], "--state-dir"],
   ])("%j is one line on stderr, exit 2 and nothing on stdout", async (argv, message) => {

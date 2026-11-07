@@ -60,7 +60,7 @@ export const backfillAnswer = backfillResult.extend({ service_running: z.boolean
 type BackfillResult = z.infer<typeof backfillResult>
 
 /** What a chat JID looks like: a name, `@` and a server. */
-const CHAT_JID_FORM = /^[\w.-]+@[a-z.]+$/
+export const CHAT_JID_FORM = /^[\w.-]+@[a-z.]+$/
 
 /** The arguments of `history_backfill`. */
 const backfillArguments = z.strictObject({

@@ -13,6 +13,20 @@ const ANSWER_GRACE_MS = 1_000
 
 const UNCERTAIN_ADVICE = "Check before trying again."
 
+/** The message returned when the sync service for an account is not running. */
+export function serviceNotRunningMessage(label: string): string {
+  return `The sync service for account "${label}" is not running; start it first.`
+}
+
+/** Whether an error reports that the sync service is not running. */
+export function isServiceNotRunning(error: unknown): boolean {
+  return (
+    error instanceof ToolError &&
+    error.code === "upstream_error" &&
+    error.message.includes("is not running; start it first")
+  )
+}
+
 export type ServiceCallOptions = {
   /** What the operation may do; only `write` reports an outcome that is not known as `uncertain`, `read` and `ask` do not. */
   mode: WacliMode
@@ -66,8 +80,7 @@ export function callService(
           ? new ToolError("uncertain", `${what}, so the change may have taken effect. ${UNCERTAIN_ADVICE}`)
           : new ToolError("upstream_error", `${what}.`),
       )
-    const notRunning = () =>
-      new ToolError("upstream_error", `The sync service for account "${paths.label}" is not running; start it first.`)
+    const notRunning = () => new ToolError("upstream_error", serviceNotRunningMessage(paths.label))
     function onAbort() {
       // A write that was already submitted may run or have run: giving up on it is not a cancellation.
       if (sent && mode === "write") {

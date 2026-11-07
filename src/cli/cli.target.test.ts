@@ -2,6 +2,8 @@ import { afterEach, describe, expect, test } from "bun:test"
 import { mkdtempSync, realpathSync, rmSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
+import { createFileSave } from "../core/file/save"
+import { createSaveFixture, saveArgs } from "../core/file/save.testing"
 import { EXIT_FAILED, EXIT_OK } from "./cli"
 import { ADD_ID, READ_ID, cli, json, specs } from "./testing"
 
@@ -96,5 +98,22 @@ describe("target", () => {
     })
     expect(runEnv.code).toBe(EXIT_OK)
     expect(seenStateDir).toBe("/env/target/state")
+  })
+
+  test("names the folder of a saved file under --download-dir for whatsapp_file_save", async () => {
+    const fixture = await createSaveFixture()
+    try {
+      const tool = createFileSave()
+      const stdin = JSON.stringify(saveArgs())
+      const argv = ["target", tool.id, "--cwd", "/x", "--state-dir", fixture.stateDir]
+      const run = await cli([...argv, "--download-dir", fixture.downloadDir], stdin, { specs: [tool] })
+      expect(run.code).toBe(EXIT_OK)
+      expect(json(run)).toEqual({ resources: [fixture.folder] })
+
+      const fromEnv = await cli(argv, stdin, { specs: [tool], env: { DEMO_DOWNLOAD_DIR: fixture.downloadDir } })
+      expect(json(fromEnv)).toEqual({ resources: [fixture.folder] })
+    } finally {
+      await fixture.close()
+    }
   })
 })
