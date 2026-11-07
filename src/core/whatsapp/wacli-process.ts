@@ -18,6 +18,12 @@ export type WacliSpawnOptions = {
   onStdoutLine?(line: string): void
   /** Receives each line of standard error, without its line break, with phone numbers masked. */
   onStderrLine?(line: string): void
+  /**
+   * Receives each line of standard error as it is, before it is masked, and returns whether it took the line: a
+   * line it takes never reaches `onStderrLine`. For the few lines that carry a secret meant for the person, which
+   * masking would damage; the taker must keep it out of every log and message.
+   */
+  onRawStderrLine?(line: string): boolean
   /** How long `stop` waits after SIGTERM before it sends SIGKILL; 15 seconds by default. */
   stopGraceMs?: number
 }
@@ -68,12 +74,15 @@ function spawnError(error: NodeJS.ErrnoException): ToolError {
 export function spawnWacli(
   program: string,
   args: string[],
-  { env, onStdoutLine, onStderrLine, stopGraceMs = DEFAULT_STOP_GRACE_MS }: WacliSpawnOptions,
+  { env, onStdoutLine, onStderrLine, onRawStderrLine, stopGraceMs = DEFAULT_STOP_GRACE_MS }: WacliSpawnOptions,
 ): WacliProcess {
   const child = spawn(program, args, { env, shell: false, stdio: ["ignore", "pipe", "pipe"] })
 
   const stdout = lineSplitter((line) => onStdoutLine?.(line))
-  const stderr = lineSplitter((line) => onStderrLine?.(maskNumbers(line)))
+  const stderr = lineSplitter((line) => {
+    if (onRawStderrLine?.(line)) return
+    onStderrLine?.(maskNumbers(line))
+  })
   child.stdout.setEncoding("utf8").on("data", stdout.push)
   child.stderr.setEncoding("utf8").on("data", stderr.push)
 

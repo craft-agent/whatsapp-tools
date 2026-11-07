@@ -65,7 +65,7 @@ export type WacliRunOptions = {
 export type WacliInfo = { program: string; version: string }
 
 /** What wacli prints for every call that is asked for JSON. */
-type Envelope = { success: boolean; data?: unknown; error?: unknown }
+export type Envelope = { success: boolean; data?: unknown; error?: unknown }
 
 /** The checked wacli by program path, for the life of the process. */
 const checked = new Map<string, WacliInfo>()
@@ -196,7 +196,7 @@ function parseEnvelope(line: string): Envelope | undefined {
 }
 
 /** The envelope in wacli's output: the whole text, else the last line that is one. Other lines are status text. */
-function readEnvelope(text: string): Envelope | undefined {
+export function readEnvelope(text: string): Envelope | undefined {
   const trimmed = text.trim()
   const whole = parseEnvelope(trimmed)
   if (whole) return whole
