@@ -152,6 +152,7 @@ Every entry point takes the same settings:
   before an administrative tool acts (see "Write classes"). The default leaves
   the question to the harness, whose approval every user already knows.
 - **`state_dir`**: where every account's state lives (see "Accounts and state").
+- **`download_dir`**: where received files are saved (see "Files").
 
 ## The core contract
 
@@ -326,8 +327,47 @@ Every entry point takes the same settings:
 - **Files go in and out only through the directories a setting names**,
   judged by real path, so a link that leads elsewhere counts as elsewhere.
   The state directory and the tools' own install directory are never among
-  them. Which settings, and their defaults, are settled with the tools that
-  save and send files.
+  them.
+- **Received files are saved under `download_dir`**, by default
+  `~/Downloads/whatsapp-tools`, where a person looks for what they
+  downloaded. A message's file goes in
+  `<download_dir>/<label>/<chat>/<message id>/`, directories mode 700 and
+  files mode 600, never executable: a received file is private, and someone
+  else wrote it. A file already there is never overwritten.
+- **A file is downloaded by its chat and message id only**, into a private
+  folder under a name the tool chooses. The name the message carries is
+  cleaned before it names the saved copy, since the sender chose it.
+- **Programs and installers are never saved**, judged by the name, the
+  declared type and the first bytes, since any one of them can lie. A name or
+  type that already says so is refused before anything is downloaded. Source
+  code is saved as text: it runs only if someone runs it.
+- **An archive is saved only once its contents pass inspection**, on the
+  saved copy itself: a zip, tar or gzipped tar holding no program, installer,
+  nested archive, link or special file, encrypted entry, or path that leaves
+  it, within 500 entries and 500 MB unpacked, counted from the bytes read
+  rather than from what the archive claims. Every other archive format is
+  refused: what cannot be read cannot be checked. An app or system bundle
+  inside it, or a name holding control or direction-changing characters,
+  refuses it too. Its listing comes back with names cleaned of the remaining
+  invisible characters, which could make one name read as another.
+- **A document built on zip is a file, not an archive.** Word, Excel,
+  PowerPoint, OpenDocument and EPUB files are saved whole and never unpacked,
+  since they routinely hold other zips (a chart holds a spreadsheet). One
+  with macros is refused like a program.
+- **Unpacking is asked for, never automatic.** It goes into
+  `<name>.unpacked/` beside the archive, from a private copy inspected again,
+  following no link; a failure removes everything it wrote.
+- **A file WhatsApp's server no longer serves is asked of the phone.** The
+  download runs with `--read-only` beside the sync; when the server answers
+  that the file is gone (403, 404, 410), the tool asks the sync service, which
+  hands wacli's request to upload it again to its running child. The phone
+  must be online and still hold the file.
+- **View-once and disappearing messages are not told apart from others.**
+  wacli unwraps both and keeps no mark of either, so their files are saved
+  like any other, and the skill says so.
+- **On macOS every saved file carries the quarantine flag**, so the system
+  checks it before anything opens it as an app; elsewhere nothing stands for
+  it.
 
 ## Writes
 
