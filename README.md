@@ -191,6 +191,7 @@ variable, and an option or setting wins over the variable too.
 | `tools`         | `--tools`         | `WHATSAPP_TOOLS_TOOLS`         | single tools to add by ID, whatever their toolset                             |
 | `exclude_tools` | `--exclude-tools` | `WHATSAPP_TOOLS_EXCLUDE_TOOLS` | single tools to remove by ID; wins over `tools` and `toolsets`                |
 | `confirm`       | `--confirm`       | `WHATSAPP_TOOLS_CONFIRM`       | MCP server only: `harness` (default) or `elicitation`, as the conventions say |
+| `state_dir`     | `--state-dir`     | `WHATSAPP_TOOLS_STATE_DIR`     | where every label's state lives; default `$XDG_STATE_HOME/whatsapp-tools`     |
 
 Lists are comma-separated in a flag or a variable. Where each harness reads them:
 
@@ -232,6 +233,39 @@ Lists are comma-separated in a flag or a variable. Where each harness reads them
   args = ["-y", "@craftsamo/whatsapp-tools@<version>", "--read-only"]
   env_vars = ["WHATSAPP_TOOLS_TOOLSETS"]
   ```
+
+### Accounts and the sync service
+
+The tools use a WhatsApp account as a linked device of the user's phone, the
+way WhatsApp Web does, through [wacli](https://github.com/openclaw/wacli),
+which you install yourself (`brew install openclaw/tap/wacli`, or a release
+binary). They never drive WhatsApp Web or read another client's data.
+
+- **wacli 0.26 or later.** WhatsApp stops serving old clients until wacli
+  catches up with its protocol, so keep it updated; after an update, restart
+  the sync service so it runs the new release.
+- **Each linked device has a label**, 1 to 24 lowercase letters, digits and
+  `_` (`default` when pairing names none). A tool's `account` argument picks
+  the label; leave it out when only one device is paired.
+- **Each label keeps its state in one directory**, `<state_dir>/<label>/`
+  (mode 700): wacli's store (the session keys, its mirror of your messages,
+  downloaded media), the sync service's socket, and the copies of files being
+  sent. `state_dir` defaults to `$XDG_STATE_HOME/whatsapp-tools`, or
+  `~/.local/state/whatsapp-tools`. wacli's own accounts in `~/.wacli` are not
+  used. Keep the directory out of backups you share: the keys read and send as
+  you.
+- **A sync service runs for each label**: it keeps the mirror current, and
+  every send and every other write goes through it, so the tools that write
+  need it running. Reads work with or without it. History starts when the
+  device is paired, with what the phone sends then; older messages can be
+  asked of the phone, best effort.
+- **WhatsApp unlinks a device unused for 30 days**, and every linked device
+  when the phone has been unused for 14; a phone takes four linked devices at
+  most. A running service keeps the device in use. An unlinked label is paired
+  again from the phone.
+- **wacli is not an official client.** WhatsApp has no API for personal
+  accounts, and it may limit or ban an account it finds using an unofficial
+  one.
 
 ## Layout
 
