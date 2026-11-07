@@ -1,6 +1,6 @@
 /**
- * The mirror of the fake wacli (`wacli.fake.cjs`): the reads of `chats`, `messages`, `polls`, `calls` and `contacts`
- * answered from `fake.json`'s `mirror`, in wacli's own JSON shapes and as wacli v0.26 orders and bounds them:
+ * The mirror of the fake wacli (`wacli.fake.cjs`): the reads of `chats`, `messages`, `polls`, `calls`, `contacts` and
+ * `history coverage` answered from `fake.json`'s `mirror`, in wacli's own JSON shapes and as wacli v0.26 orders and bounds them:
  * `{ "chats": [ { jid, kind, name, last_message_ts, archived, pinned, muted_until, unread, unread_count } ],
  *    "messages": [ { ChatJID, MsgID, Timestamp, … } ], "polls": [ { chat_jid, msg_id, question, … } ],
  *    "calls": [ { chat_jid, msg_id, timestamp, … } ],
@@ -23,12 +23,15 @@
  * - `calls list [--chat j] [--after t] [--before t] [--limit n] [--asc]`: ordered like messages, by `timestamp`.
  * - `contacts search [--limit n] -- <query>`: see `contactsSearch`.
  * - `contacts check -- <phone>...`: see `contactsCheck`; like wacli's, it refuses `--read-only`.
+ * - `history coverage [--chat j] [--include-blocked]`: see `historyCoverage`; it reads beside a sync, under
+ *   `--read-only` too.
  */
 "use strict"
 
 const DEFAULT_LIMIT = 50
 const DEFAULT_CONTEXT = 5
 const MS_PER_SECOND = 1000
+const ZERO_TIME = "0001-01-01T00:00:00Z"
 
 /** The value of `--name value` or `--name=value`, else undefined. */
 function flagValue(args, name) {
@@ -215,6 +218,45 @@ function contactsCheck(args, check, readOnly) {
   )
 }
 
+/** A time in milliseconds as the RFC 3339 text wacli prints. */
+function rfc3339(ms) {
+  return new Date(ms).toISOString().replace(".000Z", "Z")
+}
+
+/**
+ * `history coverage [--chat j] [--include-blocked]`: `{ coverage: [...] }` with one row for the chat (every chat of
+ * the mirror without `--chat`): `{ chat_jid, kind, name?, message_count, oldest_ts, newest_ts, status }`, counting
+ * every message listed for the chat. A chat with no message is `blocked` (`blocked_reason: "no_local_anchor"`) and
+ * its times are wacli's zero time. A chat the mirror knows neither as a chat nor by a message has no row.
+ */
+function historyCoverage(args, mirror) {
+  const { chats = [], messages = [] } = mirror
+  const requested = flagValue(args, "--chat")
+  const jids =
+    requested === undefined ? [...new Set([...chats, ...messages].map((row) => row.jid ?? row.ChatJID))] : [requested]
+  const rows = jids
+    .filter((jid) => chats.some((chat) => chat.jid === jid) || messages.some((message) => message.ChatJID === jid))
+    .map((jid) => {
+      const chat = chats.find((candidate) => candidate.jid === jid)
+      const times = messages
+        .filter((message) => message.ChatJID === jid)
+        .map((message) => Date.parse(message.Timestamp))
+        .sort((a, b) => a - b)
+      const held = times.length > 0
+      return {
+        chat_jid: jid,
+        kind: chat?.kind ?? "dm",
+        ...(chat?.name ? { name: chat.name } : {}),
+        message_count: times.length,
+        oldest_ts: held ? rfc3339(times[0]) : ZERO_TIME,
+        newest_ts: held ? rfc3339(times[times.length - 1]) : ZERO_TIME,
+        status: held ? "ready" : "blocked",
+        ...(held ? {} : { blocked_reason: "no_local_anchor" }),
+      }
+    })
+  return success({ coverage: rows })
+}
+
 /**
  * The answer for `args` (the command line without the global flags) from `mirror`, as `{ stdout?, stderr?, exit? }`,
  * or undefined when the command is not one of the mirror's reads. `readOnly` is whether the call carried `--read-only`.
@@ -256,6 +298,8 @@ function answer(args, mirror, readOnly = false) {
       return contactsSearch(args, contacts)
     case "contacts check":
       return contactsCheck(args, check, readOnly)
+    case "history coverage":
+      return historyCoverage(args, mirror)
     default:
       return undefined
   }

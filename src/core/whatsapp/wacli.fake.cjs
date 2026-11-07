@@ -2,16 +2,18 @@
 /**
  * A stand-in for wacli in tests. `wacli.testing.ts` copies it into a temp directory as
  * `wacli`, next to a `fake.json` that says how to behave:
- * `{ "version": "0.26.0", "responses": [ { "args": ["doctor"], "stdout"?, "stderr"?, "exit"?, "sleepMs"?, "hang"?, "stderrLines"?, "exitAfterMs"?, "onTerm"?, "ignoreTerm"? } ], "default"?: { ... }, "mirror"?: { ... } }`
+ * `{ "version": "0.26.0", "responses": [ { "args": ["doctor"], "stdout"?, "stderr"?, "exit"?, "sleepMs"?, "hang"?, "stderrLines"?, "exitAfterMs"?, "onTerm"?, "ignoreTerm"?, "addMessages"? } ], "default"?: { ... }, "mirror"?: { ... } }`
  *
  * A response matches when its `args` appear in order, as one run, among the arguments left after the
  * global flags are removed. The first match answers; then the optional `mirror` (`wacli.mirror.cjs` says how it
- * answers the reads of chats, messages, polls, calls and contacts, and the number check, given in wacli's own JSON
- * shapes); then `default`; else a failure envelope.
+ * answers the reads of chats, messages, polls, calls and contacts, the history coverage and the number check, given
+ * in wacli's own JSON shapes); then `default`; else a failure envelope.
  * `fake.json` is read on every call, so a test may change the answers between calls.
  * Every call is recorded in `calls.jsonl`: `{ argv, env: { WACLI_* }, cwd, pid }`.
  *
  * What a response does, from the moment it starts (after `sleepMs`):
+ * - appends `addMessages` to the mirror's `messages` in `fake.json`, as a backfill stores what the phone sends, so
+ *   the reads after it (the history coverage included) see them; it needs a `mirror`;
  * - writes `stdout`, then `stderr`;
  * - writes each of `stderrLines` (`{ line, afterMs? }`) to stderr, as a line, `afterMs` after the start;
  * - with `exitAfterMs`, exits with `exit` (default 0) that long after the start, hanging or not;
@@ -61,6 +63,15 @@ function exitAfterFlush(code) {
   process.stderr.write("", () => process.stdout.write("", () => process.exit(code)))
 }
 
+/** Appends messages to the mirror in `fake.json`, which every later call reads afresh. */
+function storeMessages(messages) {
+  const file = path.join(dir, "fake.json")
+  const current = JSON.parse(fs.readFileSync(file, "utf8"))
+  const mirror = current.mirror || {}
+  mirror.messages = [...(mirror.messages || []), ...messages]
+  fs.writeFileSync(file, JSON.stringify({ ...current, mirror }))
+}
+
 function respond(response) {
   const onTerm = response.onTerm
   if (response.hang || onTerm || response.ignoreTerm) {
@@ -71,6 +82,7 @@ function respond(response) {
     })
   }
   const run = () => {
+    if (response.addMessages) storeMessages(response.addMessages)
     if (response.stdout) process.stdout.write(response.stdout)
     if (response.stderr) process.stderr.write(response.stderr)
     for (const { line, afterMs } of response.stderrLines || []) {
