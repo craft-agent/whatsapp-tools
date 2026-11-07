@@ -1,20 +1,21 @@
 ---
 name: whatsapp-chats
-description: "Use when finding a WhatsApp chat, reading its messages, searching what people wrote, or reading the messages around one."
+description: "Use when finding a WhatsApp chat, reading its messages, searching what people wrote, reading the messages around one, or asking the phone for a chat's older messages."
 ---
 
 # Chats and messages
 
-| Tool                 | Does                                              | Writes |
-| -------------------- | ------------------------------------------------- | ------ |
-| `whatsapp_chat_read` | finds chats and reads their messages, by `method` | no     |
+| Tool                        | Does                                                    | Writes           |
+| --------------------------- | ------------------------------------------------------- | ---------------- |
+| `whatsapp_chat_read`        | finds chats and reads their messages, by `method`       | no               |
+| `whatsapp_history_backfill` | asks the phone for one chat's older messages, see below | the local mirror |
 
-It reads the account's local mirror only, with no network or running service
-needed, but the mirror is only as fresh as the sync service: when messages look
-stale, check `whatsapp_account_read`. History starts when the device was
-paired: a chat the user had before may show only a few older messages, and an
-empty result does not prove nothing was said. Every method takes `account`;
-leave it out when only one label is paired.
+`whatsapp_chat_read` reads the account's local mirror only, with no network or
+running service needed, but the mirror is only as fresh as the sync service:
+when messages look stale, check `whatsapp_account_read`. History starts when
+the device was paired: a chat the user had before may show only a few older
+messages, and an empty result does not prove nothing was said. Every tool takes
+`account`; leave it out when only one label is paired.
 
 ## Methods
 
@@ -78,6 +79,42 @@ read here.
 
 `unreadable_rows` counts rows wacli could not read. They are left out of the
 result: never count them as activity.
+
+## Older messages from the phone
+
+When a chat's history stops short of what you need, `whatsapp_history_backfill`
+asks the phone for older messages of that one `chat` (a JID from `list`), in
+`batches` of 50 (2 by default, 5 at most). Use it only when the older messages
+matter, one chat at a time.
+
+- **It is best effort.** The phone must be online with WhatsApp working. A
+  phone that never answers is an error saying so; ask again later.
+- **The sync service pauses for the call**, which can take up to about five
+  minutes, and needs to be running. `service_running: false` means it did not
+  start syncing again: tell the person to start it (see
+  `whatsapp_account_read`).
+- **It anchors on the oldest message the mirror holds.** A chat the mirror
+  does not hold, or holds no message of, is `not_found`; nothing is asked.
+- **The result says what changed**: `added` (messages the chat gained),
+  `held` (messages of the chat now), `oldest` (the oldest one's time), and
+  `stopped`, why it ended:
+
+  | `stopped`          | Means                                                           |
+  | ------------------ | --------------------------------------------------------------- |
+  | `start_of_history` | the phone says it holds nothing older                           |
+  | `nothing_older`    | the phone gave nothing older; this does not prove there is none |
+  | `batches_done`     | every batch was asked for; ask again for more                   |
+  | `no_answer`        | the phone stopped answering after some batches                  |
+  | `time_limit`       | the call ran out of time after some batches                     |
+  | `error`            | wacli failed after some messages arrived                        |
+
+- **Nothing added does not prove nothing older exists**, except after
+  `start_of_history`. Say so when you report a count over a period that starts
+  before `oldest`.
+- **Asking again is safe**: it only asks for messages older than the mirror
+  holds, and sends nothing to anyone. After an `uncertain` error, read the
+  chat with `view` to see what arrived, then ask again if needed.
+- Read what arrived with `view`, as for any other message.
 
 ## Other people's words
 

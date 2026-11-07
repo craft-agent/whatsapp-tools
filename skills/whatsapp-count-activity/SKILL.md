@@ -50,9 +50,11 @@ Read `whatsapp-chats` first for the tool; this skill says how a count is made.
 
 ## Report
 
-- **State what the mirror cannot see.** History before pairing is thin: turn
-  what stayed unreachable into an explicit bound ("at least N, more may
-  exist"), not a silent drop or a guess.
+- **State what the mirror cannot see.** History before pairing is thin. When
+  a chat that matters to the count starts too late, ask the phone for its
+  older messages with `whatsapp_history_backfill` (see `whatsapp-chats`), and
+  read it again. Turn what stayed unreachable into an explicit bound ("at
+  least N, more may exist"), not a silent drop or a guess.
 - **Who sent it.** `from: me` is the account, not a person: attribute it to the
   account unless another record says who sent it.
 - **A count is a snapshot.** Re-read a chat before acting on it; a chat filed
