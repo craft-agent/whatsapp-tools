@@ -1,7 +1,7 @@
 import { ToolError, type ToolSettings, type Toolsets } from "../core"
-import { PROJECT_PROFILE, type EntryProfile } from "./profile"
 import { toolDirectories, type ToolDirectories } from "./directory"
 import { resolveDownloadDir } from "./download-dir"
+import { PROJECT_PROFILE, type EntryProfile } from "./profile"
 import { resolveStateDir } from "./state-dir"
 
 export { toolDirectories, type ToolDirectories }
@@ -191,6 +191,29 @@ export function parseStateDir(
   return resolveStateDir(given ?? envText("state_dir", env, profile), env, profile)
 }
 
+/**
+ * Reads only the `state_dir` and `download_dir` settings from a command line
+ * that takes no other setting, for commands that resolve what a call writes
+ * to: any other settings flag is `invalid_argument`. A flag wins over its
+ * environment variable.
+ */
+export function parseDirectorySettings(
+  argv: string[],
+  env: Record<string, string | undefined>,
+  profile: EntryProfile = PROJECT_PROFILE,
+): { state_dir: string; download_dir: string } {
+  const flags = readFlags(argv)
+  const other = (Object.keys(flags) as OptionName[]).find((name) => name !== "state_dir" && name !== "download_dir")
+  if (other !== undefined)
+    throw new ToolError("invalid_argument", `Option ${OPTIONS[other].flag} is not available here.`)
+  const value = (name: DirectoryOptionName): SettingText | undefined =>
+    flags[name] !== undefined ? { text: flags[name], source: OPTIONS[name].flag } : envText(name, env, profile)
+  return {
+    state_dir: resolveStateDir(value("state_dir"), env, profile),
+    download_dir: resolveDownloadDir(value("download_dir"), env, profile),
+  }
+}
+
 const TOOL_OPTION_NAMES = [
   "toolsets",
   "read_only",
@@ -209,7 +232,9 @@ function optionError(name: string, expected: string): ToolError {
   return new ToolError("invalid_argument", `Option "${name}" must be ${expected}.`)
 }
 
-function directoryOption(name: "state_dir" | "download_dir", value: unknown): string {
+type DirectoryOptionName = Extract<OptionName, "state_dir" | "download_dir">
+
+function directoryOption(name: DirectoryOptionName, value: unknown): string {
   if (typeof value !== "string") throw optionError(name, "an absolute path")
   return value
 }
@@ -262,7 +287,7 @@ export function settingsFromOptions(
     return text !== undefined ? fromText(text) : undefined
   }
 
-  const directoryGiven = (name: "state_dir" | "download_dir"): SettingText | undefined =>
+  const directoryGiven = (name: DirectoryOptionName): SettingText | undefined =>
     given[name] !== undefined
       ? { text: directoryOption(name, given[name]), source: `Option "${name}"` }
       : envText(name, env, profile)

@@ -53,6 +53,11 @@ def download_dir_flags(ctx: PluginContext) -> list[str]:
     return _directory_flags(ctx, "download_dir", "--download-dir")
 
 
+def directory_flags(ctx: PluginContext) -> list[str]:
+    """The flags of the directory settings, which is all the ``target`` command takes."""
+    return state_dir_flags(ctx) + download_dir_flags(ctx)
+
+
 def settings_flags(ctx: PluginContext) -> list[str]:
     """Read the plugin's settings and return the flags that say the same.
 

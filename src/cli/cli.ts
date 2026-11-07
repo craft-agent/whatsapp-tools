@@ -12,7 +12,7 @@ import {
 } from "../core"
 import { permissionResources } from "../entry/permission"
 import { PROJECT_PROFILE, type EntryProfile } from "../entry/profile"
-import { parseStateDir, parseToolSettings, toolDirectories, type ToolDirectories } from "../entry/settings"
+import { parseDirectorySettings, parseToolSettings, toolDirectories, type ToolDirectories } from "../entry/settings"
 import { PROJECT } from "../project"
 import { usageError } from "./command-args"
 import { EXIT_FAILED, EXIT_OK, EXIT_USAGE, type CommandIo } from "./command-io"
@@ -49,7 +49,7 @@ export type CliIo = {
 type Command =
   | { name: "list"; selected: ToolSpec[] }
   | { name: "run"; toolId: string; cwd: string; selected: ToolSpec[]; directories: ToolDirectories }
-  | { name: "target"; toolId: string; cwd: string; stateDir: string }
+  | { name: "target"; toolId: string; cwd: string; directories: ToolDirectories }
 
 /** Splits `--cwd <dir>` from the remaining arguments, which are the settings flags. */
 function takeCwd(argv: string[]): { cwd: string | undefined; rest: string[] } {
@@ -89,7 +89,7 @@ function parseCommand(argv: string[], io: Pick<CliIo, "specs" | "env" | "profile
   const { cwd, rest } = takeCwd(options)
   if (cwd === undefined) throw usageError(`Command ${name} needs ${CWD_FLAG} <dir>.`)
   if (name === "target") {
-    return { name, toolId, cwd, stateDir: parseStateDir(rest, io.env, profile) }
+    return { name, toolId, cwd, directories: toolDirectories(parseDirectorySettings(rest, io.env, profile)) }
   }
 
   const settings = parseToolSettings(rest, io.env, profile)
@@ -163,7 +163,7 @@ async function targetOf(command: Extract<Command, { name: "target" }>, io: CliIo
     const resources = await permissionResources(spec, await readArguments(io), {
       cwd: command.cwd,
       ownDir: io.ownDir,
-      stateDir: command.stateDir,
+      ...command.directories,
       programName: PROJECT.name,
       signal: io.signal,
     })

@@ -3,7 +3,7 @@ import { homedir } from "node:os"
 import { resolve } from "node:path"
 import { PROJECT } from "../project"
 import type { EntryProfile } from "./profile"
-import { parseSettings, parseStateDir, parseToolSettings } from "./settings"
+import { parseDirectorySettings, parseSettings, parseStateDir, parseToolSettings } from "./settings"
 import { failure, profile } from "./settings.testing"
 
 const parse = (argv: string[], env: Record<string, string | undefined> = {}) => parseSettings(argv, env, profile)
@@ -238,6 +238,29 @@ describe("parseStateDir", () => {
   test("refuses --download-dir and any other settings flag, naming it", () => {
     expect(failure(() => parseStateDir(["--download-dir", "/x"], {}, profile)).message).toContain("--download-dir")
     expect(failure(() => parseStateDir(["--tools", "a"], {}, profile)).message).toContain("--tools")
+  })
+})
+
+describe("parseDirectorySettings", () => {
+  test("reads the state and download directories, from the flags or the environment", () => {
+    expect(
+      parseDirectorySettings(
+        ["--state-dir", "/flag/state", "--download-dir=/flag/files"],
+        { DEMO_STATE_DIR: "/env/state", DEMO_DOWNLOAD_DIR: "/env/files" },
+        profile,
+      ),
+    ).toEqual({ state_dir: "/flag/state", download_dir: "/flag/files" })
+    expect(
+      parseDirectorySettings([], { DEMO_STATE_DIR: "/env/state", DEMO_DOWNLOAD_DIR: "/env/files" }, profile),
+    ).toEqual({ state_dir: "/env/state", download_dir: "/env/files" })
+  })
+
+  test("refuses any other settings flag, naming it", () => {
+    for (const argv of [["--toolsets", "a"], ["--read-only"], ["--tools", "a"], ["--confirm", "harness"]]) {
+      expect(failure(() => parseDirectorySettings(argv, {}, profile)).message).toBe(
+        `Option ${argv[0]} is not available here.`,
+      )
+    }
   })
 })
 

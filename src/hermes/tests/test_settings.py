@@ -68,6 +68,13 @@ class SettingsFlagsTest(unittest.TestCase):
             ["--state-dir", "/custom/path", "--download-dir", "/custom/files"],
         )
 
+    def test_directory_flags_are_only_the_two_directories(self) -> None:
+        ctx = StubContext({"state_dir": "/custom/path", "download_dir": "/custom/files", "read_only": True})
+        self.assertEqual(
+            settings.directory_flags(ctx), ["--state-dir", "/custom/path", "--download-dir", "/custom/files"]
+        )
+        self.assertEqual(settings.directory_flags(StubContext({"read_only": True})), [])
+
     def test_invalid_download_dir_refused(self) -> None:
         for value in (123, True, "", "   ", []):
             with self.subTest(value=value), self.assertRaises(settings.SettingsError):

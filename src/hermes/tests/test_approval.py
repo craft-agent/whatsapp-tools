@@ -46,6 +46,25 @@ class ApprovalHookTest(FakeCliCase):
         [call] = self.target_calls()
         self.assertEqual(call["argv"], ["target", "demo_thing_create", "--cwd", CWD, "--state-dir", "/custom/state"])
 
+    def test_both_directory_flags_are_appended_to_target_call(self) -> None:
+        self.reply("target demo_thing_create", stdout='{"resources":["target/one"]}\n')
+        ctx = self.register({"state_dir": "/custom/state", "download_dir": "/custom/files"})
+        ctx.hooks[0][1](tool_name="demo_thing_create", args={"target": "target/one"})
+        [call] = self.target_calls()
+        self.assertEqual(
+            call["argv"],
+            [
+                "target",
+                "demo_thing_create",
+                "--cwd",
+                CWD,
+                "--state-dir",
+                "/custom/state",
+                "--download-dir",
+                "/custom/files",
+            ],
+        )
+
     def test_every_non_read_class_is_sent_to_approval(self) -> None:
         for tool_id in ("demo_widget_update", "demo_item_add", "demo_gadget_edit", "demo_task_run"):
             self.reply(f"target {tool_id}", stdout='{"resources":["target/one"]}')
