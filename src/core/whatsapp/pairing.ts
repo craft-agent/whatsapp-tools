@@ -5,13 +5,16 @@ import { ToolError } from "../errors"
 import { abortError, type ExecResult } from "../exec"
 import { checkLabel, ensureLabelDir, type LabelPaths } from "./labels"
 import { isServiceRunning } from "./service-lock"
-import { parseEvent } from "./sync-events"
+import { CONNECTED_EVENT, parseEvent } from "./sync-events"
 import { inspectSession } from "./sync-session"
 import { checkWacli, readEnvelope, wacliArgs, wacliEnv, wacliError } from "./wacli"
 import { spawnWacli } from "./wacli-process"
 
 /** How long a person has to scan the code or type the pairing code, and for the first sync that follows. */
 const DEFAULT_TIMEOUT_MS = 600_000
+
+/** The same, when the phone sends its full history, which takes longer. */
+const FULL_HISTORY_TIMEOUT_MS = 1_800_000
 
 /** The session's files in the store: wacli's database of the keys, and its journal files. The mirror is not among them. */
 const SESSION_FILES = ["session.db", "session.db-wal", "session.db-shm"]
@@ -50,7 +53,14 @@ export type PairOptions = {
   onQrCode(code: string): void
   /** Receives the code to type on the phone. Never log it. */
   onPairCode(code: string): void
-  /** How long the person has to pair, the first sync included; 10 minutes by default. */
+  /** Asks the phone for its full history instead of its recent window; it only takes effect while pairing. */
+  fullHistory?: boolean
+  /** With `fullHistory`: how many days back the phone sends; unset or 0 lets the phone decide. */
+  historyDays?: number
+  /**
+   * How long the person has to pair, the first sync included; 10 minutes by default, 30 minutes with `fullHistory`.
+   * Once wacli is connected, running out of it ends the pairing as done instead of failing.
+   */
   timeoutMs?: number
 }
 
@@ -125,34 +135,56 @@ function messagesStored(data: unknown): number | null {
   return typeof count === "number" && Number.isInteger(count) && count >= 0 ? count : null
 }
 
-/** Runs `wacli auth --events` until it ends, is aborted or runs out of time; wacli has ended when this settles. */
+/** The data of the success envelope of an authenticated wacli in `stdout`, or undefined. */
+function authenticatedData(stdout: string): unknown {
+  const envelope = readEnvelope(stdout)
+  const data = envelope?.success ? envelope.data : undefined
+  return (data as { authenticated?: unknown } | null | undefined)?.authenticated === true ? data : undefined
+}
+
+/** The arguments of `wacli auth`, after the global ones. */
+function authArgs(phone: string | undefined, { fullHistory, historyDays }: PairOptions): string[] {
+  return [
+    "auth",
+    "--events",
+    ...(phone === undefined ? [] : ["--phone", phone]),
+    ...(fullHistory ? ["--full-history"] : []),
+    ...(fullHistory && historyDays !== undefined ? ["--history-days", String(historyDays)] : []),
+  ]
+}
+
+/**
+ * Runs `wacli auth --events` until it ends, is aborted or runs out of time; wacli has ended when this settles.
+ * Out of time after wacli connected is a pairing that is done: wacli is stopped and its syncing left to the service.
+ */
 async function runAuth(
   program: string,
   paths: LabelPaths,
   phone: string | undefined,
   options: PairOptions,
 ): Promise<PairResult> {
-  const { env, signal, onQrCode, onPairCode, timeoutMs = DEFAULT_TIMEOUT_MS } = options
+  const { env, signal, onQrCode, onPairCode, fullHistory } = options
+  const timeoutMs = options.timeoutMs ?? (fullHistory ? FULL_HISTORY_TIMEOUT_MS : DEFAULT_TIMEOUT_MS)
   const stdout = lineTail()
   const stderr = lineTail()
+  let connected = false
 
-  const child = spawnWacli(
-    program,
-    wacliArgs(paths, ["auth", "--events", ...(phone === undefined ? [] : ["--phone", phone])], { readOnly: false }),
-    {
-      env: wacliEnv(env, paths),
-      onStdoutLine: stdout.push,
-      // The codes are read before masking, which would eat the digit runs in them, and are kept out of `stderr`.
-      onRawStderrLine(line) {
-        const event = parseEvent(line)
-        if (event?.name !== QR_CODE_EVENT && event?.name !== PAIR_CODE_EVENT) return false
-        const code = event.data.code
-        if (typeof code === "string") (event.name === QR_CODE_EVENT ? onQrCode : onPairCode)(code)
-        return true
-      },
-      onStderrLine: stderr.push,
+  const child = spawnWacli(program, wacliArgs(paths, authArgs(phone, options), { readOnly: false }), {
+    env: wacliEnv(env, paths),
+    onStdoutLine: stdout.push,
+    // The codes are read before masking, which would eat the digit runs in them, and are kept out of `stderr`.
+    onRawStderrLine(line) {
+      const event = parseEvent(line)
+      if (event?.name !== QR_CODE_EVENT && event?.name !== PAIR_CODE_EVENT) return false
+      const code = event.data.code
+      if (typeof code === "string") (event.name === QR_CODE_EVENT ? onQrCode : onPairCode)(code)
+      return true
     },
-  )
+    onStderrLine(line) {
+      if (parseEvent(line)?.name === CONNECTED_EVENT) connected = true
+      stderr.push(line)
+    },
+  })
 
   let timer: ReturnType<typeof setTimeout> | undefined
   let onAbort: (() => void) | undefined
@@ -166,7 +198,11 @@ async function runAuth(
   try {
     const outcome = await Promise.race([child.exited, interrupted])
     if (outcome === "abort") throw abortError(signal)
-    if (outcome === "timeout") throw new ToolError("upstream_error", NOT_PAIRED_IN_TIME)
+    if (outcome === "timeout") {
+      if (!connected) throw new ToolError("upstream_error", NOT_PAIRED_IN_TIME)
+      await child.stop()
+      return { messagesStored: messagesStored(authenticatedData(stdout.text())) }
+    }
 
     const result: ExecResult = {
       code: outcome.code ?? -1,
@@ -175,11 +211,8 @@ async function runAuth(
       ...(outcome.signal ? { signal: outcome.signal } : {}),
     }
     if (result.code === 0 && !result.signal) {
-      const envelope = readEnvelope(result.stdout)
-      const data = envelope?.success ? envelope.data : undefined
-      if ((data as { authenticated?: unknown } | null | undefined)?.authenticated === true) {
-        return { messagesStored: messagesStored(data) }
-      }
+      const data = authenticatedData(result.stdout)
+      if (data !== undefined) return { messagesStored: messagesStored(data) }
     }
     if (QR_TIMED_OUT.test(result.stderr)) throw new ToolError("upstream_error", NOT_PAIRED_IN_TIME)
     throw wacliError(result, "read")
@@ -196,8 +229,12 @@ async function runAuth(
  * Refuses while the label's sync service runs, which holds the store, and a label that is paired; a session
  * WhatsApp revoked is cleared first (its files only, the mirror stays). Runs `wacli auth --events`, hands each QR
  * code, or the code to type on the phone when `phone` is given, to the callbacks, and waits for the pairing and the
- * first sync that wacli runs after it. wacli never outlives the call. The codes reach the callbacks only: they are
- * in no message, error or log.
+ * first sync that wacli runs after it. With `fullHistory` the phone is asked for its full history (`historyDays`
+ * limits how far back), which wacli only does while pairing; what is still unsent when wacli ends reaches the
+ * mirror later through the sync service. When the time limit passes after wacli connected, wacli is stopped and the
+ * device counts as paired (`messagesStored` is null unless wacli had printed its result); before that it fails as
+ * not paired in time. wacli never outlives the call. The codes reach the callbacks only: they are in no message,
+ * error or log.
  */
 export async function pairDevice(options: PairOptions): Promise<PairResult> {
   const { stateDir, label, env, signal } = options

@@ -65,6 +65,33 @@ describe("pairDevice", () => {
     expect(call!.argv).toEqual(["--store", fixture.paths.store, "--json", "auth", "--events", "--phone", PHONE_DIGITS])
   })
 
+  test("asks the phone for its full history, and for how many days back", async () => {
+    fixture = await pairingFixture([NOT_PAIRED, AUTH_OK])
+    await fixture.pair({ phone: PHONE, fullHistory: true, historyDays: 90 })
+
+    const [call] = await fixture.authCalls()
+    expect(call!.argv).toEqual([
+      "--store",
+      fixture.paths.store,
+      "--json",
+      "auth",
+      "--events",
+      "--phone",
+      PHONE_DIGITS,
+      "--full-history",
+      "--history-days",
+      "90",
+    ])
+  })
+
+  test("asks for the full history without a day limit by default", async () => {
+    fixture = await pairingFixture([NOT_PAIRED, AUTH_OK])
+    await fixture.pair({ fullHistory: true })
+
+    const [call] = await fixture.authCalls()
+    expect(call!.argv).toEqual(["--store", fixture.paths.store, "--json", "auth", "--events", "--full-history"])
+  })
+
   test("reports null when wacli does not say how many messages arrived", async () => {
     fixture = await pairingFixture([
       NOT_PAIRED,
