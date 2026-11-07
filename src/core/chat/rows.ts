@@ -53,6 +53,19 @@ export const wacliMessage = z.object({
 /** One message as wacli prints it, without the paths and keys it keeps beside it. */
 export type WacliMessage = z.infer<typeof wacliMessage>
 
+/** One hit of `wacli messages search`: a message that says which chat it is in. */
+export const wacliHit = wacliMessage.extend({ ChatJID: z.string().min(1), ChatName: text })
+
+/** One hit of `wacli messages search`. */
+export type WacliHit = z.infer<typeof wacliHit>
+
+/** The part of `wacli messages search`'s answer the tool reads: the hits, how they were ranked and whether more remain. */
+export const wacliSearchPage = z.object({
+  messages: z.array(z.unknown()).nullable(),
+  fts: z.boolean(),
+  page: z.object({ has_more: z.boolean() }),
+})
+
 /** One poll as `wacli polls list` prints it. */
 export const wacliPoll = z.object({ msg_id: z.string(), question: text })
 
