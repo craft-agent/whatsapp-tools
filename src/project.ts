@@ -9,7 +9,7 @@ export const PROJECT = {
   /** Every setting's environment variable is `<envPrefix>_<SETTING>`. */
   envPrefix: "WHATSAPP_TOOLS",
   /** The toolsets, in the order `all` lists them. */
-  toolsets: [] as readonly string[],
+  toolsets: ["account", "chats", "contacts", "history", "files", "sends", "actions"] as readonly string[],
   /** The toolsets on when a setting names none. */
-  defaultToolsets: [] as readonly string[],
+  defaultToolsets: ["account", "chats", "contacts", "history", "sends"] as readonly string[],
 } as const
