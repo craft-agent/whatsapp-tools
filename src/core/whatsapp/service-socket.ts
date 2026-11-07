@@ -44,21 +44,30 @@ export type ServiceOperationContext = {
   signal: AbortSignal
 }
 
-/**
- * An operation the service runs for a caller. `delegated` runs while the sync child runs (it runs wacli, which
- * hands the request to the running sync); `exclusive` runs with the child stopped, and the service starts the child
- * again whatever becomes of the run. A `ToolError` thrown by `run` reaches the caller with its code.
- */
-export type ServiceOperation = {
-  kind: "delegated" | "exclusive"
+type OperationBase = {
   /**
    * Whether the operation may change anything (the store or WhatsApp). One that does not (a number check) is
    * answered `upstream_error` when the service stops or its deadline passes while it runs, since nothing was
    * changed; one that does is answered `uncertain`.
    */
   writes: boolean
-  run(args: unknown, context: ServiceOperationContext): Promise<unknown>
 }
+
+/**
+ * An operation the service runs for a caller. `delegated` runs while the sync child runs (it runs wacli, which
+ * hands the request to the running sync); `exclusive` runs with the child stopped, and the service starts the child
+ * again whatever becomes of the run. An exclusive operation returns an object, which the caller gets with
+ * `service_running` added (`ServiceRunning`). A `ToolError` thrown by `run` reaches the caller with its code.
+ */
+export type ServiceOperation =
+  | (OperationBase & { kind: "delegated"; run(args: unknown, context: ServiceOperationContext): Promise<unknown> })
+  | (OperationBase & {
+      kind: "exclusive"
+      run(args: unknown, context: ServiceOperationContext): Promise<Record<string, unknown>>
+    })
+
+/** What the service adds to the result of an exclusive operation: whether it started its child again. */
+export type ServiceRunning = { service_running: boolean }
 
 /** The operations the service takes by name. */
 export type ServiceOperations = Record<string, ServiceOperation>

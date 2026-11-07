@@ -69,6 +69,32 @@ describe("runPair", () => {
     ])
   })
 
+  test("asks for the full history and says the rest arrives later", async () => {
+    fixture = await commandFixture([NOT_PAIRED, AUTH_OK])
+
+    const { code, stdout } = await fixture.run(runPair, ["--full-history", "--history-days", "30"])
+
+    expect(code).toBe(EXIT_OK)
+    expect(stdout).toContain("The phone keeps sending older history for a while;")
+    expect(stdout.indexOf("Paired")).toBeLessThan(stdout.indexOf("older history"))
+    const [call] = (await fixture.fake.calls()).filter((c) => c.argv.includes("auth"))
+    expect(call!.argv).toEqual([
+      "--store",
+      fixture.paths("default").store,
+      "--json",
+      "auth",
+      "--events",
+      "--full-history",
+      "--history-days",
+      "30",
+    ])
+  })
+
+  test("does not mention older history without --full-history", async () => {
+    fixture = await commandFixture([NOT_PAIRED, AUTH_OK])
+    expect((await fixture.run(runPair)).stdout).not.toContain("older history")
+  })
+
   test("says how many messages arrived in the singular, and nothing when wacli does not say", async () => {
     fixture = await commandFixture([
       NOT_PAIRED,
@@ -153,6 +179,14 @@ describe("runPair", () => {
       ["--bogus"],
       ["extra"],
       ["--read-only"],
+      ["--history-days", "30"],
+      ["--full-history=yes"],
+      ["--full-history", "--history-days"],
+      ["--full-history", "--history-days", "0"],
+      ["--full-history", "--history-days", "36501"],
+      ["--full-history", "--history-days", "1.5"],
+      ["--full-history", "--history-days", "abc"],
+      ["--full-history", "--history-days", "-3"],
     ]
     for (const args of mistakes) {
       const { code, stdout, stderr } = await fixture.run(runPair, args)

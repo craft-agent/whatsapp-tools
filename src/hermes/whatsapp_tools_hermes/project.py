@@ -12,11 +12,16 @@ CLI_NAME = "whatsapp-tools-cli"
 SKILL_PREFIX = "whatsapp-"
 
 #: The emoji each toolset is shown with; empty by default until a project adds its own.
-TOOLSET_EMOJI: dict[str, str] = {"account": "🪪", "chats": "💬", "contacts": "📇"}
+TOOLSET_EMOJI: dict[str, str] = {"account": "🪪", "chats": "💬", "contacts": "📇", "history": "🕰️"}
+
+#: How long one call of a tool may take, in seconds, for a tool that may take longer than the default.
+#: ``whatsapp_history_backfill`` waits up to 300 seconds for the phone, so it gets a margin above that.
+TOOL_TIMEOUT_SECONDS: dict[str, float] = {"whatsapp_history_backfill": 330}
 
 __all__ = [
     "CLI_NAME",
     "PLUGIN_NAME",
     "SKILL_PREFIX",
     "TOOLSET_EMOJI",
+    "TOOL_TIMEOUT_SECONDS",
 ]

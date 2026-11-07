@@ -169,6 +169,7 @@ export async function syncFixture(): Promise<SyncFixture> {
       signal: new AbortController().signal,
       log: (line) => logs.push(line),
       restartDelayMs: 0,
+      startedGraceMs: 0,
       ...overrides,
     })
 

@@ -99,12 +99,12 @@ describe("readiness after an exclusive operation", () => {
   test("is reset by the restart: the next delegated operation waits for the new child to connect", async () => {
     const { outcome, stop } = startServiceWith(fixture, HANGING_SYNC, {
       look,
-      swap: { kind: "exclusive", writes: true, run: async () => "swapped" },
+      swap: { kind: "exclusive", writes: true, run: async () => ({ swapped: true }) },
     })
     await eventually(() => connectedLogs() === 1)
     fixture.fake.setResponses([DOCTOR_OK, connectsAfter(800)])
 
-    expect(await call("swap")).toBe("swapped")
+    expect(await call("swap")).toEqual({ swapped: true, service_running: true })
     expect(fixture.status()?.state).toBe("starting")
     expect(await call("look")).toEqual({ connected: 2, state: "running" })
     stop()
@@ -113,11 +113,11 @@ describe("readiness after an exclusive operation", () => {
 
   test("needs no readiness: an exclusive operation runs while the child has not connected", async () => {
     const { outcome, stop } = startServiceWith(fixture, NEVER_CONNECTS, {
-      swap: { kind: "exclusive", writes: true, run: async () => "swapped" },
+      swap: { kind: "exclusive", writes: true, run: async () => ({ swapped: true }) },
     })
     await eventually(async () => (await fixture.syncCalls()).length === 1)
 
-    expect(await call("swap")).toBe("swapped")
+    expect(await call("swap")).toEqual({ swapped: true, service_running: true })
     await eventually(async () => (await fixture.syncCalls()).length === 2)
     expect(fixture.status()?.state).toBe("starting")
     stop()

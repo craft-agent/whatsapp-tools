@@ -103,6 +103,17 @@ class HandlerTest(FakeCliCase):
             result = json.loads(handler({}))
         self.assertIn("did not finish", result["error"])
 
+    def test_a_tool_with_its_own_time_limit_gets_it_and_the_others_the_default(self) -> None:
+        done = runtime.CliResult(code=0, stdout='{"result":{}}', stderr="")
+        with mock.patch.object(runtime.Runtime, "run", autospec=True, return_value=done) as run:
+            tools.make_handler(self.runtime, "whatsapp_history_backfill", [])({})
+            tools.make_handler(self.runtime, "demo_thing_create", [])({})
+        self.assertEqual(
+            [call.kwargs["timeout"] for call in run.call_args_list],
+            [project.TOOL_TIMEOUT_SECONDS["whatsapp_history_backfill"], tools.RUN_TIMEOUT_SECONDS],
+        )
+        self.assertGreater(project.TOOL_TIMEOUT_SECONDS["whatsapp_history_backfill"], 300)
+
     def test_a_cli_that_cannot_start_is_an_error_result(self) -> None:
         broken = runtime.Runtime(node=str(self.dir / "no-node"), cli=FAKE_CLI, skills_dir=self.skills_dir)
         result = json.loads(tools.make_handler(broken, "demo_thing_create", [])({}))

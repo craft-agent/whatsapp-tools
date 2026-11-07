@@ -5,7 +5,8 @@ import { PLUGIN_NAME } from "./package-name.mjs"
 
 const PLUGIN = fileURLToPath(new URL("../dist/opencode.js", import.meta.url))
 const SERVER = fileURLToPath(new URL("../dist/mcp.js", import.meta.url))
-const READ_TOOLS = ["whatsapp_chat_read", "whatsapp_contact_read"]
+/** Tools the default settings list: the read tools and the write tools of the default toolsets. */
+const DEFAULT_TOOLS = ["whatsapp_chat_read", "whatsapp_contact_read", "whatsapp_history_backfill"]
 
 function expect(condition, message) {
   if (!condition) throw new Error(message)
@@ -43,8 +44,8 @@ try {
     permission: { assert: async () => {} },
   })
   expect(
-    READ_TOOLS.every((id) => expected.includes(id)),
-    `Expected the MCP server to list ${READ_TOOLS.join(", ")}, got ${JSON.stringify(expected)}.`,
+    DEFAULT_TOOLS.every((id) => expected.includes(id)),
+    `Expected the MCP server to list ${DEFAULT_TOOLS.join(", ")}, got ${JSON.stringify(expected)}.`,
   )
   expect(
     JSON.stringify(added.sort()) === JSON.stringify(expected),

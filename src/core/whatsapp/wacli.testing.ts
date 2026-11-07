@@ -25,12 +25,18 @@ export type FakeResponse = {
   onTerm?: { exit: number; stderr?: string }
   /** Ignores SIGTERM, so only SIGKILL stops it. */
   ignoreTerm?: true
+  /**
+   * Messages, as `wacli messages list` prints them, that the response appends to the mirror when it starts, as a
+   * backfill stores what the phone sends. The next `setMirror` or `setResponses` of the test writes its own copy over them.
+   */
+  addMessages?: Record<string, unknown>[]
 }
 
 /**
  * The mirror the fake answers reads from, in wacli's own JSON shapes (`wacli.mirror.cjs` says which reads and how):
  * the chats `chats list` prints, the messages of `messages list` (listed in the order they arrived), the polls of
  * `polls list`, the call events of `calls list`, the contacts of `contacts search` and the answers of `contacts check`.
+ * `history coverage` counts the chats and the messages.
  */
 export type FakeMirror = {
   chats?: Record<string, unknown>[]

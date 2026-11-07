@@ -44,7 +44,10 @@ A person runs these commands; never run them unprompted as an agent.
 
 History starts at pairing: the phone sends some history then, best effort, and
 the mirror keeps messages from then on; an empty mirror does not prove there
-are no older messages. WhatsApp unlinks a device unused for 30 days, and every
+are no older messages. `whatsapp_history_backfill` asks the phone for one
+chat's older messages (see `whatsapp-chats`), and
+`whatsapp-tools-cli pair --full-history` asks for the full history, instead of
+the phone's recent months, while pairing a new device. WhatsApp unlinks a device unused for 30 days, and every
 linked device when the phone is unused for 14 days. A phone takes at most four
 linked devices; each label is one of them. Pair an unlinked device again from
 the phone.

@@ -3,7 +3,17 @@ import { rm } from "node:fs/promises"
 import { join } from "node:path"
 import { ToolError } from "../errors"
 import { callService } from "./service-client"
-import { eventually, gate, startService, syncFixture, untilAborted, type SyncFixture } from "./sync.testing"
+import {
+  DOCTOR_OK,
+  HANGING_SYNC,
+  eventually,
+  gate,
+  startService,
+  startServiceWith,
+  syncFixture,
+  untilAborted,
+  type SyncFixture,
+} from "./sync.testing"
 import { resetWacliCache } from "./wacli"
 
 let fixture: SyncFixture
@@ -73,7 +83,7 @@ describe("an exclusive operation", () => {
     const { outcome, stop } = await startService(fixture, {
       look: { kind: "exclusive", writes: true, run: surroundings },
     })
-    expect(await call("look")).toEqual({ state: "paused", stopped: 1, starts: 1 })
+    expect(await call("look")).toEqual({ state: "paused", stopped: 1, starts: 1, service_running: true })
     await childBack(2)
     stop()
     expect(await outcome).toEqual({ exitCode: 0, state: "stopped" })
@@ -115,6 +125,7 @@ describe("an exclusive operation", () => {
         writes: true,
         async run() {
           order.push(`first at ${(await surroundings()).state}`)
+          return {}
         },
       },
       second: {
@@ -134,9 +145,13 @@ describe("an exclusive operation", () => {
 
   test("ends the run as failed when the child cannot be started again", async () => {
     const { outcome } = await startService(fixture, {
-      remove: { kind: "exclusive", writes: true, run: () => rm(join(fixture.fake.dir, "wacli")).then(() => "done") },
+      remove: {
+        kind: "exclusive",
+        writes: true,
+        run: () => rm(join(fixture.fake.dir, "wacli")).then(() => ({ done: true })),
+      },
     })
-    expect(await call("remove")).toBe("done")
+    expect(await call("remove")).toEqual({ done: true, service_running: false })
 
     const result = await outcome
     expect(result.exitCode).toBe(1)
@@ -144,6 +159,41 @@ describe("an exclusive operation", () => {
     expect(result.reason).toContain("could not be started")
     expect(fixture.status()).toMatchObject({ state: "failed", pid: null })
     expect(fixture.leftovers()).toEqual([])
+  })
+
+  test("says the service does not run when the child started again ends at once", async () => {
+    const { outcome } = startServiceWith(
+      fixture,
+      HANGING_SYNC,
+      {
+        swap: {
+          kind: "exclusive",
+          writes: true,
+          async run() {
+            fixture.fake.setResponses([DOCTOR_OK, { args: ["sync"], exit: 1 }])
+            return {}
+          },
+        },
+      },
+      { startedGraceMs: 2_000 },
+    )
+    await eventually(() => fixture.logs.includes("event connected"))
+    expect(await call("swap")).toEqual({ service_running: false })
+    expect((await outcome).state).toBe("failed")
+  })
+
+  test("says in its error that the service did not start syncing again", async () => {
+    const { outcome } = await startService(fixture, {
+      remove: {
+        kind: "exclusive",
+        writes: true,
+        run: () => rm(join(fixture.fake.dir, "wacli")).then(() => Promise.reject(new ToolError("not_found", "gone"))),
+      },
+    })
+    const error = (await call("remove").catch((caught: unknown) => caught)) as ToolError
+    expect(error.code).toBe("not_found")
+    expect(error.message).toStartWith("gone The sync service did not start syncing again")
+    expect((await outcome).state).toBe("failed")
   })
 
   test("a stop during the operation gives up on it as uncertain and does not start the child again", async () => {

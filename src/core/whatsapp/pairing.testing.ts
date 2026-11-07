@@ -47,6 +47,13 @@ export function authFailing(text: string): FakeResponse {
 /** An `auth` that offers the codes and then waits until it is stopped. */
 export const AUTH_WAITING: FakeResponse = { args: ["auth"], stderrLines: CODE_EVENTS, hang: true }
 
+/** An `auth` that offers the codes, connects and then keeps syncing until it is stopped, as a full history does. */
+export const AUTH_CONNECTED_SYNCING: FakeResponse = {
+  args: ["auth"],
+  stderrLines: [...CODE_EVENTS, { line: eventLine("connected", {}) }],
+  hang: true,
+}
+
 /** A pairing test's surroundings: a state directory, a fake wacli, and what the callbacks received. */
 export type PairingFixture = {
   fake: FakeWacli

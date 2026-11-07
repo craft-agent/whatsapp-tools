@@ -217,7 +217,7 @@ export function readEnvelope(text: string): Envelope | undefined {
 }
 
 /** The text of the failure envelope wacli wrote, or undefined when it wrote none. */
-function failureText(result: ExecResult): string | undefined {
+export function failureText(result: ExecResult): string | undefined {
   for (const text of [result.stderr, result.stdout]) {
     const envelope = readEnvelope(text)
     if (envelope && !envelope.success) return typeof envelope.error === "string" ? envelope.error : ""
@@ -273,17 +273,27 @@ export function wacliError(result: ExecResult, mode: WacliMode, timeoutMs = DEFA
 }
 
 /**
- * Runs wacli on one label's store and returns the `data` of its envelope. Only a `read` runs with `--read-only`. Failures
- * throw as `wacliError` says; an abort rejects with the `AbortError` untouched.
+ * Runs wacli on one label's store and returns what it left, unread: for a caller that needs more of it than the
+ * envelope (its standard error, a time-out). Only a `read` runs with `--read-only`. A wacli that is missing or too old
+ * throws as `checkWacli` says; an abort rejects with the `AbortError` untouched.
  */
-export async function runWacli(paths: LabelPaths, args: string[], options: WacliRunOptions): Promise<unknown> {
+export async function execWacli(paths: LabelPaths, args: string[], options: WacliRunOptions): Promise<ExecResult> {
   const { env, mode, signal, timeoutMs = DEFAULT_TIMEOUT_MS } = options
   const { program } = await checkWacli(env, { signal })
-  const result = await execProgram([program, ...wacliArgs(paths, args, { readOnly: mode === "read" })], {
+  return execProgram([program, ...wacliArgs(paths, args, { readOnly: mode === "read" })], {
     env: wacliEnv(env, paths),
     signal,
     timeoutMs,
   })
+}
+
+/**
+ * Runs wacli on one label's store and returns the `data` of its envelope. Only a `read` runs with `--read-only`. Failures
+ * throw as `wacliError` says; an abort rejects with the `AbortError` untouched.
+ */
+export async function runWacli(paths: LabelPaths, args: string[], options: WacliRunOptions): Promise<unknown> {
+  const result = await execWacli(paths, args, options)
+  const { mode, timeoutMs = DEFAULT_TIMEOUT_MS } = options
   if (result.code === 0 && !result.timedOut && !result.signal) {
     const envelope = readEnvelope(result.stdout)
     // wacli always writes `data` on success; an envelope without it is output that cannot be read.

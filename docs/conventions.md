@@ -281,6 +281,12 @@ Every entry point takes the same settings:
   the service connects to WhatsApp, a write with the service down fails
   before anything leaves, and no process outside the service ever stops it,
   so nothing has to bring it back.
+- **An operation run with the child stopped says whether the service syncs
+  again.** Its result carries `service_running`, true once the service has
+  started its child again and the child has stayed up for a moment, and an
+  error it ends with says so when the child could not be started. The mirror stops receiving while the service is down,
+  and a caller learns that from the call that stopped it, not from the next
+  call that finds the service gone.
 - **The service sends no read receipts or typing indicators of its own**, so
   the phone keeps its notifications and nobody learns that a message was read
   by a tool.

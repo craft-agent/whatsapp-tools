@@ -170,6 +170,28 @@ writes nothing and adds no contact. The skill is
 `whatsapp-tools:whatsapp-contacts` in Claude Code and `whatsapp-tools:contacts`
 in Hermes.
 
+### History (`history`)
+
+| Tool                        | What it does                                                                       | Class |
+| --------------------------- | ---------------------------------------------------------------------------------- | ----- |
+| `whatsapp_history_backfill` | asks the phone for one chat's older messages, in 1 to 5 batches of 50, best effort | add   |
+
+It writes only to the label's own mirror and sends nothing to anyone. The sync
+service runs it, pausing its sync for the call, so the service must be
+running; the result says how many messages arrived, the oldest one now held,
+why it stopped, and whether the service is syncing again. The phone must be
+online, and nothing added does not prove that nothing older exists. Its skill
+is [`whatsapp-chats`](skills/whatsapp-chats/SKILL.md).
+
+A call can take up to about five minutes. Some harnesses stop a tool call
+sooner by default, and the call then fails, though what arrived stays and the
+service syncs again:
+
+- **Codex** stops a call after 60 s. Add the server under `[mcp_servers]` (see
+  [Settings](#settings)) with `tool_timeout_sec = 330`.
+- **Antigravity** stops a call after 180 s. Give the server
+  `"timeoutSeconds": 330` in its MCP configuration.
+
 ## Adding a tool
 
 1. Write the spec in `src/core/<domain>/<verb>.ts` with `defineTool`: an ID
@@ -330,12 +352,12 @@ several labels, add `--account work` to `service status` too.
 
 Every command below follows `whatsapp-tools-cli`:
 
-| Command                                                      | What it does                                                                                                            |
-| ------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------- |
-| `pair [--account <label>] [--phone <number>]`                | pairs this machine from a QR code, or with `--phone` prints a code to enter on the phone, then waits for the first sync |
-| `sync [--account <label>]`                                   | runs the sync service in the foreground, logging to standard error, until stopped                                       |
-| `service install \| uninstall \| status [--account <label>]` | registers/starts the service as a launchd agent (macOS) or systemd user unit (Linux), removes it, or reports its state  |
-| `remove --account <label> [--yes]`                           | uninstalls the service, logs the device out when possible and deletes the label's keys and history after confirmation   |
+| Command                                                                             | What it does                                                                                                            |
+| ----------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| `pair [--account <label>] [--phone <number>] [--full-history [--history-days <n>]]` | pairs this machine from a QR code, or with `--phone` prints a code to enter on the phone, then waits for the first sync |
+| `sync [--account <label>]`                                                          | runs the sync service in the foreground, logging to standard error, until stopped                                       |
+| `service install \| uninstall \| status [--account <label>]`                        | registers/starts the service as a launchd agent (macOS) or systemd user unit (Linux), removes it, or reports its state  |
+| `remove --account <label> [--yes]`                                                  | uninstalls the service, logs the device out when possible and deletes the label's keys and history after confirmation   |
 
 - **The service records this package's paths**, so run `service install`
   again after updating the package. On macOS its log is
@@ -346,6 +368,12 @@ Every command below follows `whatsapp-tools-cli`:
   them. WhatsApp unlinks a device unused for 30 days, and every linked device
   when the phone has been unused for 14 days; a running service keeps the
   linked device in use, not the phone.
+- **`--full-history` asks the phone for its full history** while pairing,
+  instead of its recent months; `--history-days` limits how far back. It
+  takes effect only while pairing, and the phone keeps sending for a while
+  after `pair` ends, which reaches the mirror once the service runs. A
+  device already paired gets older messages with `whatsapp_history_backfill`,
+  one chat at a time, or by being removed and paired again.
 - **To pair a revoked label again**, run `pair` again: the dead session is
   deleted and the mirror is kept. Use a new label for a different account.
 - **Removing a label logs the device out when possible.** If it cannot,

@@ -37,6 +37,8 @@ export type SyncChild = {
    * pending when it ends first. A later `disconnected` does not undo it: the child still holds the store's lock.
    */
   ready: Promise<void>
+  /** Resolves true once the process has started, false when wacli could not be started; never rejects. */
+  started: Promise<boolean>
   /** Stops the child gracefully (SIGTERM, then SIGKILL after the grace period) and resolves once it is gone. */
   stop(): Promise<void>
 }
@@ -73,6 +75,7 @@ export function startSyncChild(options: SyncChildOptions): SyncChild {
   return {
     ended,
     ready,
+    started: wacli.spawned,
     async stop() {
       stoppedByService = true
       await wacli.stop()

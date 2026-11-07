@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test"
 import { isAbortError, ToolError } from "../errors"
 import { isAlive } from "./service-lock"
 import {
+  AUTH_CONNECTED_SYNCING,
   AUTH_OK,
   AUTH_WAITING,
   NOT_PAIRED,
@@ -94,6 +95,36 @@ describe("pairDevice failing", () => {
     expect(error.message).toBe("No device was paired in time; pair again to get a new code.")
     const [call] = await fixture.authCalls()
     expect(isAlive(call!.pid)).toBe(false)
+  })
+
+  test("counts the device as paired when the time runs out after wacli connected, and stops wacli", async () => {
+    fixture = await pairingFixture([
+      NOT_PAIRED,
+      { ...AUTH_CONNECTED_SYNCING, stdout: envelope({ authenticated: true }) },
+    ])
+
+    const result = await fixture.pair({ timeoutMs: 1000 })
+
+    expect(result).toEqual({ messagesStored: null })
+    const [call] = await fixture.authCalls()
+    expect(isAlive(call!.pid)).toBe(false)
+  })
+
+  test("reports what wacli printed before it was stopped, when the time ran out after it connected", async () => {
+    fixture = await pairingFixture([
+      NOT_PAIRED,
+      { ...AUTH_CONNECTED_SYNCING, stdout: envelope({ authenticated: true, messages_stored: 7 }) },
+    ])
+    expect(await fixture.pair({ timeoutMs: 1000 })).toEqual({ messagesStored: 7 })
+  })
+
+  test("fails as not paired when the time runs out before wacli connected, even with the full history asked", async () => {
+    fixture = await pairingFixture([NOT_PAIRED, AUTH_WAITING])
+
+    const error = (await errorOf(fixture.pair({ timeoutMs: 300, fullHistory: true }))) as ToolError
+
+    expect(error.code).toBe("upstream_error")
+    expect(error.message).toBe("No device was paired in time; pair again to get a new code.")
   })
 
   test("stops wacli and rejects with an AbortError when aborted", async () => {
