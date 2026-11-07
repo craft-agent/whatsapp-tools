@@ -1,0 +1,30 @@
+{
+  "name": "whatsapp-tools",
+  "version": "0.0.0",
+  "description": "WhatsApp tools for coding agents: chats, messages, contacts, history, received files and sends.",
+  "author": {
+    "name": "craftsamo",
+    "url": "https://github.com/craft-agent"
+  },
+  "homepage": "https://github.com/craft-agent/whatsapp-tools#readme",
+  "repository": "https://github.com/craft-agent/whatsapp-tools",
+  "license": "MIT",
+  "skills": "./skills",
+  "mcpServers": {
+    "whatsapp-tools": {
+      "command": "node",
+      "args": ["dist/mcp.js"],
+      "cwd": ".",
+      "env_vars": [
+        "WHATSAPP_TOOLS_TOOLSETS",
+        "WHATSAPP_TOOLS_READ_ONLY",
+        "WHATSAPP_TOOLS_TOOLS",
+        "WHATSAPP_TOOLS_EXCLUDE_TOOLS",
+        "WHATSAPP_TOOLS_CONFIRM",
+        "WHATSAPP_TOOLS_STATE_DIR",
+        "WHATSAPP_TOOLS_DOWNLOAD_DIR"
+      ],
+      "tool_timeout_sec": 330
+    }
+  }
+}

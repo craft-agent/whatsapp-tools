@@ -187,8 +187,9 @@ A call can take up to about five minutes. Some harnesses stop a tool call
 sooner by default, and the call then fails, though what arrived stays and the
 service syncs again:
 
-- **Codex** stops a call after 60 s. Add the server under `[mcp_servers]` (see
-  [Settings](#settings)) with `tool_timeout_sec = 330`.
+- **Codex** stops a call after 60 s by default; the plugin raises the limit to
+  330 s. A server added under `[mcp_servers]` instead of the plugin (see
+  [Settings](#settings)) needs `tool_timeout_sec = 330`.
 - **Antigravity** stops a call after 180 s. Give the server
   `"timeoutSeconds": 330` in its MCP configuration.
 
@@ -210,8 +211,8 @@ The skill is
 `whatsapp-tools:whatsapp-files` in Claude Code and `whatsapp-tools:files` in
 Hermes.
 
-A call that falls back to the phone can take a few minutes; Codex and
-Antigravity need the longer tool time limit given above under History.
+A call that falls back to the phone can take a few minutes; the tool time
+limits given above under History apply to it too.
 
 ## Adding a tool
 
@@ -305,8 +306,9 @@ Lists are comma-separated in a flag or a variable. Where each harness reads them
   flags and pass it the client's environment, so set the variables in the
   environment the harness runs in.
 - **Codex** passes a plugin's MCP server only a few basic variables (such as
-  `PATH` and `HOME`), so the variables have no effect there. To change
-  settings, or to give the server a variable it needs, add the server under
+  `PATH` and `HOME`) and those the plugin's manifest names, which are the
+  variables above: set them in the environment Codex runs in. To pass flags,
+  or to give the server another variable it needs, add the server under
   `[mcp_servers]` in Codex's `config.toml` instead of using the plugin: flags
   go in `args`, `env_vars` names the variables to forward from Codex's
   environment, and `env` sets fixed values.
@@ -316,6 +318,7 @@ Lists are comma-separated in a flag or a variable. Where each harness reads them
   command = "npx"
   args = ["-y", "@craftsamo/whatsapp-tools@<version>", "--read-only"]
   env_vars = ["WHATSAPP_TOOLS_TOOLSETS"]
+  tool_timeout_sec = 330
   ```
 
 ### Accounts and the sync service
@@ -417,12 +420,14 @@ Every command below follows `whatsapp-tools-cli`:
 - `src/hermes/`, `plugin.yaml` and `__init__.py` — the Hermes plugin.
 - `skills/` — one skill per toolset, `skills/<name>/SKILL.md`, which every
   harness that takes skills loads from the package or plugin root.
-- `plugin.json`, `mcp.json`, `.mcp.json`, `.claude-plugin/`, `.agents/plugins/`,
+- `.claude-plugin/`, `.codex-plugin/`, `.agents/plugins/`, `.mcp.json`,
   `.antigravity-plugin/` and `mcp_config.json` — the plugin manifests of the
-  other harnesses. The root `.mcp.json` is the configuration Grok Build reads
-  (with `${CLAUDE_PLUGIN_ROOT}`, the variable both Grok Build and Claude Code
-  expand); when working on this repository in Claude Code, decline the project
-  MCP server it offers from that file.
+  other harnesses. Codex reads `.codex-plugin/plugin.json`; a root
+  `plugin.json` would make it load the plugin as an Agent Plugin, whose tool
+  budget hides tools past a fixed size. The root `.mcp.json` is the
+  configuration Grok Build reads (with `${CLAUDE_PLUGIN_ROOT}`, the variable
+  both Grok Build and Claude Code expand); when working on this repository in
+  Claude Code, decline the project MCP server it offers from that file.
 
 How a release is made is in [`RELEASING.md`](RELEASING.md).
 
