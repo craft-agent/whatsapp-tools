@@ -27,3 +27,12 @@ export {
 } from "./tool"
 export { HEADLINE_PLACEHOLDER, callDescription } from "./describe"
 export { sizeFact } from "./facts"
+export {
+  ENGLISH,
+  languageOf,
+  mergeTranslations,
+  translator,
+  type Translations,
+  type Translator,
+  type Words,
+} from "./words"
