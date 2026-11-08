@@ -1,5 +1,5 @@
-import type { ToolSpec } from "../core"
-import { permissionDescription } from "../entry/description"
+import type { ToolSpec, Translator } from "../core"
+import { DESCRIBE_TIMEOUT_MS, permissionDescription } from "../entry/description"
 import { permissionResources } from "../entry/permission"
 import { loadSkills } from "./skills"
 import {
@@ -22,7 +22,13 @@ async function sessionDirectory(ctx: V2Context, sessionID: string): Promise<stri
   }
 }
 
-function v2Tool(ctx: V2Context, spec: ToolSpec, ownDir: string | undefined, directories: PluginDirectories): V2Tool {
+function v2Tool(
+  ctx: V2Context,
+  spec: ToolSpec,
+  ownDir: string | undefined,
+  directories: PluginDirectories,
+  t: Translator,
+): V2Tool {
   return {
     name: spec.id,
     description: spec.description,
@@ -39,13 +45,13 @@ function v2Tool(ctx: V2Context, spec: ToolSpec, ownDir: string | undefined, dire
         const toolContext = { cwd: directory, ownDir, ...directories, signal }
         const [resources, description] = await Promise.all([
           permissionResources(spec, input, toolContext),
-          permissionDescription(spec, input, toolContext),
+          permissionDescription(spec, input, toolContext, DESCRIBE_TIMEOUT_MS, t),
         ])
         await ctx.permission.assert({
           action: spec.id,
           resources,
           save: persistableResources(resources),
-          metadata: permissionMetadata(spec, input, resources, description),
+          metadata: permissionMetadata(spec, input, resources, description, t),
           sessionID,
         })
       }
@@ -68,8 +74,10 @@ function v2Tool(ctx: V2Context, spec: ToolSpec, ownDir: string | undefined, dire
  */
 export function createV2Setup(specs: ToolSpec[], deps: PluginDeps = {}): OpenCodePlugin["setup"] {
   return async function setup(ctx: V2Context): Promise<void> {
-    const selection = selectedTools(specs, ctx.options, deps.env, deps.profile)
-    const tools = selection.tools.map((spec) => v2Tool(ctx, spec, deps.ownDir, selection.directories))
+    const selection = selectedTools(specs, ctx.options, deps)
+    const tools = selection.tools.map((spec) =>
+      v2Tool(ctx, spec, deps.ownDir, selection.directories, selection.translator),
+    )
     const skills = deps.skillsDir === undefined ? [] : await loadSkills(deps.skillsDir)
 
     if (tools.length > 0) {

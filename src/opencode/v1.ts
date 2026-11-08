@@ -1,5 +1,5 @@
-import { inputJsonSchema, type ToolSpec } from "../core"
-import { permissionDescription } from "../entry/description"
+import { inputJsonSchema, type ToolSpec, type Translator } from "../core"
+import { DESCRIBE_TIMEOUT_MS, permissionDescription } from "../entry/description"
 import { permissionResources } from "../entry/permission"
 import {
   needsPermission,
@@ -49,7 +49,7 @@ function workingDir(context: V1ToolContext): string {
   return context.worktree && context.worktree !== "/" ? context.worktree : context.directory
 }
 
-function v1Tool(spec: ToolSpec, ownDir: string | undefined, directories: PluginDirectories): V1Tool {
+function v1Tool(spec: ToolSpec, ownDir: string | undefined, directories: PluginDirectories, t: Translator): V1Tool {
   return {
     description: `${spec.description}${describeArguments(spec)}`,
     args: spec.input.shape,
@@ -58,13 +58,13 @@ function v1Tool(spec: ToolSpec, ownDir: string | undefined, directories: PluginD
       if (needsPermission(spec)) {
         const [resources, description] = await Promise.all([
           permissionResources(spec, args, ctx),
-          permissionDescription(spec, args, ctx),
+          permissionDescription(spec, args, ctx, DESCRIBE_TIMEOUT_MS, t),
         ])
         await context.ask({
           permission: spec.id,
           patterns: resources,
           always: persistableResources(resources),
-          metadata: permissionMetadata(spec, args, resources, description),
+          metadata: permissionMetadata(spec, args, resources, description, t),
         })
       }
       const result = await runTool(spec, args, ctx)
@@ -81,9 +81,9 @@ function v1Tool(spec: ToolSpec, ownDir: string | undefined, directories: PluginD
  */
 export function createV1Server(specs: ToolSpec[], deps: PluginDeps = {}): OpenCodePlugin["server"] {
   return async function server(_input: unknown, options?: PluginOptions): Promise<V1Hooks> {
-    const { tools, directories } = selectedTools(specs, options, deps.env, deps.profile)
+    const { tools, directories, translator } = selectedTools(specs, options, deps)
     const tool: V1Hooks["tool"] = {}
-    for (const spec of tools) tool[spec.id] = v1Tool(spec, deps.ownDir, directories)
+    for (const spec of tools) tool[spec.id] = v1Tool(spec, deps.ownDir, directories, translator)
     return { tool }
   }
 }
