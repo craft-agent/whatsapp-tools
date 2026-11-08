@@ -63,7 +63,7 @@ describe("check through the sync service", () => {
     expect(result.note).toContain("not saved among the contacts")
   })
 
-  test("gives the JID wacli names even when it differs from the number typed, else one made of the digits", async () => {
+  test("gives the phone JID wacli names even when it differs from the number typed, else one made of the digits", async () => {
     await serve({
       "15550100001": { registered: true, jid: "1555010000199@s.whatsapp.net" },
       "15550100002": { registered: true },
@@ -72,6 +72,14 @@ describe("check through the sync service", () => {
     expect(result.numbers?.map((entry) => entry.chat)).toEqual([
       "1555010000199@s.whatsapp.net",
       "15550100002@s.whatsapp.net",
+    ])
+  })
+
+  // wacli files a known hidden-number contact's messages under the phone JID, so the LID would name another chat.
+  test("gives the number's phone JID when WhatsApp answers with an LID", async () => {
+    await serve({ "15550100001": { registered: true, jid: "99887766554433@lid" } })
+    expect((await checkNumbers([A])).numbers).toEqual([
+      { number: A, status: "on_whatsapp", chat: "15550100001@s.whatsapp.net" },
     ])
   })
 

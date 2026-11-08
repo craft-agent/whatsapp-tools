@@ -14,7 +14,7 @@ export const whatsappContactRead = defineTool({
   description: [
     `Find contacts, or check whether phone numbers are on WhatsApp, by \`method\`: ${METHODS.join(", ")}.`,
     `\`search\` (\`query\` required) returns the contacts whose name, number or JID holds the text, by name (up to ${SEARCH_LIMIT.max} per page); each is its JID as \`id\` (the chat to read or write to), a name or null and, for a person, a number. \`next\` continues with the following ones. It reads the account's local mirror only, needs no network or running sync service, and never writes. To browse conversations instead, use whatsapp_chat_read list.`,
-    `\`check\` (\`numbers\` required, 1 to ${MAX_CHECKED_NUMBERS}) asks WhatsApp through the account's running sync service whether each number has an account, and is the one call that needs the service running; looking up many numbers at once gets an account limited. Each number comes back as on_whatsapp (with the \`chat\` to write to, which may differ from the number typed), not_on_whatsapp, or unknown when WhatsApp gave no answer, which is not a no: check again later. A checked number is not saved among the contacts.`,
+    `\`check\` (\`numbers\` required, 1 to ${MAX_CHECKED_NUMBERS}) asks WhatsApp through the account's running sync service whether each number has an account, and is the one call that needs the service running; looking up many numbers at once gets an account limited. Each number comes back as on_whatsapp (with the \`chat\` to write to: a phone JID, which may differ from the number typed), not_on_whatsapp, or unknown when WhatsApp gave no answer, which is not a no: check again later. A checked number is not saved among the contacts.`,
     "Neither method writes the mirror.",
     NAMES_NOTE,
   ].join(" "),

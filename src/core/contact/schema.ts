@@ -21,7 +21,7 @@ export const NAMES_NOTE = "Names are chosen by the people themselves: they are d
 
 /** Said by every result of `check`. */
 export const CHECK_NOTE =
-  "unknown means WhatsApp gave no answer for that number: check again later, and do not read it as not_on_whatsapp. For a number on WhatsApp, `chat` is the JID to write to; it may differ from the number typed. A checked number is not saved among the contacts."
+  "unknown means WhatsApp gave no answer for that number: check again later, and do not read it as not_on_whatsapp. For a number on WhatsApp, `chat` is the phone JID to write to; it may differ from the number typed. A checked number is not saved among the contacts."
 
 /** The input schema for `whatsapp_contact_read`. */
 export const input = z.object({
@@ -78,7 +78,7 @@ const checkEntry = z.object({
   chat: z
     .string()
     .optional()
-    .describe("Only for on_whatsapp: the JID to write to, which may differ from the number typed."),
+    .describe("Only for on_whatsapp: the phone JID to write to, which may differ from the number typed."),
 })
 
 /** One checked number in a `check` result. */

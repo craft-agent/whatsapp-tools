@@ -14,7 +14,7 @@ import { CHECK_NOTE, type CheckEntry, type ContactReadInput, type ContactReadOut
 /** What is removed from a number as typed: spaces, dots, dashes and brackets. */
 const SEPARATORS = /[\s.()[\]-]/g
 
-/** The JID of a person, which wacli leaves out of an answer it has no other JID for. */
+/** The server of a person's phone JID, which names the chat wacli files their messages under. */
 const PERSON_SERVER = "s.whatsapp.net"
 
 const NUMBER_FORM = "+ and 7 to 15 digits, the first not 0 (the country code, then the number)"
@@ -49,6 +49,17 @@ function digitsOf(text: string): string {
 }
 
 /**
+ * The chat to write to for a number on WhatsApp: the phone JID WhatsApp answers with, which may differ from the
+ * number typed, else the number's own. An `…@lid` answer is not passed on, since wacli files the messages of a
+ * person whose number it knows under the phone JID.
+ */
+function chatFor(digits: string, jid: string | undefined): string {
+  const answered = jid?.split("@")
+  if (answered?.length === 2 && answered[1] === PERSON_SERVER && /^\d+$/.test(answered[0]!)) return jid!
+  return `${digits}@${PERSON_SERVER}`
+}
+
+/**
  * What the answer says of one number. Only a number WhatsApp answered for can be on WhatsApp or not; one it left
  * out of its answer, or one wacli did not return, is `unknown` and never a no.
  */
@@ -57,7 +68,7 @@ function entryFor(number: string, answers: ReadonlyMap<string, CheckedNumber>): 
   const answer = answers.get(digits)
   if (!answer?.responded) return { number, status: "unknown" }
   if (!answer.registered) return { number, status: "not_on_whatsapp" }
-  return { number, status: "on_whatsapp", chat: answer.jid || `${digits}@${PERSON_SERVER}` }
+  return { number, status: "on_whatsapp", chat: chatFor(digits, answer.jid) }
 }
 
 /**
