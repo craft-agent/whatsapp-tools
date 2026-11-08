@@ -43,6 +43,14 @@ const NOT_ON_WHATSAPP =
 const NO_ANSWER =
   "WhatsApp gave no answer on whether this number has an account, so nothing was sent. Check again later with whatsapp_contact_read check."
 
+/** The codes the service answers only for a send that never left; any other failure after the hand-off may have sent it. */
+const NOT_SENT_CODES: ReadonlySet<string> = new Set([
+  "invalid_argument",
+  "not_found",
+  "unauthenticated",
+  "upstream_error",
+])
+
 const UNCERTAIN_MESSAGE =
   "The message may have been sent. Read the chat with whatsapp_chat_read and ask the user before sending it again; never send it again on your own."
 
@@ -161,10 +169,10 @@ async function deliver(paths: LabelPaths, chat: string, text: string, replyTo: s
     )
   } catch (error) {
     if (isServiceNotRunning(error)) throw serviceNotRunning(error as ToolError)
-    if (isToolError(error) && error.code === "uncertain") {
-      throw new ToolError("uncertain", UNCERTAIN_MESSAGE, { cause: error })
-    }
-    throw error
+    // An abort before the request reached the service sent nothing; the client reports one after it as uncertain.
+    if (isAbortError(error)) throw error
+    if (isToolError(error) && NOT_SENT_CODES.has(error.code)) throw error
+    throw new ToolError("uncertain", UNCERTAIN_MESSAGE, { cause: error })
   }
   const answer = sendAnswer.safeParse(data)
   if (!answer.success) throw new ToolError("uncertain", UNCERTAIN_MESSAGE, { cause: answer.error })
