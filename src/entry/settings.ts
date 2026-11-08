@@ -1,4 +1,5 @@
 import { ToolError, type ToolSettings, type Toolsets } from "../core"
+import { PROJECT } from "../project"
 import { toolDirectories, type ToolDirectories } from "./directory"
 import { resolveDownloadDir } from "./download-dir"
 import { PROJECT_PROFILE, type EntryProfile } from "./profile"
@@ -41,6 +42,14 @@ function envName(name: OptionName, profile: EntryProfile): string {
 /** The environment variables the settings are read from, in the order the settings are listed. */
 export function settingVariables(profile: EntryProfile = PROJECT_PROFILE): string[] {
   return (Object.keys(OPTIONS) as OptionName[]).map((name) => envName(name, profile))
+}
+
+/** The environment variables a harness that forwards only named variables must pass the server: the settings' variables, then the package's `toolVariables`. */
+export function forwardedVariables(
+  profile: EntryProfile = PROJECT_PROFILE,
+  toolVariables: readonly string[] = PROJECT.toolVariables,
+): string[] {
+  return [...settingVariables(profile), ...toolVariables]
 }
 
 function readFlags(argv: string[]): Partial<Record<OptionName, string>> {
