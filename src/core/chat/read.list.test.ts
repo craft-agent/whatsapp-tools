@@ -55,7 +55,7 @@ describe("chat read: list", () => {
       wacliChat({ jid: HIDDEN, kind: "dm" }),
       wacliChat({ jid: NEWS, kind: "newsletter", name: "News" }),
       wacliChat({ jid: "status@broadcast", kind: "broadcast" }),
-      wacliChat({ jid: BOB, kind: "unknown" }),
+      wacliChat({ jid: BOB, kind: "dm" }),
     )
     const chats = (await t.read({ method: "list" })).chats ?? []
     const byId = new Map(chats.map((chat) => [chat.id, chat]))
@@ -64,13 +64,33 @@ describe("chat read: list", () => {
       "channel",
       "group",
       "person",
-      "unknown",
+      "person",
     ])
     expect(byId.get(HIDDEN)).toMatchObject({ kind: "person", name: null })
     expect(byId.get(HIDDEN)).not.toHaveProperty("number")
     expect(byId.get(TEAM)).not.toHaveProperty("number")
     expect(byId.get(NEWS)?.kind).toBe("channel")
-    expect(byId.get(BOB)).toMatchObject({ kind: "unknown", number: "+15550100002" })
+    expect(byId.get(BOB)).toMatchObject({ kind: "person", number: "+15550100002" })
+  })
+
+  // wacli calls a hidden-number contact it cannot tie to a number `unknown`.
+  test("a chat wacli names no kind of takes the kind its JID tells, and stays unknown when the JID tells none", async () => {
+    t.addChats(
+      wacliChat({ jid: HIDDEN, kind: "unknown" }),
+      wacliChat({ jid: BOB, kind: "" }),
+      wacliChat({ jid: TEAM, kind: "unknown" }),
+      wacliChat({ jid: NEWS, kind: "unknown" }),
+      wacliChat({ jid: "status@broadcast", kind: "unknown" }),
+    )
+    const chats = (await t.read({ method: "list" })).chats ?? []
+    const kinds = Object.fromEntries(chats.map((chat) => [chat.id, chat.kind]))
+    expect(kinds).toEqual({
+      [HIDDEN]: "person",
+      [BOB]: "person",
+      [TEAM]: "group",
+      [NEWS]: "channel",
+      "status@broadcast": "unknown",
+    })
   })
 
   test("a chat with no activity says null, and the zero time is not a time", async () => {

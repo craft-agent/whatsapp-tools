@@ -39,7 +39,7 @@ export async function viewChat(mirror: Mirror, args: ChatReadInput): Promise<Cha
 
   const from = cursor && { second: cursor.second, ids: cursor.ids }
   const chat = await mirror.chat(requested)
-  const context = { id: chat.jid, kind: chatKind(chat.kind) }
+  const context = { id: chat.jid, kind: chatKind(chat.kind, chat.jid) }
   const scan = await scanMessages(mirror, {
     chat: requested,
     limit,

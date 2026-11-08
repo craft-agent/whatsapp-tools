@@ -76,7 +76,7 @@ export async function aroundMessage(mirror: Mirror, args: ChatReadInput): Promis
   const older = nearest(rows.slice(0, index).reverse(), beforeCount)
   const newer = nearest(rows.slice(index + 1), afterCount)
 
-  const context = { id: chat.jid, kind: chatKind(chat.kind) }
+  const context = { id: chat.jid, kind: chatKind(chat.kind, chat.jid) }
   const kinds = await readKinds(mirror, requested, [anchor, ...older.kept, ...newer.kept])
   const anchorEntry = toMessageEntry(anchor, context, kinds)
   const olderEntries = older.kept.map((row) => toMessageEntry(row, context, kinds))
