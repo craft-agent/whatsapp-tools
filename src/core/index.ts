@@ -15,6 +15,7 @@ export {
   toolMeta,
   type CallDescription,
   type CallFact,
+  type CallHeadline,
   type CallText,
   type ConfirmRequest,
   type ToolAnnotations,
@@ -24,5 +25,5 @@ export {
   type Toolsets,
   type WriteClass,
 } from "./tool"
-export { callDescription } from "./describe"
+export { HEADLINE_PLACEHOLDER, callDescription } from "./describe"
 export { sizeFact } from "./facts"
