@@ -51,7 +51,8 @@ tagged `v<version>`; consumers pin a tag or the same npm version.
   reaches a result, an error or a log; tests use made-up accounts and numbers
   only.
 - **A chat is a JID, never a name or a number**, and is looked up only in its
-  label's mirror.
+  label's mirror; a send to a person the mirror does not hold yet is the one
+  exception, and asks WhatsApp about the number first.
 - **A send that may have gone out throws `uncertain`**, never success or a
   plain failure: a wrong guess sends the message twice.
 - **Every commit stays small.** The pre-commit hook rejects a commit over 500
