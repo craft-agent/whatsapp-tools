@@ -1,20 +1,30 @@
 import { chatKind, chatNumber, parseChatJid, type ChatKind } from "../chat/jid"
+import { MESSAGE_ID_FORM } from "../whatsapp/media"
 import { openMirror, type Mirror } from "../chat/mirror"
 import { checkNumbers } from "../contact/check"
 import type { CheckEntry } from "../contact/schema"
-import { ToolError, isToolError } from "../errors"
+import { ToolError, isAbortError, isToolError } from "../errors"
 import { ANY_TARGET } from "../targets"
 import { defineTool, type ToolContext } from "../tool"
 import { formatLocalTime } from "../time"
 import { labelTargets } from "../whatsapp/label-targets"
 import { pickLabel, type LabelPaths } from "../whatsapp/labels"
 import { CHECKED_NUMBER } from "../whatsapp/operations"
-import { MESSAGE_SEND_DEADLINE_MS, MESSAGE_SEND_OP, MESSAGE_TEXT_MAX_CHARACTERS, sendAnswer } from "../whatsapp/send"
+import {
+  LONE_SURROGATE,
+  MESSAGE_SEND_DEADLINE_MS,
+  MESSAGE_SEND_OP,
+  MESSAGE_TEXT_MAX_CHARACTERS,
+  sendAnswer,
+} from "../whatsapp/send"
 import { callService, isServiceNotRunning } from "../whatsapp/service-client"
 import { SEND_NOTE, input, output, type MessageSendInput, type MessageSendOutput } from "./schema"
 
 /** What names the tool that lists the chats, in the message that asks for a JID. */
 const CHAT_FINDER = "whatsapp_chat_read list"
+
+/** The servers of the JIDs a send is refused for: a channel, and a broadcast list or the status feed. */
+const REFUSED_SERVERS: ReadonlySet<string> = new Set(["newsletter", "broadcast"])
 
 /** The kinds of chat a send goes to. */
 const SEND_KINDS: ReadonlySet<string> = new Set(["person", "group"])
@@ -38,6 +48,39 @@ const UNCERTAIN_MESSAGE =
 
 function chatOf(args: MessageSendInput): string {
   return parseChatJid(args.chat, "chat", "whatsapp_message_send", CHAT_FINDER)
+}
+
+function serverOf(jid: string): string {
+  return jid.slice(jid.lastIndexOf("@") + 1)
+}
+
+/** The text to send: trimmed, not empty, without a NUL, and within the length one message takes, counted as code points. */
+function checkedText(given: string): string {
+  const text = given.trim()
+  if (text === "") throw new ToolError("invalid_argument", "text is empty; there is nothing to send.")
+  if (text.includes("\0")) throw new ToolError("invalid_argument", "text must not contain a NUL character.")
+  if (LONE_SURROGATE.test(text)) {
+    throw new ToolError("invalid_argument", "text holds half of a character, which would arrive as another one.")
+  }
+  const length = [...text].length
+  if (length > MESSAGE_TEXT_MAX_CHARACTERS) {
+    throw new ToolError(
+      "invalid_argument",
+      `text is ${length} characters and one message takes at most ${MESSAGE_TEXT_MAX_CHARACTERS}. Never shorten it yourself; split it into several sends only if the user agrees.`,
+    )
+  }
+  return text
+}
+
+/** The message id `reply_to` names, or `invalid_argument` naming `reply_to`. The text is not echoed. */
+function replyToOf(given: string): string {
+  if (!MESSAGE_ID_FORM.test(given)) {
+    throw new ToolError(
+      "invalid_argument",
+      "reply_to must be a message id as whatsapp_chat_read gives it: letters, digits, `.`, `_` and `-`.",
+    )
+  }
+  return given
 }
 
 /** The error for a sync service that is not running, saying that a send needs it. Nothing was sent. */
@@ -161,8 +204,9 @@ export const whatsappMessageSend = defineTool({
   targets: sendTargets,
   async execute(args, ctx): Promise<MessageSendOutput> {
     const chat = chatOf(args)
-    const text = args.text.trim()
-    const replyTo = args.reply_to
+    if (REFUSED_SERVERS.has(serverOf(chat))) throw new ToolError("invalid_argument", PEOPLE_AND_GROUPS_ONLY)
+    const text = checkedText(args.text)
+    const replyTo = args.reply_to === undefined ? undefined : replyToOf(args.reply_to)
     const stateDir = ctx.stateDir
     if (!stateDir) throw new ToolError("internal_error", "The entry point did not supply a state directory.")
     const paths = await pickLabel(stateDir, args.account)
