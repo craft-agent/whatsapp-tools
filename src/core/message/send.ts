@@ -1,11 +1,14 @@
-import { chatKind, parseChatJid, type ChatKind } from "../chat/jid"
+import { chatKind, chatNumber, parseChatJid, type ChatKind } from "../chat/jid"
 import { openMirror, type Mirror } from "../chat/mirror"
+import { checkNumbers } from "../contact/check"
+import type { CheckEntry } from "../contact/schema"
 import { ToolError, isToolError } from "../errors"
 import { ANY_TARGET } from "../targets"
 import { defineTool, type ToolContext } from "../tool"
 import { formatLocalTime } from "../time"
 import { labelTargets } from "../whatsapp/label-targets"
 import { pickLabel, type LabelPaths } from "../whatsapp/labels"
+import { CHECKED_NUMBER } from "../whatsapp/operations"
 import { MESSAGE_SEND_DEADLINE_MS, MESSAGE_SEND_OP, MESSAGE_TEXT_MAX_CHARACTERS, sendAnswer } from "../whatsapp/send"
 import { callService, isServiceNotRunning } from "../whatsapp/service-client"
 import { SEND_NOTE, input, output, type MessageSendInput, type MessageSendOutput } from "./schema"
@@ -19,7 +22,16 @@ const SEND_KINDS: ReadonlySet<string> = new Set(["person", "group"])
 const PEOPLE_AND_GROUPS_ONLY =
   "Sends go to people and groups only: a channel, a broadcast list and the status feed are refused, since each reaches people other than the ones the chat names. Nothing was sent."
 
-const NOT_IN_MIRROR = `This chat is not in this account's mirror. Find the chat with ${CHAT_FINDER}. Nothing was sent.`
+const NOT_IN_MIRROR = `This chat is not in this account's mirror, and only a person's phone number can be checked with WhatsApp. Find the chat with ${CHAT_FINDER}; to write to someone new, use the \`chat\` that whatsapp_contact_read check gives. Nothing was sent.`
+
+const NOTHING_TO_QUOTE =
+  "This chat is not in this account's mirror, so there is no message of it to reply to. Send without reply_to. Nothing was sent."
+
+const NOT_ON_WHATSAPP =
+  "This number has no WhatsApp account, so nothing was sent. Check the number with whatsapp_contact_read check."
+
+const NO_ANSWER =
+  "WhatsApp gave no answer on whether this number has an account, so nothing was sent. Check again later with whatsapp_contact_read check."
 
 const UNCERTAIN_MESSAGE =
   "The message may have been sent. Read the chat with whatsapp_chat_read and ask the user before sending it again; never send it again on your own."
@@ -45,6 +57,36 @@ async function requireMessage(mirror: Mirror, chat: string, id: string): Promise
   }
 }
 
+/**
+ * Lets a person the mirror does not hold through only when WhatsApp says their number has an account, since wacli
+ * sends to an unregistered number without a word. Only a phone JID can be checked, and there is nothing to quote.
+ */
+async function requireRegistered(
+  paths: LabelPaths,
+  chat: string,
+  replyTo: string | undefined,
+  signal: AbortSignal | undefined,
+): Promise<void> {
+  const number = chatNumber(chat)
+  if (number === undefined || !CHECKED_NUMBER.test(number)) throw new ToolError("not_found", NOT_IN_MIRROR)
+  if (replyTo !== undefined) throw new ToolError("not_found", NOTHING_TO_QUOTE)
+  let entry: CheckEntry | undefined
+  try {
+    entry = (await checkNumbers(paths, { method: "check", numbers: [number] }, signal)).numbers?.[0]
+  } catch (error) {
+    throw isServiceNotRunning(error) ? serviceNotRunning(error as ToolError) : error
+  }
+  if (entry?.status === "not_on_whatsapp") throw new ToolError("not_found", NOT_ON_WHATSAPP)
+  if (entry?.status !== "on_whatsapp") throw new ToolError("upstream_error", NO_ANSWER)
+  // WhatsApp may answer with another phone JID for the number; the chat named must be the one it answers with.
+  if (entry.chat !== chat) {
+    throw new ToolError(
+      "invalid_argument",
+      "WhatsApp knows this number under another chat. Send to the `chat` whatsapp_contact_read check gives for it. Nothing was sent.",
+    )
+  }
+}
+
 /** Checks that the chat is one a send goes to, and that the message to reply to is in it; a new person is checked with WhatsApp. */
 async function checkRecipient(
   paths: LabelPaths,
@@ -58,7 +100,7 @@ async function checkRecipient(
     kind = chatKind((await mirror.chat(chat)).kind, chat)
   } catch (error) {
     if (!isToolError(error) || error.code !== "not_found") throw error
-    throw new ToolError("not_found", NOT_IN_MIRROR)
+    return requireRegistered(paths, chat, replyTo, signal)
   }
   if (!SEND_KINDS.has(kind)) throw new ToolError("invalid_argument", PEOPLE_AND_GROUPS_ONLY)
   if (replyTo !== undefined) await requireMessage(mirror, chat, replyTo)
@@ -103,7 +145,7 @@ export const whatsappMessageSend = defineTool({
   title: "Send a message",
   description: [
     "Sends one text to a person or a group; channels, broadcast lists and the status feed are refused.",
-    "`chat` is a JID from whatsapp_chat_read list, never a name or a number.",
+    "`chat` is a JID from whatsapp_chat_read list, or for someone new the `chat` that whatsapp_contact_read check gives (the tool asks WhatsApp whether the number has an account first), never a name or a number.",
     "It needs the account's sync service running.",
     `\`text\` is sent exactly as given, surrounding blank space trimmed, at most ${MESSAGE_TEXT_MAX_CHARACTERS} characters; it is never split or shortened without the user's agreement, and no link preview is fetched.`,
     "`reply_to` quotes a message of the same chat by its id.",
