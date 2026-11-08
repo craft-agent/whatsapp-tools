@@ -88,11 +88,11 @@ describe("chat read: search", () => {
     expect((await search("a message")).unreadable_rows).toBeUndefined()
   })
 
-  test("a hit in a chat the mirror has no row for is named as wacli names it, of an unknown kind", async () => {
+  test("a hit in a chat the mirror has no row for is named as wacli names it, of the kind its JID tells", async () => {
     t.add({ id: "ghost", at: at(1), chat: "120363000000000009@g.us", ChatName: "Ghost", Text: "boo" })
     expect((await search("boo")).messages?.[0]?.chat).toEqual({
       id: "120363000000000009@g.us",
-      kind: "unknown",
+      kind: "group",
       name: "Ghost",
     })
   })

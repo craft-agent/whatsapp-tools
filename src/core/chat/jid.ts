@@ -39,9 +39,23 @@ export function parseChatJid(text: string | undefined, name: string, method: str
   )
 }
 
-/** The kind of chat that wacli's `kind` names; anything it does not know is `unknown`. */
-export function chatKind(wacliKind: string): ChatKind {
-  return KINDS.get(wacliKind) ?? "unknown"
+/**
+ * The kinds a JID's server alone tells, for a chat wacli names no kind of. A broadcast JID is left out: the status
+ * feed (`status@broadcast`) is one too, and it is not a broadcast list.
+ */
+const SERVER_KINDS: ReadonlyMap<string, ChatKind> = new Map<string, ChatKind>([
+  ["s.whatsapp.net", "person"],
+  ["lid", "person"],
+  ["g.us", "group"],
+  ["newsletter", "channel"],
+])
+
+/**
+ * The kind of chat that wacli's `kind` names. When wacli names none it knows, which it does for a hidden-number
+ * contact it cannot tie to a number, the server of the chat's `jid` decides; anything else is `unknown`.
+ */
+export function chatKind(wacliKind: string, jid: string): ChatKind {
+  return KINDS.get(wacliKind) ?? SERVER_KINDS.get(jid.slice(jid.lastIndexOf("@") + 1)) ?? "unknown"
 }
 
 /** A person's number as `+digits`, only from a JID that carries one; a hidden-number JID has none. */

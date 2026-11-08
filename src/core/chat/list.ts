@@ -49,7 +49,7 @@ function chatEntry(chat: WacliChat, nowSecond: number): ChatEntry {
   const seconds = activity(chat)
   const unread = Math.max(0, chat.unread_count)
   const entry: ChatEntry = {
-    ...chatHeader(chat.jid, chatKind(chat.kind), chat.name),
+    ...chatHeader(chat.jid, chatKind(chat.kind, chat.jid), chat.name),
     unread,
     last_activity_at: seconds > 0 ? formatLocalTime(seconds * MS_PER_SECOND) : null,
   }
@@ -66,7 +66,7 @@ async function lastMessage(mirror: Mirror, chat: WacliChat): Promise<MessageEntr
   const row = rows.find((candidate) => !isUnreadable(candidate))
   if (!row) return null
   const kinds = await readKinds(mirror, chat.jid, [row])
-  return toMessageEntry(row, { id: chat.jid, kind: chatKind(chat.kind) }, kinds)
+  return toMessageEntry(row, { id: chat.jid, kind: chatKind(chat.kind, chat.jid) }, kinds)
 }
 
 /**

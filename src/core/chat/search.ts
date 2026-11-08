@@ -117,7 +117,7 @@ export async function searchMessages(mirror: Mirror, args: ChatReadInput): Promi
   )
   const entries = scan.rows.map((row) => {
     const chat = chats.get(row.ChatJID)
-    const kind = chatKind(chat?.kind ?? "")
+    const kind = chatKind(chat?.kind ?? "", row.ChatJID)
     const entry = toMessageEntry(row, { id: row.ChatJID, kind }, kinds.get(row.ChatJID)!)
     entry.chat = chatHeader(row.ChatJID, kind, chat?.name ?? row.ChatName)
     return entry
