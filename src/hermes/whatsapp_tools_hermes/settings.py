@@ -79,6 +79,15 @@ def directory_flags(ctx: PluginContext) -> list[str]:
     return state_dir_flags(ctx) + download_dir_flags(ctx) + send_dirs_flags(ctx)
 
 
+def language_setting(ctx: PluginContext) -> str | None:
+    """The ``language`` setting, stripped; ``None`` when it is absent, blank or not a string.
+
+    It is no flag of ``settings_flags``: only ``target`` takes a language.
+    """
+    value = ctx.get_config("language")
+    return (value.strip() or None) if isinstance(value, str) else None
+
+
 def settings_flags(ctx: PluginContext) -> list[str]:
     """Read the plugin's settings and return the flags that say the same.
 

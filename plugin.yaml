@@ -32,3 +32,5 @@ config_schema:
   send_dirs:
     type: list
     description: The directories files may be sent from, besides the working directory; absolute paths, or ones starting with ~, without commas. Defaults to none.
+  language:
+    description: The language of the approval card, such as ja. Defaults to Hermes's display language, else English.
