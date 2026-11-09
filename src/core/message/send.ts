@@ -16,7 +16,9 @@ import {
   replyToOf,
   uncertainMessage,
 } from "./recipient"
+import { describeChat, describeReply, openPromptMirror } from "./describe"
 import { SEND_NOTE, input, output, type MessageSendInput, type MessageSendOutput } from "./schema"
+import { MESSAGE_WORDS } from "./words"
 
 const TOOL_ID = "whatsapp_message_send"
 
@@ -59,7 +61,8 @@ async function sendTargets(args: MessageSendInput, ctx: ToolContext): Promise<st
 /** The `whatsapp_message_send` tool definition. */
 export const whatsappMessageSend = defineTool({
   id: TOOL_ID,
-  title: "Send a message",
+  title: MESSAGE_WORDS.title,
+  intent: MESSAGE_WORDS.intent,
   description: [
     "Sends one text to a person or a group; channels, broadcast lists and the status feed are refused.",
     "`chat` is a JID from whatsapp_chat_read list, or for someone new the `chat` that whatsapp_contact_read check gives (the tool asks WhatsApp whether the number has an account first), never a name or a number.",
@@ -76,6 +79,20 @@ export const whatsappMessageSend = defineTool({
   input,
   output,
   targets: sendTargets,
+  async describe(args, ctx) {
+    const chat = checkedChat(args.chat, TOOL_ID)
+    const text = checkedText(args.text, TEXT_RULES)
+    const replyTo = args.reply_to === undefined ? undefined : replyToOf(args.reply_to)
+    const mirror = await openPromptMirror(ctx, args.account)
+
+    const described = await describeChat(mirror, chat)
+    const reply = await describeReply(mirror, chat, described, replyTo)
+    return {
+      headline: { text: MESSAGE_WORDS.headline, values: { chat: described.name } },
+      facts: [described.fact, ...(reply === undefined ? [] : [reply])],
+      text: { label: MESSAGE_WORDS.textLabel, body: text },
+    }
+  },
   async execute(args, ctx): Promise<MessageSendOutput> {
     const chat = checkedChat(args.chat, TOOL_ID)
     const text = checkedText(args.text, TEXT_RULES)
