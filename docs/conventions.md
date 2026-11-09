@@ -250,7 +250,9 @@ Every entry point takes the same settings:
 - **A label reaches only its own account.** A chat is looked up only in that
   label's mirror, and a call to WhatsApp goes only through that label's store
   and service, so no argument can carry a call to an account the label does
-  not name.
+  not name. A send to a person the mirror does not hold yet is the one chat
+  taken from outside it, and WhatsApp is asked about that person first (see
+  "Writes").
 - **The keys never leave the state directory.** Nothing of the session keys
   reaches a result, an error or a log, and no tool opens the store's files:
   messages and media reach a tool only as wacli prints them. The keys stand
@@ -339,6 +341,11 @@ Every entry point takes the same settings:
   Anyone can choose any name, wacli matches recipients by name loosely, and a
   number tells nothing of the account behind it until the number check asks
   WhatsApp.
+- **A person's chat is their phone JID once WhatsApp ties the two.** WhatsApp
+  may name a person by an `…@lid`, but wacli files the messages of one whose
+  number it knows under the phone JID. The number check therefore gives the
+  phone JID as the chat to write to, so a conversation it starts lands in the
+  chat the mirror holds or will hold.
 - **Rows that are not messages are dropped and counted.** wacli keeps a row
   for protocol traffic it could not read (no text, media, reaction or quote);
   a read leaves such rows out and says how many, so they never count as
@@ -409,6 +416,24 @@ Every entry point takes the same settings:
   read) throws `uncertain`: the message may have gone out, the mirror may not
   show it yet, and the chat is checked before any second send. A resend that
   guessed wrong reaches the other person twice.
+- **Sends go to people and groups only.** A channel, a broadcast list, the
+  status feed and the user's own chat are refused before anything leaves:
+  each reaches people other than the ones the chat names, or, for the own
+  chat, WhatsApp may accept it without delivering it.
+- **A send to a person the mirror does not hold is checked first.** It names
+  the person by phone JID only, and the tool asks WhatsApp through the service
+  whether the number has an account right before sending; not on WhatsApp is
+  `not_found`, no answer is `upstream_error`, and nothing is sent either way.
+  wacli sends to an unregistered number without a word, and one wrong digit
+  reaches a stranger. An `…@lid` or a group the mirror does not hold is
+  `not_found`: neither can be checked.
+- **A text is at most 4,000 characters**, counted as code points, and is
+  never split by the tool: where to split it is the person's choice.
+- **No link preview is fetched.** wacli would fetch each link from the user's
+  machine to build one, which tells the site who is about to write about it.
+- **A send changes the chat's read state in the mirror only.** wacli lowers
+  the unread count when the user writes in a chat and sends no read receipt,
+  so the other side learns nothing beyond the message.
 
 ## Toolsets
 

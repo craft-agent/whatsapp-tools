@@ -214,6 +214,29 @@ Hermes.
 A call that falls back to the phone can take a few minutes; the tool time
 limits given above under History apply to it too.
 
+### Sends (`sends`)
+
+| Tool                    | What it does                                                                                  | Class |
+| ----------------------- | --------------------------------------------------------------------------------------------- | ----- |
+| `whatsapp_message_send` | sends one text, up to 4,000 characters, to a person or a group, with an optional quoted reply | add   |
+
+On by default, and it goes through the label's running sync service, so the
+service must be running. It sends to people and groups only: a channel, a
+broadcast list and the status feed are refused. The chat is a JID from
+`whatsapp_chat_read`; for someone the mirror does not hold yet, it is the
+`chat` that `whatsapp_contact_read` `check` gives, and WhatsApp is asked right
+before sending whether the number has an account. The text goes out as given,
+surrounding blank space trimmed, never split, and with no link preview. A
+result means WhatsApp accepted the message, not that it was delivered or read.
+A failure known to happen before anything left says so; every other failure
+after the request was handed over is `uncertain`: the message may have gone
+out, and the chat is checked and the user asked before it is sent again. Like
+a message written on the phone, a send lowers the chat's unread count in the
+mirror and sends no read receipt. The skill is
+[`whatsapp-sends`](skills/whatsapp-sends/SKILL.md), shown as
+`whatsapp-tools:whatsapp-sends` in Claude Code and `whatsapp-tools:sends` in
+Hermes.
+
 ## Adding a tool
 
 1. Write the spec in `src/core/<domain>/<verb>.ts` with `defineTool`: an ID

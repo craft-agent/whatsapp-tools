@@ -2,6 +2,7 @@ import { z } from "zod"
 import { ToolError } from "../errors"
 import { backfillOperation, HISTORY_BACKFILL_OP, type BackfillLimits } from "./backfill"
 import { downloadFromPhone, MEDIA_DOWNLOAD_OP } from "./media"
+import { MESSAGE_SEND_OP, sendText } from "./send"
 import type { ServiceOperationContext, ServiceOperations } from "./service-socket"
 import { runWacli } from "./wacli"
 
@@ -67,13 +68,15 @@ export type ServiceOperationOptions = {
 /**
  * The operations the sync service takes from its callers. `contacts_check` runs while the sync runs, so wacli hands
  * the check to it, and writes nothing. `media_download` runs while the sync runs too: wacli hands the request to
- * upload a file again to it, and the sync writes the file. `history_backfill` runs with the sync stopped, and writes
+ * upload a file again to it, and the sync writes the file. `message_send` runs while the sync runs too: wacli hands
+ * the text to it, and the sync sends it. `history_backfill` runs with the sync stopped, and writes
  * the local mirror.
  */
 export function serviceOperations({ backfill }: ServiceOperationOptions = {}): ServiceOperations {
   return {
     [CONTACTS_CHECK_OP]: { kind: "delegated", writes: false, run: checkContacts },
     [MEDIA_DOWNLOAD_OP]: { kind: "delegated", writes: true, run: downloadFromPhone },
+    [MESSAGE_SEND_OP]: { kind: "delegated", writes: true, run: sendText },
     [HISTORY_BACKFILL_OP]: backfillOperation(backfill),
   }
 }

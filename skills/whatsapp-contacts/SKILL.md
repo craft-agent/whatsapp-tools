@@ -36,8 +36,9 @@ Every method takes `account`; leave it out when only one label is paired.
 
 Each number comes back with a `status`:
 
-- `on_whatsapp`, with `chat`: the JID to write to. It can differ from the number
-  typed, so use `chat`, not the number.
+- `on_whatsapp`, with `chat`: the phone JID to write to, the chat the
+  conversation is kept under. It can differ from the number typed, so use
+  `chat`, not the number.
 - `not_on_whatsapp`.
 - `unknown`: WhatsApp gave no answer for it. Check again later; never read it as
   no.
