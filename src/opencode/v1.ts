@@ -1,6 +1,6 @@
 import { inputJsonSchema, type ToolSpec, type Translator } from "../core"
-import { DESCRIBE_TIMEOUT_MS, permissionDescription } from "../entry/description"
-import { permissionResources } from "../entry/permission"
+import { DESCRIBE_TIMEOUT_MS } from "../entry/description"
+import { approvalOf } from "../entry/pin"
 import {
   needsPermission,
   permissionMetadata,
@@ -55,11 +55,11 @@ function v1Tool(spec: ToolSpec, ownDir: string | undefined, directories: PluginD
     args: spec.input.shape,
     async execute(args: unknown, context: V1ToolContext): Promise<string> {
       const ctx = { cwd: workingDir(context), ownDir, ...directories, signal: context.abort }
+      let pin: string | undefined
       if (needsPermission(spec)) {
-        const [resources, description] = await Promise.all([
-          permissionResources(spec, args, ctx),
-          permissionDescription(spec, args, ctx, DESCRIBE_TIMEOUT_MS, t),
-        ])
+        const approval = await approvalOf(spec, args, ctx, DESCRIBE_TIMEOUT_MS, t)
+        const { resources, description } = approval
+        pin = approval.pin
         await context.ask({
           permission: spec.id,
           patterns: resources,
@@ -67,7 +67,7 @@ function v1Tool(spec: ToolSpec, ownDir: string | undefined, directories: PluginD
           metadata: permissionMetadata(spec, args, resources, description, t),
         })
       }
-      const result = await runTool(spec, args, ctx)
+      const result = await runTool(spec, args, ctx, pin)
       return JSON.stringify(result)
     },
   }
