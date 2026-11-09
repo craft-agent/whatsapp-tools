@@ -8,7 +8,7 @@ const SERVER = fileURLToPath(new URL("../dist/mcp.js", import.meta.url))
 /** Tools the default settings list: the read tools and the write tools of the default toolsets. */
 const DEFAULT_TOOLS = ["whatsapp_chat_read", "whatsapp_contact_read", "whatsapp_history_backfill"]
 /** Tools of the toolsets that are off by default. */
-const OPT_IN_TOOLS = ["whatsapp_file_save"]
+const OPT_IN_TOOLS = ["whatsapp_file_save", "whatsapp_file_send"]
 
 function expect(condition, message) {
   if (!condition) throw new Error(message)

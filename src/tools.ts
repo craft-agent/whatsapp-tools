@@ -3,6 +3,7 @@ import { whatsappAccountRead } from "./core/account/read"
 import { whatsappChatRead } from "./core/chat/read"
 import { whatsappContactRead } from "./core/contact/read"
 import { whatsappFileSave } from "./core/file/save"
+import { whatsappFileSend } from "./core/file/send/tool"
 import { whatsappHistoryBackfill } from "./core/history/backfill"
 import { whatsappMessageSend } from "./core/message/send"
 
@@ -12,6 +13,7 @@ export const ALL_TOOLS: ToolSpec[] = [
   whatsappChatRead,
   whatsappContactRead,
   whatsappFileSave,
+  whatsappFileSend,
   whatsappHistoryBackfill,
   whatsappMessageSend,
 ]

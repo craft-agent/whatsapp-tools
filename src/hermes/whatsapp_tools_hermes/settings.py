@@ -53,9 +53,30 @@ def download_dir_flags(ctx: PluginContext) -> list[str]:
     return _directory_flags(ctx, "download_dir", "--download-dir")
 
 
+def _is_path_item(item: Any) -> bool:
+    """Whether ``item`` is a non-empty string that survives the flag's comma-separated form whole."""
+    return isinstance(item, str) and bool(item.strip()) and "," not in item
+
+
+def send_dirs_flags(ctx: PluginContext) -> list[str]:
+    """Read ``send_dirs`` and return ``["--send-dirs", "a,b"]``, or ``[]`` when absent or empty.
+
+    The flag is comma-separated, so a path holding a comma is refused rather than split in two.
+
+    Raises:
+        SettingsError: the setting is present but not a list of non-empty strings without commas.
+    """
+    value = ctx.get_config("send_dirs")
+    if value is None:
+        return []
+    if not isinstance(value, list) or not all(_is_path_item(item) for item in value):
+        raise SettingsError('setting "send_dirs" must be a list of paths without commas')
+    return ["--send-dirs", ",".join(value)] if value else []
+
+
 def directory_flags(ctx: PluginContext) -> list[str]:
     """The flags of the directory settings, which is all the ``target`` command takes."""
-    return state_dir_flags(ctx) + download_dir_flags(ctx)
+    return state_dir_flags(ctx) + download_dir_flags(ctx) + send_dirs_flags(ctx)
 
 
 def settings_flags(ctx: PluginContext) -> list[str]:
@@ -87,7 +108,6 @@ def settings_flags(ctx: PluginContext) -> list[str]:
         if value is not None and (names := _names(key, value)):
             flags += [flag, names]
 
-    flags += state_dir_flags(ctx)
-    flags += download_dir_flags(ctx)
+    flags += directory_flags(ctx)
 
     return flags

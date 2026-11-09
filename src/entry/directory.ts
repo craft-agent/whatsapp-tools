@@ -32,9 +32,13 @@ export function resolveGivenDirectory(given: GivenDirectory, home: string): stri
 }
 
 /** The directory properties an entry point passes to `ToolContext`. */
-export type ToolDirectories = { stateDir: string; downloadDir: string }
+export type ToolDirectories = { stateDir: string; downloadDir: string; sendDirs: string[] }
 
 /** Maps resolved directory settings to the properties of `ToolContext`. */
-export function toolDirectories(settings: { state_dir: string; download_dir: string }): ToolDirectories {
-  return { stateDir: settings.state_dir, downloadDir: settings.download_dir }
+export function toolDirectories(settings: {
+  state_dir: string
+  download_dir: string
+  send_dirs: string[]
+}): ToolDirectories {
+  return { stateDir: settings.state_dir, downloadDir: settings.download_dir, sendDirs: settings.send_dirs }
 }

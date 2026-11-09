@@ -27,6 +27,7 @@ describe("settingVariables", () => {
       "DEMO_CONFIRM",
       "DEMO_STATE_DIR",
       "DEMO_DOWNLOAD_DIR",
+      "DEMO_SEND_DIRS",
     ])
   })
 
@@ -51,6 +52,7 @@ describe("parseSettings", () => {
       confirm: "harness",
       state_dir: expect.any(String),
       download_dir: expect.any(String),
+      send_dirs: [],
     })
   })
 
@@ -74,6 +76,8 @@ describe("parseSettings", () => {
         "/custom/state",
         "--download-dir",
         "/custom/downloads",
+        "--send-dirs",
+        "/custom/a, ~/b,,/custom/a",
       ]),
     ).toEqual({
       toolsets: ["alpha", "beta"],
@@ -83,6 +87,7 @@ describe("parseSettings", () => {
       confirm: "elicitation",
       state_dir: "/custom/state",
       download_dir: "/custom/downloads",
+      send_dirs: ["/custom/a", resolve(homedir(), "b")],
     })
   })
 
@@ -96,6 +101,7 @@ describe("parseSettings", () => {
         "--read-only",
         "--state-dir=/custom/state",
         "--download-dir=~/saved",
+        "--send-dirs=/custom/send",
       ]),
     ).toEqual({
       toolsets: ["gamma"],
@@ -105,6 +111,7 @@ describe("parseSettings", () => {
       confirm: "elicitation",
       state_dir: "/custom/state",
       download_dir: resolve(homedir(), "saved"),
+      send_dirs: ["/custom/send"],
     })
   })
 
@@ -118,6 +125,7 @@ describe("parseSettings", () => {
         DEMO_CONFIRM: "elicitation",
         DEMO_STATE_DIR: "/env/state",
         DEMO_DOWNLOAD_DIR: "/env/downloads",
+        DEMO_SEND_DIRS: "/env/a, /env/b",
       }),
     ).toEqual({
       toolsets: ["beta", "gamma"],
@@ -127,6 +135,7 @@ describe("parseSettings", () => {
       confirm: "elicitation",
       state_dir: "/env/state",
       download_dir: "/env/downloads",
+      send_dirs: ["/env/a", "/env/b"],
     })
   })
 
@@ -167,6 +176,7 @@ describe("parseSettings", () => {
       DEMO_READ_ONLY: "0",
       DEMO_STATE_DIR: "/env/state",
       DEMO_DOWNLOAD_DIR: "/env/downloads",
+      DEMO_SEND_DIRS: "/env/send",
     }
     expect(
       parse(
@@ -184,6 +194,8 @@ describe("parseSettings", () => {
           "/flag/state",
           "--download-dir",
           "/flag/downloads",
+          "--send-dirs",
+          "/flag/send",
         ],
         env,
       ),
@@ -195,15 +207,27 @@ describe("parseSettings", () => {
       read_only: true,
       state_dir: "/flag/state",
       download_dir: "/flag/downloads",
+      send_dirs: ["/flag/send"],
     })
   })
 
   test("an empty environment variable counts as unset", () => {
-    expect(parse([], { DEMO_TOOLSETS: "", DEMO_CONFIRM: " ", DEMO_DOWNLOAD_DIR: "" })).toEqual({
+    expect(parse([], { DEMO_TOOLSETS: "", DEMO_CONFIRM: " ", DEMO_DOWNLOAD_DIR: "", DEMO_SEND_DIRS: " " })).toEqual({
       confirm: "harness",
       state_dir: expect.any(String),
       download_dir: expect.any(String),
+      send_dirs: [],
     })
+  })
+
+  test("expands ~ in send_dirs and drops a directory named twice", () => {
+    const env = { HOME: "/home/user" }
+    expect(parse(["--send-dirs", "~/shared,/x,~/shared"], env).send_dirs).toEqual(["/home/user/shared", "/x"])
+  })
+
+  test("rejects a relative send_dirs entry in flag or environment, naming the source", () => {
+    expect(failure(() => parse(["--send-dirs", "/ok,rel/path"])).message).toContain("--send-dirs")
+    expect(failure(() => parse([], { DEMO_SEND_DIRS: "/ok,rel/path" })).message).toContain("DEMO_SEND_DIRS")
   })
 
   test("rejects a relative state_dir in flag or environment", () => {
@@ -277,17 +301,20 @@ describe("parseStateDir", () => {
 })
 
 describe("parseDirectorySettings", () => {
-  test("reads the state and download directories, from the flags or the environment", () => {
+  test("reads the state, download and send directories, from the flags or the environment", () => {
+    const env = { DEMO_STATE_DIR: "/env/state", DEMO_DOWNLOAD_DIR: "/env/files", DEMO_SEND_DIRS: "/env/a,/env/b" }
     expect(
       parseDirectorySettings(
-        ["--state-dir", "/flag/state", "--download-dir=/flag/files"],
-        { DEMO_STATE_DIR: "/env/state", DEMO_DOWNLOAD_DIR: "/env/files" },
+        ["--state-dir", "/flag/state", "--download-dir=/flag/files", "--send-dirs=/flag/a"],
+        env,
         profile,
       ),
-    ).toEqual({ state_dir: "/flag/state", download_dir: "/flag/files" })
-    expect(
-      parseDirectorySettings([], { DEMO_STATE_DIR: "/env/state", DEMO_DOWNLOAD_DIR: "/env/files" }, profile),
-    ).toEqual({ state_dir: "/env/state", download_dir: "/env/files" })
+    ).toEqual({ state_dir: "/flag/state", download_dir: "/flag/files", send_dirs: ["/flag/a"] })
+    expect(parseDirectorySettings([], env, profile)).toEqual({
+      state_dir: "/env/state",
+      download_dir: "/env/files",
+      send_dirs: ["/env/a", "/env/b"],
+    })
   })
 
   test("refuses any other settings flag, naming it", () => {
@@ -301,7 +328,7 @@ describe("parseDirectorySettings", () => {
 
 describe("parseToolSettings", () => {
   test("reads the tool settings and gives no confirm setting", () => {
-    expect(parseTool([])).toEqual({ state_dir: expect.any(String), download_dir: expect.any(String) })
+    expect(parseTool([])).toEqual({ state_dir: expect.any(String), download_dir: expect.any(String), send_dirs: [] })
     expect(
       parseTool(
         ["--toolsets=gamma", "--read-only", "--tools", "a", "--state-dir=/tool/state", "--download-dir=/tool/files"],
@@ -314,6 +341,7 @@ describe("parseToolSettings", () => {
       exclude_tools: ["b"],
       state_dir: "/tool/state",
       download_dir: "/tool/files",
+      send_dirs: [],
     })
   })
 
@@ -326,6 +354,7 @@ describe("parseToolSettings", () => {
     expect(parseTool([], { DEMO_CONFIRM: "ask" })).toEqual({
       state_dir: expect.any(String),
       download_dir: expect.any(String),
+      send_dirs: [],
     })
   })
 })

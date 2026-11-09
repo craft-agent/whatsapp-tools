@@ -193,6 +193,16 @@ describe("calls", () => {
     expect(calls[0]?.ctx.downloadDir).toBe("/custom/download/dir")
   })
 
+  test("passes sendDirs from settings into ctx.sendDirs", async () => {
+    const calls: Call[] = []
+    const { client } = await connect(
+      [tool("demo_thing_create", "alpha", "add", calls)],
+      settings({ send_dirs: ["/shared/a", "/shared/b"] }),
+    )
+    await call(client, "demo_thing_create", { count: 1 })
+    expect(calls[0]?.ctx.sendDirs).toEqual(["/shared/a", "/shared/b"])
+  })
+
   test("names the program in ctx.programName", async () => {
     const calls: Call[] = []
     const { client } = await connect([tool("demo_thing_create", "alpha", "add", calls)], settings())

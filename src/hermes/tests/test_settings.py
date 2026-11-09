@@ -68,7 +68,7 @@ class SettingsFlagsTest(unittest.TestCase):
             ["--state-dir", "/custom/path", "--download-dir", "/custom/files"],
         )
 
-    def test_directory_flags_are_only_the_two_directories(self) -> None:
+    def test_directory_flags_are_only_the_directories(self) -> None:
         ctx = StubContext({"state_dir": "/custom/path", "download_dir": "/custom/files", "read_only": True})
         self.assertEqual(
             settings.directory_flags(ctx), ["--state-dir", "/custom/path", "--download-dir", "/custom/files"]
@@ -79,6 +79,27 @@ class SettingsFlagsTest(unittest.TestCase):
         for value in (123, True, "", "   ", []):
             with self.subTest(value=value), self.assertRaises(settings.SettingsError):
                 settings.download_dir_flags(StubContext({"download_dir": value}))
+
+    def test_send_dirs_flag_joins_the_list(self) -> None:
+        self.assertEqual(
+            settings.send_dirs_flags(StubContext({"send_dirs": ["/a", "~/b"]})), ["--send-dirs", "/a,~/b"]
+        )
+        self.assertEqual(settings.send_dirs_flags(StubContext({})), [])
+        self.assertEqual(settings.send_dirs_flags(StubContext({"send_dirs": []})), [])
+
+    def test_send_dirs_follow_the_other_directories(self) -> None:
+        self.assertEqual(
+            self.flags(state_dir="/s", download_dir="/d", send_dirs=["/a", "/b"]),
+            ["--state-dir", "/s", "--download-dir", "/d", "--send-dirs", "/a,/b"],
+        )
+        self.assertEqual(
+            settings.directory_flags(StubContext({"send_dirs": ["/a"], "read_only": True})), ["--send-dirs", "/a"]
+        )
+
+    def test_invalid_send_dirs_refused(self) -> None:
+        for value in ("/a,/b", 123, True, "", ["/a", 1], ["/a", ""], ["  "], ["/a,/b"]):
+            with self.subTest(value=value), self.assertRaises(settings.SettingsError):
+                settings.send_dirs_flags(StubContext({"send_dirs": value}))
 
     def test_a_wrong_type_is_refused(self) -> None:
         for config in (

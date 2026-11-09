@@ -13,7 +13,7 @@ const READ_TOOLS = ["whatsapp_chat_read", "whatsapp_contact_read"]
 /** Write tools of the default toolsets: listed unless the setting is read-only, which registers no write tool. */
 const WRITE_TOOLS = ["whatsapp_history_backfill"]
 /** Write tools of the toolsets that are off by default: listed with `--toolsets all`, unless the setting is read-only. */
-const OPT_IN_TOOLS = ["whatsapp_file_save"]
+const OPT_IN_TOOLS = ["whatsapp_file_save", "whatsapp_file_send"]
 
 function expect(condition, message) {
   if (!condition) throw new Error(message)
