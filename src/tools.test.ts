@@ -24,15 +24,20 @@ describe("the files toolset", () => {
   const toolsets = { names: PROJECT.toolsets, defaults: PROJECT.defaultToolsets }
   const ids = (settings: ToolSettings) => selectTools(ALL_TOOLS, settings, toolsets).map((spec) => spec.id)
 
-  test("is off by default, and on when asked for by toolset or by tool", () => {
-    expect(ids({})).not.toContain("whatsapp_file_save")
-    expect(ids({ toolsets: ["files"] })).toContain("whatsapp_file_save")
-    expect(ids({ toolsets: "all" })).toContain("whatsapp_file_save")
-    expect(ids({ tools: ["whatsapp_file_save"] })).toContain("whatsapp_file_save")
-  })
+  test.each(["whatsapp_file_save", "whatsapp_file_send"])(
+    "has %s off by default, and on when asked for by toolset or by tool",
+    (id) => {
+      expect(ids({})).not.toContain(id)
+      expect(ids({ toolsets: ["files"] })).toContain(id)
+      expect(ids({ toolsets: "all" })).toContain(id)
+      expect(ids({ tools: [id] })).toContain(id)
+    },
+  )
 
   test("registers no write tool when the setting is read-only", () => {
-    expect(ids({ toolsets: "all", read_only: true })).not.toContain("whatsapp_file_save")
+    const files = ids({ toolsets: "all", read_only: true })
+    expect(files).not.toContain("whatsapp_file_save")
+    expect(files).not.toContain("whatsapp_file_send")
   })
 })
 

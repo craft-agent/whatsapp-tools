@@ -13,7 +13,7 @@ const EXPECTED_TOOLS = [
   "whatsapp_contact_read",
   "whatsapp_history_backfill",
 ]
-const OPT_IN_TOOLS = ["whatsapp_file_save"]
+const OPT_IN_TOOLS = ["whatsapp_file_save", "whatsapp_file_send"]
 
 async function listTools() {
   const client = new Client({ name: "smoke", version: "0.0.0" })
