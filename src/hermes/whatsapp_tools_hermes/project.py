@@ -16,8 +16,13 @@ TOOLSET_EMOJI: dict[str, str] = {"account": "🪪", "chats": "💬", "contacts":
 
 #: How long one call of a tool may take, in seconds, for a tool that may take longer than the default.
 #: ``whatsapp_history_backfill`` waits up to 300 seconds for the phone, so it gets a margin above that;
-#: ``whatsapp_file_save`` may wait 150 seconds for WhatsApp's server and then 150 for the phone.
-TOOL_TIMEOUT_SECONDS: dict[str, float] = {"whatsapp_history_backfill": 330, "whatsapp_file_save": 330}
+#: ``whatsapp_file_save`` may wait 150 seconds for WhatsApp's server and then 150 for the phone;
+#: ``whatsapp_file_send`` ends within 280 seconds however many files it sends, and gets the same margin.
+TOOL_TIMEOUT_SECONDS: dict[str, float] = {
+    "whatsapp_history_backfill": 330,
+    "whatsapp_file_save": 330,
+    "whatsapp_file_send": 330,
+}
 
 __all__ = [
     "CLI_NAME",

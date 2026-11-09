@@ -195,9 +195,10 @@ service syncs again:
 
 ### Files (`files`)
 
-| Tool                 | What it does                                                                                      | Class |
-| -------------------- | ------------------------------------------------------------------------------------------------- | ----- |
-| `whatsapp_file_save` | saves one message's file into `download_dir`, inspecting archives and unpacking one when asked to | add   |
+| Tool                 | What it does                                                                                             | Class |
+| -------------------- | -------------------------------------------------------------------------------------------------------- | ----- |
+| `whatsapp_file_save` | saves one message's file into `download_dir`, inspecting archives and unpacking one when asked to        | add   |
+| `whatsapp_file_send` | sends 1 to 10 files, up to 100 MiB, to a person or a group, one message each, checked before any is sent | add   |
 
 Off by default: turn it on with the `files` toolset. A message's file goes into
 its own folder under `download_dir` (`~/Downloads/whatsapp-tools` by default),
@@ -212,6 +213,24 @@ The skill is
 Hermes.
 
 A call that falls back to the phone can take a few minutes; the tool time
+limits given above under History apply to it too.
+
+`whatsapp_file_send` sends only from the working directory and the
+directories the `send_dirs` setting names, judged by real path; a file
+anywhere else is refused, and so is the state directory. Keys and secrets
+(`.ssh`, `.env`, `*.pem`, …), the data folders of browsers, password managers
+and messengers, empty files, programs, installers and anything holding a
+private key block are never sent, wherever they are; an archive is sent only
+once every entry passes, and is never unpacked. Each file is copied into the
+label's outbox and checked there, so what is checked is what leaves, and a
+`sha256` the user approved makes a changed file `stale`. Each file is its own
+message, in the order given, with the text as the first file's caption (at most
+1,024 characters, refused on audio). Photos, videos and audio WhatsApp shows
+itself go as such, decided from the name and the first bytes, and everything
+else as a file; `as_document` sends all of them as files. A call that stops
+after some files went out fails and lists in `details` what went out, with
+the message ids, and what did not, so nothing is sent twice; a file that may
+have gone out is `uncertain`. A call takes at most 280 s, and the tool time
 limits given above under History apply to it too.
 
 ### Sends (`sends`)
