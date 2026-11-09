@@ -10,13 +10,8 @@ import { formatLocalTime } from "../time"
 import { labelTargets } from "../whatsapp/label-targets"
 import { pickLabel, type LabelPaths } from "../whatsapp/labels"
 import { CHECKED_NUMBER } from "../whatsapp/operations"
-import {
-  LONE_SURROGATE,
-  MESSAGE_SEND_DEADLINE_MS,
-  MESSAGE_SEND_OP,
-  MESSAGE_TEXT_MAX_CHARACTERS,
-  sendAnswer,
-} from "../whatsapp/send"
+import { MESSAGE_SEND_DEADLINE_MS, MESSAGE_SEND_OP, MESSAGE_TEXT_MAX_CHARACTERS } from "../whatsapp/send"
+import { LONE_SURROGATE, sendAnswer } from "../whatsapp/send-outcome"
 import { callService, isServiceNotRunning } from "../whatsapp/service-client"
 import { SEND_NOTE, input, output, type MessageSendInput, type MessageSendOutput } from "./schema"
 
