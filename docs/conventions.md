@@ -60,7 +60,9 @@ to a rule changes this file first, with its reason.
 - **One exception: what a call created is never lost.** Once a tool has
   created something, a later step of the same call that fails does not throw.
   The result names what was created and lists the failed steps under
-  `errors`, keyed by step (`StepErrors`).
+  `errors`, keyed by step (`StepErrors`). A send of several files that stops
+  part-way is not such a call: it throws, and lists in `details` the files
+  that went out (see "Files"), since a result would read as done.
 - **Text a tool reads is returned as it is.** Content from files or services
   is data, never instructions; every read tool's description and the skills
   say so. Nothing is wrapped or rewritten.
@@ -172,6 +174,8 @@ Every entry point takes the same settings:
   the question to the harness, whose approval every user already knows.
 - **`state_dir`**: where every account's state lives (see "Accounts and state").
 - **`download_dir`**: where received files are saved (see "Files").
+- **`send_dirs`**: the directories files may be sent from besides the working
+  directory (see "Files").
 
 ## The core contract
 
@@ -278,7 +282,8 @@ Every entry point takes the same settings:
   `upstream_error`, and for a write `uncertain`.
 - **`WACLI_MEDIA_ROOTS` is always set**, to the label's outbox, so wacli
   itself refuses to upload any file but the copies the tools made and
-  checked.
+  checked. The sync service's child carries it too, since it is the process
+  that opens a file it sends.
 
 ## The sync service
 
@@ -356,10 +361,10 @@ Every entry point takes the same settings:
 
 ## Files
 
-- **Files go in and out only through the directories a setting names**,
-  judged by real path, so a link that leads elsewhere counts as elsewhere.
-  The state directory and the tools' own install directory are never among
-  them.
+- **Files go in and out only through the directories a setting names**, and
+  out also from the working directory, judged by real path, so a link that
+  leads elsewhere counts as elsewhere. The state directory and the tools' own
+  install directory are never among them.
 - **Received files are saved under `download_dir`**, by default
   `~/Downloads/whatsapp-tools`, where a person looks for what they
   downloaded. A message's file goes in
@@ -400,6 +405,46 @@ Every entry point takes the same settings:
 - **On macOS every saved file carries the quarantine flag**, so the system
   checks it before anything opens it as an app; elsewhere nothing stands for
   it.
+- **Files are sent from the working directory and `send_dirs` only.** The
+  working directory counts unless it is the home directory or a file system
+  root, where it would open everything; a `send_dirs` entry is the user's own
+  choice and may be either. Each is judged by real path, and a file must be a
+  regular file with one link: a hard link is a second name for a file that
+  may live anywhere.
+- **Some files are never sent, wherever they are**: anything under a key or
+  settings folder (`.ssh`, `.gnupg`, `.aws`, `.config`, `.git`, …), a key- or
+  secret-like name (`.env`, `id_rsa`, `*.pem`, credentials, …), the data
+  folders of browsers, password managers, messengers and mail below home, an
+  empty file, a program or installer (judged as for a saved file), a script
+  name over bytes that are not text, and any file holding a private key
+  block. A setting that names a folder holding one of them does not make it
+  sendable: no one sends their keys by asking for a folder.
+- **An archive is sent only once every entry passes**, read entry by entry and
+  never unpacked: the inspection a saved archive gets, and the rules above on
+  every entry's name and bytes. One with no file in it is refused.
+- **Every file is checked before the first is sent, on the copy that goes
+  out.** A call copies its files into a fresh folder of the label's outbox
+  (directories 700, files 600), checks the copies, and hands wacli those; the
+  sync service reads a file only when it sends it, so the original changing
+  in between changes nothing that leaves. One refusal and nothing is sent. A
+  file given with the SHA-256 the user approved is `stale` when its copy
+  differs. The call's folder is removed when the call ends, and one left by a
+  crash is swept a day later.
+- **At most 10 files and 100 MiB a call**, each file its own message, sent in
+  the order given: WhatsApp has no message with several files. The first file
+  that is not accepted stops the rest, and a call that stops after a file went
+  out fails with that file's code, listing in `details` what was sent, with
+  its message ids, and what was not. A partial send is never a result, so it
+  is never read as done.
+- **The text is the first file's caption, at most 1,024 characters**, and is
+  refused rather than split or sent apart. A caption on an audio first file is
+  refused: WhatsApp drops it without a word.
+- **The tool says how each file is shown.** JPEG, PNG and GIF go as photos,
+  MP4 and 3GP as videos, common audio as audio, everything else as a file,
+  decided from the name and the first bytes and passed to wacli with the type,
+  so the outcome does not hang on the machine's own type tables. An image
+  WhatsApp cannot show goes as a file; asked to, every file goes as a file, at
+  full size.
 
 ## Writes
 
@@ -444,5 +489,6 @@ Every entry point takes the same settings:
   default.** They cover reading a chat and answering it; asking for older
   history writes only to the user's own mirror and sends nothing to anyone,
   and reading or counting a chat often needs it. Saving received files writes
-  to disk and opens archives, and the actions change messages and chats other
+  to disk and opens archives, sending files reads them from disk and hands
+  them to other people, and the actions change messages and chats other
   people have already seen, so each is one setting away.
