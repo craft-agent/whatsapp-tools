@@ -1,12 +1,17 @@
 import { describe, expect, test } from "bun:test"
 import { translator } from "./core"
 import { FACT_TRANSLATIONS } from "./core/facts"
+import { HISTORY_WORDS } from "./core/history/words"
 import { MESSAGE_WORDS } from "./core/message/words"
 import { ALL_TOOLS } from "./tools"
 import { ALL_TRANSLATIONS } from "./words"
 
 /** Every English word and template the tools write in their approval prompts; each domain appends its own. */
-const ENGLISH_WORDS: string[] = [...Object.values(MESSAGE_WORDS), ...Object.keys(FACT_TRANSLATIONS.ja!)]
+const ENGLISH_WORDS: string[] = [
+  ...Object.values(MESSAGE_WORDS),
+  ...Object.values(HISTORY_WORDS),
+  ...Object.keys(FACT_TRANSLATIONS.ja!),
+]
 
 const JAPANESE = ALL_TRANSLATIONS.ja!
 
