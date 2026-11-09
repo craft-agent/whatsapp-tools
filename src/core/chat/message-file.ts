@@ -15,6 +15,8 @@ export type MessageFile = {
   name?: string
   /** The content type the message declares. */
   type?: string
+  /** Who sent the message: the sender's JID and mirror name (possibly empty), and whether the user sent it. */
+  sender: { jid: string; name: string; fromMe: boolean }
 }
 
 /** The message id a call names, or `invalid_argument` when it cannot be one. The text is not echoed. */
@@ -41,6 +43,7 @@ export async function findMessageFile(mirror: Mirror, chat: string, id: string):
   if (kind === "" || PLACE_MEDIA_TYPES.has(kind.toLowerCase())) throw new ToolError("not_found", NO_FILE)
   return {
     kind,
+    sender: { jid: row.SenderJID, name: row.SenderName, fromMe: row.FromMe },
     ...(row.Filename !== "" && { name: row.Filename }),
     ...(row.MimeType !== "" && { type: row.MimeType }),
   }

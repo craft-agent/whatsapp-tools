@@ -608,6 +608,50 @@ Every entry point takes the same settings:
   the unread count when the user writes in a chat and sends no read receipt,
   so the other side learns nothing beyond the message.
 
+## Approval prompts
+
+- **Every write tool states its intent and describes its call.** A target
+  is `<label>/<chat JID>` or a path, which tells a person neither who the
+  chat is nor what goes out, so each write tool gives an `intent` and a
+  `describe` (see "Write classes").
+- **A chat is named as the mirror names it.** A headline's `{chat}` is the
+  chat's name in the label's mirror, else a person's number as `+<digits>`,
+  else the JID; never the name a model gave. A name is someone else's
+  writing, shown as data like every other value.
+- **A description only reads.** It reads the mirror with `--read-only` and
+  the files with `stat`, their bytes and their hash; it never asks WhatsApp,
+  so a person the mirror does not hold is told as new, not as checked.
+- **A call the tool would refuse before acting gets no description.** A chat
+  that is not a JID, a channel or broadcast list, an `…@lid` or a group the
+  mirror does not hold, a chat or message missing from the mirror, and a file
+  the send rules refuse by where it is or what it is called make `describe`
+  fail, so the prompt shows the intent and the targets and the call fails as
+  it would have. A refused file's bytes are never read for its prompt.
+- **What changes on its own is never shown.** The number of messages a chat
+  holds grows with every message that arrives, and a shown value that moves
+  makes the call `stale` (see "Write classes"), so a description shows only
+  what stays put until the call runs.
+- **The facts this package adds**, in the order they decide:
+
+  | Tool                        | Facts                                                                          | Text      | Pins                |
+  | --------------------------- | ------------------------------------------------------------------------------ | --------- | ------------------- |
+  | `whatsapp_message_send`     | `Chat` (person, group or new person), `Reply to` (sender and time)             | `Message` | —                   |
+  | `whatsapp_file_send`        | `Chat`, `Reply to`, `Sent as` (one file) or a count per kind (several), `Size` | `Caption` | each file's SHA-256 |
+  | `whatsapp_file_save`        | `Kind`, `From` (the sender, or you), `Unpack` when asked of a document         | —         | —                   |
+  | `whatsapp_history_backfill` | `Sync` (paused for the call), `Batches`, `Oldest held`                         | —         | —                   |
+
+  A reply shows who wrote the quoted message and when, never its text: the
+  text is someone else's, and the person approving knows the message by its
+  author and time. A file's size can stay the same while its bytes change,
+  so a send pins each file's SHA-256. A headline value is quoted as data, so
+  a count stays out of it: several files are counted per kind in the facts.
+
+- **Their Japanese lives beside the tools**, a `words.ts` in each tool's
+  folder whose English words the tools use as constants, which `src/words.ts`
+  joins; its test checks that every key is a word the tools write, that
+  every write tool has an intent and a description, and that every template
+  keeps its placeholders.
+
 ## Toolsets
 
 - **One per domain**: `account`, `chats`, `contacts`, `history` (asking the

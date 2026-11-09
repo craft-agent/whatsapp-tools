@@ -6,9 +6,10 @@ import { parseChatJid } from "../chat/jid"
 import { findMessageFile, parseMessageId } from "../chat/message-file"
 import { openMirror } from "../chat/mirror"
 import { ToolError, isAbortError, isToolError } from "../errors"
+import { chatDisplayName } from "../message/describe"
 import { cutText } from "../pages"
 import { ANY_TARGET } from "../targets"
-import { StepErrors, defineTool } from "../tool"
+import { StepErrors, defineTool, type CallFact } from "../tool"
 import { pickLabel, type LabelPaths } from "../whatsapp/labels"
 import { downloadMedia } from "../whatsapp/media-download"
 import { CANCELLED_MESSAGE, MAX_TYPE_CHARACTERS, RESULT_NOTE } from "./constants"
@@ -22,6 +23,7 @@ import { refusedByClaim, saveFile, type FileClaim, type SaveOutcome } from "./sa
 import { output, type FileSaveOutput, type SavedFile } from "./schema"
 import { openStaged } from "./staged"
 import { unpackArchive, type Unpacked, type UnpackRequest } from "./unpack"
+import { FILE_SAVE_WORDS } from "./words"
 
 /** What names the tool that lists the chats, in the message that asks for a JID. */
 const CHAT_FINDER = "whatsapp_chat_read list"
@@ -44,6 +46,21 @@ const input = z.object({
       "Also unpack the file when it is an archive (zip, tar, gzipped tar), after inspecting it again. Ask for it only when the user wants the contents.",
     ),
 })
+
+/** wacli's media types the prompt tells in the tool's own words (compared in lower case). */
+const KIND_WORDS: Record<string, string> = {
+  image: FILE_SAVE_WORDS.image,
+  video: FILE_SAVE_WORDS.video,
+  audio: FILE_SAVE_WORDS.audio,
+  document: FILE_SAVE_WORDS.document,
+  sticker: FILE_SAVE_WORDS.sticker,
+}
+
+/** The `Kind` value: a known media type in the tool's words, any other as the data it is. */
+function kindValue(kind: string): CallFact["value"] {
+  const word = Object.hasOwn(KIND_WORDS, kind.toLowerCase()) ? KIND_WORDS[kind.toLowerCase()] : undefined
+  return word === undefined ? kind : { text: word }
+}
 
 /**
  * A step's failure as a message that names no path of the store or the state
@@ -104,7 +121,8 @@ export function createFileSave(host: Partial<FileSaveHost> = {}) {
   const machine: FileSaveHost = { ...SYSTEM_HOST, unpack: unpackArchive, limits: DEFAULT_LIMITS, ...host }
   return defineTool({
     id: "whatsapp_file_save",
-    title: "Save a message's file",
+    title: FILE_SAVE_WORDS.title,
+    intent: FILE_SAVE_WORDS.intent,
     description: [
       "Saves the file one message carries (an image, a video, a voice note, a document, a sticker) into the download directory.",
       `\`chat\` and \`id\` name the message, as ${CHAT_FINDER} and whatsapp_chat_read give them.`,
@@ -128,6 +146,31 @@ export function createFileSave(host: Partial<FileSaveHost> = {}) {
         return [join(ctx.downloadDir, ...folderOf(label, chat, parseMessageId(args.id)))]
       } catch {
         return [ANY_TARGET]
+      }
+    },
+    async describe(args, ctx) {
+      const stateDir = ctx.stateDir
+      if (!stateDir) throw new ToolError("internal_error", "The entry point did not supply a state directory.")
+      const chat = parseChatJid(args.chat, "chat", "whatsapp_file_save", CHAT_FINDER)
+      const id = parseMessageId(args.id)
+      const mirror = openMirror(await pickLabel(stateDir, args.account), ctx.signal)
+      const chatName = chatDisplayName(chat, (await mirror.chat(chat)).name)
+      const message = await findMessageFile(mirror, chat, id)
+      const file = safeFileName(message.name, fallbackName(message.kind, id, message.type))
+      const { sender } = message
+      const from: CallFact["value"] = sender.fromMe
+        ? { text: FILE_SAVE_WORDS.you }
+        : chatDisplayName(sender.jid, sender.name)
+      return {
+        headline: { text: FILE_SAVE_WORDS.headline, values: { file, chat: chatName } },
+        facts: [
+          { label: FILE_SAVE_WORDS.kindLabel, value: kindValue(message.kind) },
+          { label: FILE_SAVE_WORDS.fromLabel, value: from },
+          // Only a document can be an archive, so unpacking is shown for nothing else.
+          ...(args.unpack === true && message.kind.toLowerCase() === "document"
+            ? [{ label: FILE_SAVE_WORDS.unpackLabel, value: { text: FILE_SAVE_WORDS.unpack } }]
+            : []),
+        ],
       }
     },
     async execute(args, ctx): Promise<FileSaveOutput> {

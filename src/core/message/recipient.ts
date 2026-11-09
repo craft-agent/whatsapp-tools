@@ -18,7 +18,8 @@ const REFUSED_SERVERS: ReadonlySet<string> = new Set(["newsletter", "broadcast"]
 /** The kinds of chat a send goes to. */
 const SEND_KINDS: ReadonlySet<string> = new Set(["person", "group"])
 
-const PEOPLE_AND_GROUPS_ONLY =
+/** The refusal of a send to anything but a person or a group. */
+export const PEOPLE_AND_GROUPS_ONLY =
   "Sends go to people and groups only: a channel, a broadcast list and the status feed are refused, since each reaches people other than the ones the chat names. Nothing was sent."
 
 const NOT_IN_MIRROR = `This chat is not in this account's mirror, and only a person's phone number can be checked with WhatsApp. Find the chat with ${CHAT_FINDER}; to write to someone new, use the \`chat\` that whatsapp_contact_read check gives. Nothing was sent.`

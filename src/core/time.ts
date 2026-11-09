@@ -3,7 +3,8 @@ import { ToolError } from "./errors"
 
 /** Milliseconds in a second, the unit wacli stores message times in. */
 export const MS_PER_SECOND = 1000
-const MS_PER_MINUTE = 60_000
+/** Milliseconds in a minute. */
+export const MS_PER_MINUTE = 60_000
 const MINUTES_PER_HOUR = 60
 
 /** How far a zone is east of UTC, in minutes, at an instant (milliseconds since the epoch). */
