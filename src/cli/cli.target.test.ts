@@ -2,6 +2,7 @@ import { afterEach, describe, expect, test } from "bun:test"
 import { mkdtempSync, realpathSync, rmSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
+import { PIN_PATTERN } from "../core"
 import { createFileSave } from "../core/file/save"
 import { createSaveFixture, saveArgs } from "../core/file/save.testing"
 import { EXIT_FAILED, EXIT_OK } from "./cli"
@@ -41,6 +42,7 @@ describe("target", () => {
         facts: [{ label: "Area", value: "north" }],
         text: { label: "Body", body: "Body<U+202E> line\nnext" },
       },
+      pin: expect.stringMatching(PIN_PATTERN),
     })
   })
 
