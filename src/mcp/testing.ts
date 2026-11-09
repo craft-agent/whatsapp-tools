@@ -61,6 +61,7 @@ export const settings = (overrides: Partial<EntrySettings> = {}): EntrySettings 
   confirm: "harness",
   state_dir: "/default/state",
   download_dir: "/default/downloads",
+  send_dirs: [],
   ...overrides,
 })
 

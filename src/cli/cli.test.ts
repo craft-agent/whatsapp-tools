@@ -204,6 +204,27 @@ describe("run", () => {
     expect(capturedDownloadDir).toBe("/home/user/Downloads/demo-tools")
   })
 
+  test("passes sendDirs from the flag or the environment to execute", async () => {
+    let capturedSendDirs: readonly string[] | undefined
+    const checkTool = {
+      ...specs[0]!,
+      id: "demo_thing_read",
+      async execute(_args: unknown, ctx: { sendDirs?: readonly string[] }) {
+        capturedSendDirs = ctx.sendDirs
+        return { tool: "demo_thing_read", cwd: "/x" }
+      },
+    }
+    const argv = ["run", "demo_thing_read", "--cwd", "/x"]
+    const env = { HOME: "/home/user", DEMO_SEND_DIRS: "/env/a,~/b" }
+
+    await cli([...argv, "--send-dirs", "/flag/a,/flag/b"], "", { specs: [checkTool as any], env })
+    expect(capturedSendDirs).toEqual(["/flag/a", "/flag/b"])
+    await cli(argv, "", { specs: [checkTool as any], env })
+    expect(capturedSendDirs).toEqual(["/env/a", "/home/user/b"])
+    await cli(argv, "", { specs: [checkTool as any], env: { HOME: "/home/user" } })
+    expect(capturedSendDirs).toEqual([])
+  })
+
   test("names the program in ctx.programName", async () => {
     let capturedProgram: string | undefined
     const checkTool = {
@@ -222,6 +243,12 @@ describe("run", () => {
     const run = await cli(["run", ADD_ID, "--cwd", "/x", "--download-dir", "rel/path"])
     expect(run.code).toBe(EXIT_USAGE)
     expect(run.stderr).toContain("--download-dir")
+  })
+
+  test("refuses a relative --send-dirs entry", async () => {
+    const run = await cli(["run", ADD_ID, "--cwd", "/x", "--send-dirs", "/ok,rel/path"])
+    expect(run.code).toBe(EXIT_USAGE)
+    expect(run.stderr).toContain("--send-dirs")
   })
 })
 
@@ -246,6 +273,7 @@ describe("usage", () => {
     [["target", ADD_ID, "--cwd", "/x", "--read-only"], "--read-only"],
     [["target", ADD_ID, "--cwd", "/x", "--toolsets", "all"], "--toolsets"],
     [["target", ADD_ID, "--cwd", "/x", "--download-dir", "rel/path"], "--download-dir"],
+    [["target", ADD_ID, "--cwd", "/x", "--send-dirs", "rel/path"], "--send-dirs"],
     [["target", ADD_ID, "--cwd", "/x", "--tools", ADD_ID], "--tools"],
     [["target", ADD_ID, "--cwd", "/x", "--state-dir"], "--state-dir"],
     [["target", ADD_ID, "--cwd", "/x", "--state-dir", "rel/path"], "--state-dir"],

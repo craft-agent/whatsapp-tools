@@ -28,3 +28,6 @@ config_schema:
     description: Where every account's state lives; an absolute path, or one starting with ~. Defaults to $XDG_STATE_HOME/whatsapp-tools, or ~/.local/state/whatsapp-tools.
   download_dir:
     description: Where received files are saved; an absolute path, or one starting with ~. Defaults to ~/Downloads/whatsapp-tools.
+  send_dirs:
+    type: list
+    description: The directories files may be sent from, besides the working directory; absolute paths, or ones starting with ~, without commas. Defaults to none.

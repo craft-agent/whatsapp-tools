@@ -302,11 +302,13 @@ variable, and an option or setting wins over the variable too.
 | `confirm`       | `--confirm`       | `WHATSAPP_TOOLS_CONFIRM`       | MCP server only: `harness` (default) or `elicitation`, as the conventions say |
 | `state_dir`     | `--state-dir`     | `WHATSAPP_TOOLS_STATE_DIR`     | where every label's state lives; default `$XDG_STATE_HOME/whatsapp-tools`     |
 | `download_dir`  | `--download-dir`  | `WHATSAPP_TOOLS_DOWNLOAD_DIR`  | where received files are saved; default `~/Downloads/whatsapp-tools`          |
+| `send_dirs`     | `--send-dirs`     | `WHATSAPP_TOOLS_SEND_DIRS`     | the directories files may be sent from, besides the working directory         |
 
 Lists are comma-separated in a flag or a variable. Where each harness reads them:
 
 - **OpenCode** takes the plugin `options` shown above, with lists as arrays,
-  `read_only` as a boolean and `state_dir` and `download_dir` as paths, and falls back to the variables. V2 runs plugins in
+  `read_only` as a boolean, `state_dir` and `download_dir` as paths and
+  `send_dirs` as an array of paths, and falls back to the variables. V2 runs plugins in
   its background service, which keeps the environment it started with: a
   variable set where `opencode run` starts has no effect until the service is
   restarted in that environment (`opencode service restart`). V1 runs plugins

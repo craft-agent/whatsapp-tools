@@ -7,8 +7,9 @@ const fromOptions = (options: Record<string, unknown> | undefined, env: Record<s
 
 describe("settingsFromOptions", () => {
   test("gives no setting for no options", () => {
-    expect(fromOptions(undefined)).toEqual({ state_dir: expect.any(String), download_dir: expect.any(String) })
-    expect(fromOptions({})).toEqual({ state_dir: expect.any(String), download_dir: expect.any(String) })
+    const none = { state_dir: expect.any(String), download_dir: expect.any(String), send_dirs: [] }
+    expect(fromOptions(undefined)).toEqual(none)
+    expect(fromOptions({})).toEqual(none)
   })
 
   test("defaults download_dir to ~/Downloads/<profile.name>", () => {
@@ -24,6 +25,7 @@ describe("settingsFromOptions", () => {
         exclude_tools: ["a"],
         state_dir: "/custom/state",
         download_dir: "/custom/downloads",
+        send_dirs: ["/custom/send", "/custom/more", "/custom/send"],
       }),
     ).toEqual({
       toolsets: ["alpha", "beta"],
@@ -32,6 +34,7 @@ describe("settingsFromOptions", () => {
       exclude_tools: ["a"],
       state_dir: "/custom/state",
       download_dir: "/custom/downloads",
+      send_dirs: ["/custom/send", "/custom/more"],
     })
     expect(fromOptions({ toolsets: "all" }).toolsets).toBe("all")
     expect(fromOptions({ toolsets: ["alpha", "all"] }).toolsets).toBe("all")
@@ -45,6 +48,7 @@ describe("settingsFromOptions", () => {
       DEMO_TOOLS: "a,b",
       DEMO_STATE_DIR: "/env/state",
       DEMO_DOWNLOAD_DIR: "/env/downloads",
+      DEMO_SEND_DIRS: "/env/a,/env/b",
     }
     expect(fromOptions({}, env)).toEqual({
       toolsets: ["gamma"],
@@ -52,10 +56,17 @@ describe("settingsFromOptions", () => {
       tools: ["a", "b"],
       state_dir: "/env/state",
       download_dir: "/env/downloads",
+      send_dirs: ["/env/a", "/env/b"],
     })
     expect(
       fromOptions(
-        { toolsets: ["beta"], read_only: false, state_dir: "/opt/state", download_dir: "/opt/downloads" },
+        {
+          toolsets: ["beta"],
+          read_only: false,
+          state_dir: "/opt/state",
+          download_dir: "/opt/downloads",
+          send_dirs: ["/opt/send"],
+        },
         { ...env, DEMO_READ_ONLY: "yes" },
       ),
     ).toEqual({
@@ -64,6 +75,7 @@ describe("settingsFromOptions", () => {
       tools: ["a", "b"],
       state_dir: "/opt/state",
       download_dir: "/opt/downloads",
+      send_dirs: ["/opt/send"],
     })
   })
 
@@ -79,6 +91,18 @@ describe("settingsFromOptions", () => {
     expect(failure(() => fromOptions({ download_dir: 123 })).message).toContain('"download_dir"')
     expect(failure(() => fromOptions({ download_dir: "relative" })).message).toContain('"download_dir"')
     expect(failure(() => fromOptions({}, { DEMO_DOWNLOAD_DIR: "relative" })).message).toContain("DEMO_DOWNLOAD_DIR")
+  })
+
+  test("send_dirs of the wrong type or with a relative entry is rejected, naming the source", () => {
+    expect(failure(() => fromOptions({ send_dirs: "/a,/b" })).message).toContain('"send_dirs"')
+    expect(failure(() => fromOptions({ send_dirs: [1] })).message).toContain('"send_dirs"')
+    expect(failure(() => fromOptions({ send_dirs: ["/a", "relative"] })).message).toContain('"send_dirs"')
+    expect(failure(() => fromOptions({}, { DEMO_SEND_DIRS: "/a,rel" })).message).toContain("DEMO_SEND_DIRS")
+  })
+
+  test("send_dirs expands ~, and an empty list wins over the environment", () => {
+    expect(fromOptions({ send_dirs: ["~/shared"] }, { HOME: "/home/user" }).send_dirs).toEqual(["/home/user/shared"])
+    expect(fromOptions({ send_dirs: [] }, { DEMO_SEND_DIRS: "/env/a" }).send_dirs).toEqual([])
   })
 
   test("an unknown toolset or option is rejected, naming it", () => {

@@ -3,6 +3,7 @@ import { PROJECT } from "../project"
 import { toolDirectories, type ToolDirectories } from "./directory"
 import { resolveDownloadDir } from "./download-dir"
 import { PROJECT_PROFILE, type EntryProfile } from "./profile"
+import { resolveSendDirs } from "./send-dirs"
 import { resolveStateDir } from "./state-dir"
 
 export { toolDirectories, type ToolDirectories }
@@ -10,8 +11,11 @@ export { toolDirectories, type ToolDirectories }
 /** Who asks the person before an administrative tool acts: the harness, or the tool through the client's form. */
 export type ConfirmMode = "harness" | "elicitation"
 
-/** The settings needed to run tools: tool selection, read-only mode, and the resolved state and download directories. */
-export type RunSettings = ToolSettings & { state_dir: string; download_dir: string }
+/** The directories the settings name, resolved to absolute paths. */
+export type DirectorySettings = { state_dir: string; download_dir: string; send_dirs: string[] }
+
+/** The settings needed to run tools: tool selection, read-only mode, and the resolved state, download and send directories. */
+export type RunSettings = ToolSettings & DirectorySettings
 
 export type EntrySettings = RunSettings & { confirm: ConfirmMode }
 
@@ -20,7 +24,8 @@ const ALL_TOOLSETS = "all"
 const TRUE_VALUES: readonly string[] = ["1", "true"]
 const FALSE_VALUES: readonly string[] = ["0", "false"]
 
-type OptionName = "toolsets" | "read_only" | "tools" | "exclude_tools" | "confirm" | "state_dir" | "download_dir"
+type OptionName =
+  "toolsets" | "read_only" | "tools" | "exclude_tools" | "confirm" | "state_dir" | "download_dir" | "send_dirs"
 
 /** A setting's command-line flag and the end of its environment variable, which follows the profile's prefix; a boolean flag takes no value. */
 type Option = { flag: string; envSuffix: string; boolean?: true }
@@ -33,6 +38,7 @@ const OPTIONS: Record<OptionName, Option> = {
   confirm: { flag: "--confirm", envSuffix: "CONFIRM" },
   state_dir: { flag: "--state-dir", envSuffix: "STATE_DIR" },
   download_dir: { flag: "--download-dir", envSuffix: "DOWNLOAD_DIR" },
+  send_dirs: { flag: "--send-dirs", envSuffix: "SEND_DIRS" },
 }
 
 function envName(name: OptionName, profile: EntryProfile): string {
@@ -82,6 +88,11 @@ function splitList(value: string): string[] {
     .split(",")
     .map((item) => item.trim())
     .filter((item) => item !== "")
+}
+
+/** A comma-separated directory setting as one entry per directory, each keeping where it came from. */
+function listedDirectories(given: SettingText | undefined): SettingText[] {
+  return given === undefined ? [] : splitList(given.text).map((text) => ({ text, source: given.source }))
 }
 
 function checkToolsets(names: string[], source: string, toolsets: Toolsets): string[] | "all" | undefined {
@@ -150,6 +161,7 @@ export function parseSettings(
     confirm: "harness",
     state_dir: resolveStateDir(value("state_dir"), env, profile),
     download_dir: resolveDownloadDir(value("download_dir"), env, profile),
+    send_dirs: resolveSendDirs(listedDirectories(value("send_dirs")), env),
   }
   const toolsets = value("toolsets")
   if (toolsets) settings.toolsets = checkToolsets(splitList(toolsets.text), toolsets.source, profile.toolsets)
@@ -205,26 +217,29 @@ export function parseStateDir(
   return resolveStateDir(given ?? envText("state_dir", env, profile), env, profile)
 }
 
+const DIRECTORY_OPTION_NAMES: readonly OptionName[] = ["state_dir", "download_dir", "send_dirs"]
+
 /**
- * Reads only the `state_dir` and `download_dir` settings from a command line
- * that takes no other setting, for commands that resolve what a call writes
- * to: any other settings flag is `invalid_argument`. A flag wins over its
- * environment variable.
+ * Reads only the directory settings (`state_dir`, `download_dir`, `send_dirs`)
+ * from a command line that takes no other setting, for commands that resolve
+ * what a call writes to: any other settings flag is `invalid_argument`. A flag
+ * wins over its environment variable.
  */
 export function parseDirectorySettings(
   argv: string[],
   env: Record<string, string | undefined>,
   profile: EntryProfile = PROJECT_PROFILE,
-): { state_dir: string; download_dir: string } {
+): DirectorySettings {
   const flags = readFlags(argv)
-  const other = (Object.keys(flags) as OptionName[]).find((name) => name !== "state_dir" && name !== "download_dir")
+  const other = (Object.keys(flags) as OptionName[]).find((name) => !DIRECTORY_OPTION_NAMES.includes(name))
   if (other !== undefined)
     throw new ToolError("invalid_argument", `Option ${OPTIONS[other].flag} is not available here.`)
-  const value = (name: DirectoryOptionName): SettingText | undefined =>
+  const value = (name: OptionName): SettingText | undefined =>
     flags[name] !== undefined ? { text: flags[name], source: OPTIONS[name].flag } : envText(name, env, profile)
   return {
     state_dir: resolveStateDir(value("state_dir"), env, profile),
     download_dir: resolveDownloadDir(value("download_dir"), env, profile),
+    send_dirs: resolveSendDirs(listedDirectories(value("send_dirs")), env),
   }
 }
 
@@ -235,6 +250,7 @@ const TOOL_OPTION_NAMES = [
   "exclude_tools",
   "state_dir",
   "download_dir",
+  "send_dirs",
 ] as const satisfies readonly OptionName[]
 type ToolOptionName = (typeof TOOL_OPTION_NAMES)[number]
 
@@ -305,9 +321,16 @@ export function settingsFromOptions(
     given[name] !== undefined
       ? { text: directoryOption(name, given[name]), source: `Option "${name}"` }
       : envText(name, env, profile)
+  const sendDirsGiven = (): SettingText[] => {
+    if (given.send_dirs === undefined) return listedDirectories(envText("send_dirs", env, profile))
+    const list = stringList(given.send_dirs)
+    if (!list) throw optionError("send_dirs", "a list of absolute paths")
+    return list.map((text) => ({ text, source: 'Option "send_dirs"' }))
+  }
   const settings: RunSettings = {
     state_dir: resolveStateDir(directoryGiven("state_dir"), env, profile),
     download_dir: resolveDownloadDir(directoryGiven("download_dir"), env, profile),
+    send_dirs: resolveSendDirs(sendDirsGiven(), env),
   }
   const toolsets = resolve(
     "toolsets",

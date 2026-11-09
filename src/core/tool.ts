@@ -18,6 +18,8 @@ export type ToolContext = {
   stateDir?: string
   /** Where received files are saved: an absolute path the entry point resolved from its settings. */
   downloadDir?: string
+  /** The directories, besides the working directory, that files may be sent from: absolute paths as the entry point resolved them from its settings, not yet resolved to real paths. */
+  sendDirs?: readonly string[]
   /** The name of the program the tools run in, which a tool may record where a file says what saved it. */
   programName?: string
   signal?: AbortSignal
