@@ -1,6 +1,7 @@
 import { realpath } from "node:fs/promises"
 import { resolve } from "node:path"
 import { ToolError } from "../../errors"
+import { describeChat, describeReply, openPromptMirror } from "../../message/describe"
 import { checkRecipient, checkedChat, checkedText, chatOf, replyToOf, type TextRules } from "../../message/recipient"
 import { MAX_FILES } from "../../outgoing/limits"
 import { ANY_TARGET } from "../../targets"
@@ -9,9 +10,11 @@ import { FILE_CAPTION_MAX_CHARACTERS } from "../../whatsapp/file-send"
 import { labelTargets } from "../../whatsapp/label-targets"
 import { pickLabel } from "../../whatsapp/labels"
 import { FILE_SEND_TIMING, sendInOrder, type AcceptedFile, type FileSendTiming, type OutgoingFile } from "./deliver"
+import { describeFiles, fileSendDescription } from "./describe"
 import { kindOf } from "./kinds"
 import { FILE_SEND_NOTE, TOTAL_SIZE, input, output, type FileSendInput, type FileSendOutput } from "./schema"
 import { stageOutgoing, type StagedFile } from "./stage-files"
+import { FILE_SEND_WORDS } from "./words"
 
 const TOOL_ID = "whatsapp_file_send"
 
@@ -66,7 +69,8 @@ export function createFileSend(timing: Partial<FileSendTiming> = {}) {
   const budget: FileSendTiming = { ...FILE_SEND_TIMING, ...timing }
   return defineTool({
     id: TOOL_ID,
-    title: "Send files",
+    title: FILE_SEND_WORDS.title,
+    intent: FILE_SEND_WORDS.intent,
     description: [
       `Sends 1 to ${MAX_FILES} files, up to ${TOTAL_SIZE} together, to a person or a group, each as its own message in the order given; channels, broadcast lists and the status feed are refused.`,
       "`chat` is a JID from whatsapp_chat_read list, or for someone new the `chat` that whatsapp_contact_read check gives (the tool asks WhatsApp whether the number has an account first), never a name or a number.",
@@ -87,6 +91,21 @@ export function createFileSend(timing: Partial<FileSendTiming> = {}) {
     input,
     output,
     targets: sendTargets,
+    async describe(args, ctx) {
+      const chat = checkedChat(args.chat, TOOL_ID)
+      const caption = args.text?.trim() ? checkedText(args.text, CAPTION_RULES) : undefined
+      const replyTo = args.reply_to === undefined ? undefined : replyToOf(args.reply_to)
+      const mirror = await openPromptMirror(ctx, args.account)
+
+      // The chat is told before any file is read, so a call it refuses costs no hashing.
+      const described = await describeChat(mirror, chat)
+      const reply = await describeReply(mirror, chat, described, replyTo)
+      const files = await describeFiles(args.files, ctx, { asDocument: args.as_document === true })
+      if (caption !== undefined && files[0]!.kind.as === "audio") {
+        throw new ToolError("invalid_argument", CAPTION_ON_AUDIO)
+      }
+      return fileSendDescription(described, reply, files, caption)
+    },
     async execute(args, ctx): Promise<FileSendOutput> {
       const startedAt = Date.now()
       const chat = checkedChat(args.chat, TOOL_ID)
