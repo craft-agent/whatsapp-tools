@@ -672,6 +672,9 @@ Every entry point takes the same settings:
   | `whatsapp_message_edit`     | `Chat`, `Sent` (the message's time), `Current` (its text as it stands)                     | `New text` | —                   |
   | `whatsapp_message_react`    | `Chat`, `From` (the author, or you), `Sent`                                                | —          | —                   |
   | `whatsapp_message_delete`   | `Chat`, `Sent`, `Message` (the user's own text, or its kind), `Sync` (paused for the call) | —          | —                   |
+  | `whatsapp_chat_archive`     | `Chat`                                                                                     | —          | —                   |
+  | `whatsapp_chat_pin`         | `Chat`                                                                                     | —          | —                   |
+  | `whatsapp_chat_mute`        | `Chat`, `For` (unless unmuting)                                                            | —          | —                   |
 
   A reply shows who wrote the quoted message and when, never its text: the
   text is someone else's, and the person approving knows the message by its

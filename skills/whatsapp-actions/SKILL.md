@@ -1,12 +1,15 @@
 ---
 name: whatsapp-actions
-description: "Use when the user asks to edit, delete or react to a WhatsApp message, or when such an action fails or its outcome is unclear."
+description: "Use when the user asks to edit, delete or react to a WhatsApp message, or to archive, pin or mute a WhatsApp chat, or when such an action fails or its outcome is unclear."
 ---
 
 # Actions
 
 | Tool                      | Does                                                               | Writes |
 | ------------------------- | ------------------------------------------------------------------ | ------ |
+| `whatsapp_chat_archive`   | archives a chat, or unarchives it                                  | yes    |
+| `whatsapp_chat_mute`      | mutes a chat for 8 hours, a week or always, or unmutes it          | yes    |
+| `whatsapp_chat_pin`       | pins a chat, or unpins it                                          | yes    |
 | `whatsapp_message_delete` | deletes a message the user sent, for everyone                      | yes    |
 | `whatsapp_message_edit`   | replaces the text of a message the user sent                       | yes    |
 | `whatsapp_message_react`  | reacts to a message with one emoji, or removes the user's reaction | yes    |
@@ -55,6 +58,17 @@ message. `remove: true` takes the user's reaction off instead; give `emoji` or
 `remove`, never both. A call or a vote on a poll cannot be reacted to, but a
 poll can.
 
+## Chats
+
+`whatsapp_chat_archive`, `whatsapp_chat_pin` and `whatsapp_chat_mute` set one
+state of a person's or a group's chat the mirror holds; they need only the
+`chat`, no message. Only the user's own devices show the change, and nobody in
+the chat learns of it. Archiving also unpins the chat. WhatsApp pins at most
+three chats: pinning a fourth is refused until one is unpinned. A mute lasts
+`8_hours`, `1_week` or `always`, as the phone offers; `off` unmutes, and a
+timed mute's result says when it ends. Each call sets a state, so calling it
+again with the same arguments changes nothing more.
+
 ## Outcomes
 
 A result means WhatsApp accepted the action, not that every device shows it
@@ -67,6 +81,8 @@ queue dropped the request (`upstream_error`, trying again is safe).
 
 `uncertain` means the action may have gone out. Read the chat with
 `whatsapp_chat_read` (the mirror may not show it yet), tell the user, and ask
-before trying again; never repeat it on your own.
+before trying again; never repeat it on your own. The exception is a chat's
+state: calling it again with the same arguments is safe, though the user
+still hears that the first call's outcome was unclear.
 
 Omit `account` to pick the only paired label; with several, name one.
