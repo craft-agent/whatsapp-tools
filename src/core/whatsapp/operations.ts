@@ -1,7 +1,16 @@
 import { z } from "zod"
 import { ToolError } from "../errors"
 import { backfillOperation, HISTORY_BACKFILL_OP, type BackfillLimits } from "./backfill"
-import { archiveChat, CHAT_ARCHIVE_OP, CHAT_MUTE_OP, CHAT_PIN_OP, muteChat, pinChat } from "./chat-state"
+import {
+  archiveChat,
+  CHAT_ARCHIVE_OP,
+  CHAT_MARK_OP,
+  CHAT_MUTE_OP,
+  CHAT_PIN_OP,
+  markChat,
+  muteChat,
+  pinChat,
+} from "./chat-state"
 import { deleteOperation, MESSAGE_DELETE_OP } from "./delete"
 import { editMessage, MESSAGE_EDIT_OP } from "./edit"
 import { FILE_SEND_OP, sendFile } from "./file-send"
@@ -76,7 +85,7 @@ export type ServiceOperationOptions = {
  * upload a file again to it, and the sync writes the file. `message_send` runs while the sync runs too: wacli hands
  * the text to it, and the sync sends it; so does `file_send` with a file of the outbox, and `message_edit`, which
  * changes the text of a message the user sent, `message_react`, which reacts to a message, and `chat_archive`,
- * `chat_pin` and `chat_mute`, which set one state of a chat. `history_backfill` runs
+ * `chat_pin`, `chat_mute` and `chat_mark`, which set one state of a chat. `history_backfill` runs
  * with the sync stopped, and writes the local mirror; so does `message_delete`, which deletes a message the user sent
  * for everyone, since wacli does not hand that to a running sync.
  */
@@ -90,6 +99,7 @@ export function serviceOperations({ backfill }: ServiceOperationOptions = {}): S
     [CHAT_ARCHIVE_OP]: { kind: "delegated", writes: true, run: archiveChat },
     [CHAT_PIN_OP]: { kind: "delegated", writes: true, run: pinChat },
     [CHAT_MUTE_OP]: { kind: "delegated", writes: true, run: muteChat },
+    [CHAT_MARK_OP]: { kind: "delegated", writes: true, run: markChat },
     [FILE_SEND_OP]: { kind: "delegated", writes: true, run: sendFile },
     [MESSAGE_DELETE_OP]: deleteOperation,
     [HISTORY_BACKFILL_OP]: backfillOperation(backfill),
