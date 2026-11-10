@@ -663,22 +663,25 @@ Every entry point takes the same settings:
   what stays put until the call runs.
 - **The facts this package adds**, in the order they decide:
 
-  | Tool                        | Facts                                                                          | Text       | Pins                |
-  | --------------------------- | ------------------------------------------------------------------------------ | ---------- | ------------------- |
-  | `whatsapp_message_send`     | `Chat` (person, group or new person), `Reply to` (sender and time)             | `Message`  | —                   |
-  | `whatsapp_file_send`        | `Chat`, `Reply to`, `Sent as` (one file) or a count per kind (several), `Size` | `Caption`  | each file's SHA-256 |
-  | `whatsapp_file_save`        | `Kind`, `From` (the sender, or you), `Unpack` when asked of a document         | —          | —                   |
-  | `whatsapp_history_backfill` | `Sync` (paused for the call), `Batches`, `Oldest held`                         | —          | —                   |
-  | `whatsapp_message_edit`     | `Chat`, `Sent` (the message's time), `Current` (its text as it stands)         | `New text` | —                   |
-  | `whatsapp_message_react`    | `Chat`, `From` (the author, or you), `Sent`                                    | —          | —                   |
+  | Tool                        | Facts                                                                                      | Text       | Pins                |
+  | --------------------------- | ------------------------------------------------------------------------------------------ | ---------- | ------------------- |
+  | `whatsapp_message_send`     | `Chat` (person, group or new person), `Reply to` (sender and time)                         | `Message`  | —                   |
+  | `whatsapp_file_send`        | `Chat`, `Reply to`, `Sent as` (one file) or a count per kind (several), `Size`             | `Caption`  | each file's SHA-256 |
+  | `whatsapp_file_save`        | `Kind`, `From` (the sender, or you), `Unpack` when asked of a document                     | —          | —                   |
+  | `whatsapp_history_backfill` | `Sync` (paused for the call), `Batches`, `Oldest held`                                     | —          | —                   |
+  | `whatsapp_message_edit`     | `Chat`, `Sent` (the message's time), `Current` (its text as it stands)                     | `New text` | —                   |
+  | `whatsapp_message_react`    | `Chat`, `From` (the author, or you), `Sent`                                                | —          | —                   |
+  | `whatsapp_message_delete`   | `Chat`, `Sent`, `Message` (the user's own text, or its kind), `Sync` (paused for the call) | —          | —                   |
 
   A reply shows who wrote the quoted message and when, never its text: the
   text is someone else's, and the person approving knows the message by its
   author and time. An edit shows the text it replaces, since that text is
   the user's own. A reaction shows who wrote the message and when, never its
-  text. A file's size can stay the same while its bytes change,
-  so a send pins each file's SHA-256. A headline value is quoted as data, so
-  a count stays out of it: several files are counted per kind in the facts.
+  text. A deletion shows the text it removes, which is the user's own, or the
+  kind of a message that has none, and says the sync pauses for the call. A
+  file's size can stay the same while its bytes change, so a send pins each
+  file's SHA-256. A headline value is quoted as data, so a count stays out of
+  it: several files are counted per kind in the facts.
 
 - **Their Japanese lives beside the tools**, a `words.ts` in each tool's
   folder whose English words the tools use as constants, which `src/words.ts`

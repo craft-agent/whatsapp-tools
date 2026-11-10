@@ -258,18 +258,21 @@ Hermes.
 
 ### Actions (`actions`)
 
-| Tool                     | What it does                                                                   | Class     |
-| ------------------------ | ------------------------------------------------------------------------------ | --------- |
-| `whatsapp_message_edit`  | replaces the text of a text message the user sent, at most 15 minutes after it | overwrite |
-| `whatsapp_message_react` | reacts to a message with one emoji, or removes the user's reaction             | overwrite |
+| Tool                      | What it does                                                                   | Class          |
+| ------------------------- | ------------------------------------------------------------------------------ | -------------- |
+| `whatsapp_message_delete` | deletes a message the user sent for everyone, at most two days after it        | administrative |
+| `whatsapp_message_edit`   | replaces the text of a text message the user sent, at most 15 minutes after it | overwrite      |
+| `whatsapp_message_react`  | reacts to a message with one emoji, or removes the user's reaction             | overwrite      |
 
 Off by default: turn it on with the `actions` toolset. Each action goes
 through the label's running sync service and acts only on a chat and a message
-the mirror holds, named by JID and id from `whatsapp_chat_read`. It keeps to
-the limits WhatsApp's own apps hold, and refuses past them before anything
-leaves. A result means WhatsApp accepted the action; a failure known to happen
-before anything left says so, and every other failure is `uncertain`: the
-chat is checked and the user asked before the action is tried again. The
+the mirror holds, named by JID and id from `whatsapp_chat_read`. Deleting for
+everyone pauses the sync service for the call, a few seconds, and the result
+says whether it syncs again. It keeps to the limits WhatsApp's own apps hold,
+and refuses past them before anything leaves. A result means WhatsApp
+accepted the action; a failure known to happen before anything left says so,
+and every other failure is `uncertain`: the chat is checked and the user asked
+before the action is tried again. The
 skill is [`whatsapp-actions`](skills/whatsapp-actions/SKILL.md), shown as
 `whatsapp-tools:whatsapp-actions` in Claude Code and `whatsapp-tools:actions`
 in Hermes.

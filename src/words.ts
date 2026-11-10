@@ -3,6 +3,7 @@ import { FACT_TRANSLATIONS } from "./core/facts"
 import { FILE_SEND_TRANSLATIONS } from "./core/file/send/words"
 import { FILE_SAVE_TRANSLATIONS } from "./core/file/words"
 import { HISTORY_TRANSLATIONS } from "./core/history/words"
+import { DELETE_TRANSLATIONS } from "./core/message/delete/words"
 import { EDIT_TRANSLATIONS } from "./core/message/edit/words"
 import { REACT_TRANSLATIONS } from "./core/message/react/words"
 import { MESSAGE_TRANSLATIONS } from "./core/message/words"
@@ -11,6 +12,7 @@ import { MESSAGE_TRANSLATIONS } from "./core/message/words"
 export const ALL_TRANSLATIONS: Translations = mergeTranslations(
   MESSAGE_TRANSLATIONS,
   EDIT_TRANSLATIONS,
+  DELETE_TRANSLATIONS,
   REACT_TRANSLATIONS,
   FILE_SAVE_TRANSLATIONS,
   FILE_SEND_TRANSLATIONS,

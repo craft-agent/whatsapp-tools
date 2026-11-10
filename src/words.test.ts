@@ -4,6 +4,7 @@ import { FACT_TRANSLATIONS } from "./core/facts"
 import { FILE_SEND_WORDS } from "./core/file/send/words"
 import { FILE_SAVE_WORDS } from "./core/file/words"
 import { HISTORY_WORDS } from "./core/history/words"
+import { DELETE_WORDS } from "./core/message/delete/words"
 import { EDIT_WORDS } from "./core/message/edit/words"
 import { REACT_WORDS } from "./core/message/react/words"
 import { MESSAGE_WORDS } from "./core/message/words"
@@ -14,6 +15,7 @@ import { ALL_TRANSLATIONS } from "./words"
 const ENGLISH_WORDS: string[] = [
   ...Object.values(MESSAGE_WORDS),
   ...Object.values(EDIT_WORDS),
+  ...Object.values(DELETE_WORDS),
   ...Object.values(REACT_WORDS),
   ...Object.values(FILE_SAVE_WORDS),
   ...Object.values(FILE_SEND_WORDS),

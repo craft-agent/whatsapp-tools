@@ -1,20 +1,21 @@
 ---
 name: whatsapp-actions
-description: "Use when the user asks to edit or react to a WhatsApp message, or when such an action fails or its outcome is unclear."
+description: "Use when the user asks to edit, delete or react to a WhatsApp message, or when such an action fails or its outcome is unclear."
 ---
 
 # Actions
 
-| Tool                     | Does                                                               | Writes |
-| ------------------------ | ------------------------------------------------------------------ | ------ |
-| `whatsapp_message_edit`  | replaces the text of a message the user sent                       | yes    |
-| `whatsapp_message_react` | reacts to a message with one emoji, or removes the user's reaction | yes    |
+| Tool                      | Does                                                               | Writes |
+| ------------------------- | ------------------------------------------------------------------ | ------ |
+| `whatsapp_message_delete` | deletes a message the user sent, for everyone                      | yes    |
+| `whatsapp_message_edit`   | replaces the text of a message the user sent                       | yes    |
+| `whatsapp_message_react`  | reacts to a message with one emoji, or removes the user's reaction | yes    |
 
 The tools are in the `actions` toolset, which is off by default. They work
 through the sync service, which must be running (see `whatsapp_account_read`).
 
 Act only when the user asked for this very action on this very message. Never
-edit a message to correct, tidy or finish something on your own.
+edit or delete a message to correct, tidy or finish something on your own.
 
 Find the chat and the message first. A chat is a JID, never a name or a
 number: take it from `whatsapp_chat_read` (`list`), and take the message's
@@ -22,6 +23,18 @@ number: take it from `whatsapp_chat_read` (`list`), and take the message's
 group the mirror holds, and the message one of that chat, readable and not
 deleted; a reaction is not a message to act on. Anything else is refused
 before anything leaves.
+
+## Delete
+
+`whatsapp_message_delete` deletes for everyone a message the user sent, of any
+kind (text, photo, file, poll, vote) but a call, at most two days after it was
+sent: WhatsApp's own limit, past which it is `forbidden`. Another person's
+message is `forbidden` too; a group admin's deleting of other people's
+messages is not offered. It cannot be undone, and the people in the chat see
+that the message was deleted, so ask the user first unless they named exactly
+this message. The service pauses syncing for the call, a few seconds, and
+`service_running` says whether it syncs again; when it is `false`, tell the
+user, because the mirror receives nothing until the service is started.
 
 ## Edit
 
@@ -52,7 +65,7 @@ A failure before anything went out says what to do: the service is not
 running (start it), the message is not the user's or too old, or WhatsApp's
 queue dropped the request (`upstream_error`, trying again is safe).
 
-`uncertain` means the edit or reaction may have gone out. Read the chat with
+`uncertain` means the action may have gone out. Read the chat with
 `whatsapp_chat_read` (the mirror may not show it yet), tell the user, and ask
 before trying again; never repeat it on your own.
 
