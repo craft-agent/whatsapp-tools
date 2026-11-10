@@ -12,6 +12,14 @@ const PHONE_SERVER = "s.whatsapp.net"
 /** A person's JID: digits, and the number of the device they write from, which names no other chat. */
 const PHONE_JID = /^(\d+)(?::\d+)?@s\.whatsapp\.net$/
 
+/** The device a JID names (`:12` before the `@`), which is no part of whose JID it is. */
+const DEVICE_SUFFIX = /:\d+(?=@)/
+
+/** The JID without the device it names, if any. */
+export function withoutDevice(jid: string): string {
+  return jid.replace(DEVICE_SUFFIX, "")
+}
+
 /** The other JIDs a chat has: a hidden-number contact, a group, a channel and a broadcast list. */
 const OTHER_JIDS: readonly RegExp[] = [/^\d+@lid$/, /^\d+(?:-\d+)?@g\.us$/, /^\w+@newsletter$/, /^[\w-]+@broadcast$/]
 
