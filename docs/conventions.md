@@ -458,7 +458,8 @@ Every entry point takes the same settings:
   call that finds the service gone.
 - **The service sends no read receipts or typing indicators of its own**, so
   the phone keeps its notifications and nobody learns that a message was read
-  by a tool.
+  by a tool. A read receipt goes out only when a call asks for one (see
+  "Writes").
 
 ## Reads
 
@@ -615,6 +616,27 @@ Every entry point takes the same settings:
 - **A send changes the chat's read state in the mirror only.** wacli lowers
   the unread count when the user writes in a chat and sends no read receipt,
   so the other side learns nothing beyond the message.
+- **An action keeps to what WhatsApp's own apps allow.** A text is edited
+  only by the user who sent it and within 15 minutes, a message is deleted for
+  everyone only by the user who sent it and within two days, at most three
+  chats are pinned, and a chat is muted for 8 hours, a week or always. Past a
+  limit the tool refuses before anything leaves: wacli checks only some of
+  them, and whatsmeow lets an edit through for 20 minutes, which the phone
+  may not show.
+- **An action names its message by chat and id, as the mirror holds it.** The
+  message must be one of that chat in the label's mirror, readable and not
+  deleted; a reaction is not a message to act on. What WhatsApp needs to
+  address it, such as its author, comes from the mirror, never from the
+  model.
+- **An action's outcome follows the send's rule.** A failure known to happen
+  before anything left throws its code; every other failure is `uncertain`.
+  An action on a message is checked in the chat before it is tried again; an
+  action on a chat sets a state, so trying it again is safe, and its
+  `uncertain` says so.
+- **A read receipt goes out only when a call asks for it.** Marking a chat
+  read or unread changes what the user's own devices show and tells no sender;
+  a call that sets `receipts` sends read receipts for the chat's unread
+  messages, and its result says how many.
 
 ## Approval prompts
 
@@ -641,18 +663,29 @@ Every entry point takes the same settings:
   what stays put until the call runs.
 - **The facts this package adds**, in the order they decide:
 
-  | Tool                        | Facts                                                                          | Text      | Pins                |
-  | --------------------------- | ------------------------------------------------------------------------------ | --------- | ------------------- |
-  | `whatsapp_message_send`     | `Chat` (person, group or new person), `Reply to` (sender and time)             | `Message` | —                   |
-  | `whatsapp_file_send`        | `Chat`, `Reply to`, `Sent as` (one file) or a count per kind (several), `Size` | `Caption` | each file's SHA-256 |
-  | `whatsapp_file_save`        | `Kind`, `From` (the sender, or you), `Unpack` when asked of a document         | —         | —                   |
-  | `whatsapp_history_backfill` | `Sync` (paused for the call), `Batches`, `Oldest held`                         | —         | —                   |
+  | Tool                        | Facts                                                                                      | Text       | Pins                |
+  | --------------------------- | ------------------------------------------------------------------------------------------ | ---------- | ------------------- |
+  | `whatsapp_message_send`     | `Chat` (person, group or new person), `Reply to` (sender and time)                         | `Message`  | —                   |
+  | `whatsapp_file_send`        | `Chat`, `Reply to`, `Sent as` (one file) or a count per kind (several), `Size`             | `Caption`  | each file's SHA-256 |
+  | `whatsapp_file_save`        | `Kind`, `From` (the sender, or you), `Unpack` when asked of a document                     | —          | —                   |
+  | `whatsapp_history_backfill` | `Sync` (paused for the call), `Batches`, `Oldest held`                                     | —          | —                   |
+  | `whatsapp_message_edit`     | `Chat`, `Sent` (the message's time), `Current` (its text as it stands)                     | `New text` | —                   |
+  | `whatsapp_message_react`    | `Chat`, `From` (the author, or you), `Sent`                                                | —          | —                   |
+  | `whatsapp_message_delete`   | `Chat`, `Sent`, `Message` (the user's own text, or its kind), `Sync` (paused for the call) | —          | —                   |
+  | `whatsapp_chat_archive`     | `Chat`                                                                                     | —          | —                   |
+  | `whatsapp_chat_pin`         | `Chat`                                                                                     | —          | —                   |
+  | `whatsapp_chat_mute`        | `Chat`, `For` (unless unmuting)                                                            | —          | —                   |
+  | `whatsapp_chat_mark`        | `Chat`, `Receipts` (when marking read)                                                     | —          | —                   |
 
   A reply shows who wrote the quoted message and when, never its text: the
   text is someone else's, and the person approving knows the message by its
-  author and time. A file's size can stay the same while its bytes change,
-  so a send pins each file's SHA-256. A headline value is quoted as data, so
-  a count stays out of it: several files are counted per kind in the facts.
+  author and time. An edit shows the text it replaces, since that text is
+  the user's own. A reaction shows who wrote the message and when, never its
+  text. A deletion shows the text it removes, which is the user's own, or the
+  kind of a message that has none, and says the sync pauses for the call. A
+  file's size can stay the same while its bytes change, so a send pins each
+  file's SHA-256. A headline value is quoted as data, so a count stays out of
+  it: several files are counted per kind in the facts.
 
 - **Their Japanese lives beside the tools**, a `words.ts` in each tool's
   folder whose English words the tools use as constants, which `src/words.ts`

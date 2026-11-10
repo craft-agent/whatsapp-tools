@@ -35,17 +35,22 @@ const OWN_ACCOUNT = /^send text to the linked account itself is not supported/i
 /** wacli's text when the recipient or the text is missing. */
 const MISSING_ARGUMENT = /^--to and --message are required/i
 
+/** The chat a send or an action names, as the service takes it: a JID, never a channel, a broadcast list or the status feed, whoever asks. */
+export const reachableChat = z
+  .string()
+  .regex(CHAT_JID_FORM)
+  .refine((chat) => !/@(?:newsletter|broadcast)$/.test(chat))
+
+/** One message's text, as the service takes it: 1 to `MESSAGE_TEXT_MAX_CHARACTERS` code points, none of them half a character. */
+export const messageText = z
+  .string()
+  .min(1)
+  .refine((text) => [...text].length <= MESSAGE_TEXT_MAX_CHARACTERS && !LONE_SURROGATE.test(text))
+
 /** The arguments of `message_send`. */
 const sendArguments = z.strictObject({
-  // A channel, a broadcast list and the status feed are refused here too, whoever asks.
-  chat: z
-    .string()
-    .regex(CHAT_JID_FORM)
-    .refine((chat) => !/@(?:newsletter|broadcast)$/.test(chat)),
-  text: z
-    .string()
-    .min(1)
-    .refine((text) => [...text].length <= MESSAGE_TEXT_MAX_CHARACTERS && !LONE_SURROGATE.test(text)),
+  chat: reachableChat,
+  text: messageText,
   reply_to: z.string().regex(MESSAGE_ID_FORM).optional(),
 })
 

@@ -46,11 +46,14 @@ export async function describeChat(mirror: Mirror, jid: string): Promise<Describ
   }
   const kind = chatKind(row.kind, jid)
   if (kind !== "person" && kind !== "group") throw new ToolError("invalid_argument", PEOPLE_AND_GROUPS_ONLY)
-  const value = kind === "person" ? MESSAGE_WORDS.person : MESSAGE_WORDS.group
+  return { name: chatDisplayName(jid, row.name), fact: chatKindFact(kind), isNew: false }
+}
+
+/** The `Chat` fact of a person's or a group's chat the mirror holds. */
+export function chatKindFact(kind: "person" | "group"): CallFact {
   return {
-    name: chatDisplayName(jid, row.name),
-    fact: { label: MESSAGE_WORDS.chatLabel, value: { text: value } },
-    isNew: false,
+    label: MESSAGE_WORDS.chatLabel,
+    value: { text: kind === "person" ? MESSAGE_WORDS.person : MESSAGE_WORDS.group },
   }
 }
 

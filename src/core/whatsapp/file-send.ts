@@ -4,7 +4,6 @@ import { z } from "zod"
 import { ToolError } from "../errors"
 import type { ExecResult } from "../exec"
 import { isWithin } from "../paths"
-import { CHAT_JID_FORM } from "./backfill"
 import { MESSAGE_ID_FORM } from "./media"
 import {
   LONE_SURROGATE,
@@ -15,6 +14,7 @@ import {
   sentOf,
   type SendOutcomeOptions,
 } from "./send-outcome"
+import { reachableChat } from "./send"
 import type { ServiceOperationContext } from "./service-socket"
 import { execWacli } from "./wacli"
 
@@ -71,11 +71,7 @@ const UPLOAD_FAILED =
 
 /** The arguments of `file_send`. */
 const fileSendArguments = z.strictObject({
-  // A channel, a broadcast list and the status feed are refused here too, whoever asks.
-  chat: z
-    .string()
-    .regex(CHAT_JID_FORM)
-    .refine((chat) => !/@(?:newsletter|broadcast)$/.test(chat)),
+  chat: reachableChat,
   file: z.string().refine((file) => isAbsolute(file) && !file.includes("\0")),
   name: z
     .string()

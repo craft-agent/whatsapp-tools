@@ -5,12 +5,11 @@ import { formatLocalTime, localTimeSchema } from "../time"
 import { defineTool, type ToolContext } from "../tool"
 import { isRecord } from "../whatsapp/json-record"
 import { labelPaths, listLabels, pickLabel, type LabelPaths } from "../whatsapp/labels"
+import { DOCTOR_TIMEOUT_MS } from "../whatsapp/linked-jid"
 import { maskNumbers } from "../whatsapp/mask"
 import { isServiceRunning } from "../whatsapp/service-lock"
 import { readServiceStatus } from "../whatsapp/service-status"
 import { WacliTooOldError, checkWacli, runWacli } from "../whatsapp/wacli"
-
-const DOCTOR_TIMEOUT_MS = 20_000
 
 const input = z.object({
   account: z.string().optional().describe("The account label; absent lists every label."),
