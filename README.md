@@ -1,6 +1,6 @@
 # whatsapp-tools
 
-WhatsApp tools for coding agents: chats, messages, contacts, history, received files and sends.
+WhatsApp tools for coding agents: chats, messages, contacts, history, received files, sends and actions on the user's own messages and chats.
 
 | Harness        | Delivery                                       | Pinned by                      |
 | -------------- | ---------------------------------------------- | ------------------------------ |
@@ -255,6 +255,23 @@ mirror and sends no read receipt. The skill is
 [`whatsapp-sends`](skills/whatsapp-sends/SKILL.md), shown as
 `whatsapp-tools:whatsapp-sends` in Claude Code and `whatsapp-tools:sends` in
 Hermes.
+
+### Actions (`actions`)
+
+| Tool                    | What it does                                                                   | Class     |
+| ----------------------- | ------------------------------------------------------------------------------ | --------- |
+| `whatsapp_message_edit` | replaces the text of a text message the user sent, at most 15 minutes after it | overwrite |
+
+Off by default: turn it on with the `actions` toolset. Each action goes
+through the label's running sync service and acts only on a chat and a message
+the mirror holds, named by JID and id from `whatsapp_chat_read`. It keeps to
+the limits WhatsApp's own apps hold, and refuses past them before anything
+leaves. A result means WhatsApp accepted the action; a failure known to happen
+before anything left says so, and every other failure is `uncertain`: the
+chat is checked and the user asked before the action is tried again. The
+skill is [`whatsapp-actions`](skills/whatsapp-actions/SKILL.md), shown as
+`whatsapp-tools:whatsapp-actions` in Claude Code and `whatsapp-tools:actions`
+in Hermes.
 
 ## Adding a tool
 
