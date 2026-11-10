@@ -23,10 +23,10 @@ const MESSAGE_EDIT_PROCESS_LIMIT_MS = 75_000
 const STORE_FAILED = /^store edited message text/i
 
 /** wacli's text when the message is not one the user sent. */
-const NOT_OWN_MESSAGE = /^message \S+ was not sent by me/i
+export const NOT_OWN_MESSAGE = /^message \S+ was not sent by me/i
 
 /** wacli's texts when the message is deleted, for everyone or for the user. */
-const DELETED_MESSAGE = /^message \S+ (?:is already deleted|was deleted for me)/i
+export const DELETED_MESSAGE = /^message \S+ (?:is already deleted|was deleted for me)/i
 
 /** wacli's text for a message that is not text. */
 const NOT_TEXT_MESSAGE = /^only text messages can be edited/i
@@ -38,7 +38,7 @@ const PAST_EDIT_WINDOW = /^message \S+ is older than whatsapp's .+ edit window/i
 const MISSING_ARGUMENT = /^--chat, --id, and --message are required/i
 
 /** wacli's text when the sync's store holds no such message. */
-const NO_SUCH_MESSAGE = /^sql: no rows in result set/i
+export const NO_SUCH_MESSAGE = /^sql: no rows in result set/i
 
 /** The arguments of `message_edit`. */
 const editArguments = z.strictObject({

@@ -1,6 +1,7 @@
 import { z } from "zod"
 import { ToolError } from "../errors"
 import { backfillOperation, HISTORY_BACKFILL_OP, type BackfillLimits } from "./backfill"
+import { deleteOperation, MESSAGE_DELETE_OP } from "./delete"
 import { editMessage, MESSAGE_EDIT_OP } from "./edit"
 import { FILE_SEND_OP, sendFile } from "./file-send"
 import { downloadFromPhone, MEDIA_DOWNLOAD_OP } from "./media"
@@ -73,7 +74,9 @@ export type ServiceOperationOptions = {
  * the check to it, and writes nothing. `media_download` runs while the sync runs too: wacli hands the request to
  * upload a file again to it, and the sync writes the file. `message_send` runs while the sync runs too: wacli hands
  * the text to it, and the sync sends it; so does `file_send` with a file of the outbox, and `message_edit`, which
- * changes the text of a message the user sent, and `message_react`, which reacts to a message. `history_backfill` runs with the sync stopped, and writes the local mirror.
+ * changes the text of a message the user sent, and `message_react`, which reacts to a message. `history_backfill` runs
+ * with the sync stopped, and writes the local mirror; so does `message_delete`, which deletes a message the user sent
+ * for everyone, since wacli does not hand that to a running sync.
  */
 export function serviceOperations({ backfill }: ServiceOperationOptions = {}): ServiceOperations {
   return {
@@ -83,6 +86,7 @@ export function serviceOperations({ backfill }: ServiceOperationOptions = {}): S
     [MESSAGE_EDIT_OP]: { kind: "delegated", writes: true, run: editMessage },
     [MESSAGE_REACT_OP]: { kind: "delegated", writes: true, run: reactToMessage },
     [FILE_SEND_OP]: { kind: "delegated", writes: true, run: sendFile },
+    [MESSAGE_DELETE_OP]: deleteOperation,
     [HISTORY_BACKFILL_OP]: backfillOperation(backfill),
   }
 }
