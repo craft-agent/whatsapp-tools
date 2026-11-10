@@ -1,10 +1,9 @@
 import { z } from "zod"
 import { ToolError } from "../errors"
 import type { ExecResult } from "../exec"
-import { CHAT_JID_FORM } from "./backfill"
 import { MESSAGE_ID_FORM } from "./media"
-import { LONE_SURROGATE, commonNotSent, detailOf, sentOf, type SendOutcomeOptions } from "./send-outcome"
-import { MESSAGE_TEXT_MAX_CHARACTERS } from "./send"
+import { commonNotSent, detailOf, sentOf, type SendOutcomeOptions } from "./send-outcome"
+import { MESSAGE_TEXT_MAX_CHARACTERS, messageText, reachableChat } from "./send"
 import type { ServiceOperationContext } from "./service-socket"
 import { execWacli, failureText } from "./wacli"
 
@@ -43,16 +42,9 @@ const NO_SUCH_MESSAGE = /^sql: no rows in result set/i
 
 /** The arguments of `message_edit`. */
 const editArguments = z.strictObject({
-  // A channel, a broadcast list and the status feed are refused here too, whoever asks.
-  chat: z
-    .string()
-    .regex(CHAT_JID_FORM)
-    .refine((chat) => !/@(?:newsletter|broadcast)$/.test(chat)),
+  chat: reachableChat,
   id: z.string().regex(MESSAGE_ID_FORM),
-  text: z
-    .string()
-    .min(1)
-    .refine((text) => [...text].length <= MESSAGE_TEXT_MAX_CHARACTERS && !LONE_SURROGATE.test(text)),
+  text: messageText,
 })
 
 /** What wacli prints for an edit it made: `edited`, beside the ids it names. */
