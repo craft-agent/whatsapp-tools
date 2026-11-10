@@ -466,8 +466,14 @@ Every command below follows `whatsapp-tools-cli`:
 | `service install \| uninstall \| status [--account <label>]`                        | registers/starts the service as a launchd agent (macOS) or systemd user unit (Linux), removes it, or reports its state  |
 | `remove --account <label> [--yes]`                                                  | uninstalls the service, logs the device out when possible and deletes the label's keys and history after confirmation   |
 
-- **The service records this package's paths**, so run `service install`
-  again after updating the package. On macOS its log is
+- **The service records this package's paths and Node's**, so run
+  `service install` again after updating either. Where Node's path holds its
+  version, as under a version manager, `service install` records a `node` on
+  `PATH` at a path without it that starts the same Node, and warns when there
+  is none. That `node` then runs whichever Node the manager makes current.
+  `service status` and `whatsapp_account_read` say when the recorded program
+  is gone, once the service has been installed with this version. On macOS its
+  log is
   `~/Library/Logs/io.github.craft-agent.whatsapp-tools/<label>.log`; on Linux,
   `journalctl --user -u <unit>` as `service status` shows, and
   `loginctl enable-linger` keeps it running while you are logged out.

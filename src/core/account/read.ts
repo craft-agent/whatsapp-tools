@@ -8,6 +8,7 @@ import { labelPaths, listLabels, pickLabel, type LabelPaths } from "../whatsapp/
 import { DOCTOR_TIMEOUT_MS } from "../whatsapp/linked-jid"
 import { maskNumbers } from "../whatsapp/mask"
 import { isServiceRunning } from "../whatsapp/service-lock"
+import { missingServiceFiles, readServiceRecord } from "../whatsapp/service-record"
 import { readServiceStatus } from "../whatsapp/service-status"
 import { WacliTooOldError, checkWacli, runWacli } from "../whatsapp/wacli"
 
@@ -69,7 +70,7 @@ async function readWacli(signal: AbortSignal | undefined): Promise<Wacli> {
   }
 }
 
-function nextStep(result: Account, info: Wacli, doctorFailed: boolean): void {
+function nextStep(result: Account, info: Wacli, doctorFailed: boolean, programGone: boolean): void {
   if (!info.supported) {
     result.action = info.version === null ? "install_wacli" : "update_wacli"
     result.hint = info.version === null ? "Install a supported wacli release." : "Update wacli to a supported release."
@@ -79,6 +80,13 @@ function nextStep(result: Account, info: Wacli, doctorFailed: boolean): void {
       result.paired === "revoked"
         ? "The phone unlinked this device; pair it again from the phone."
         : "Pair this device from the phone."
+  } else if (programGone) {
+    // Before the failed check: a restart cannot run without the program, and installing again restarts it.
+    result.action = "start_service"
+    result.hint =
+      result.service === "running" || result.service === "starting"
+        ? "The sync service has not stopped, but the program it was installed with is gone, so it will not start again; install the service again."
+        : "The program the sync service was installed with is gone, as after an update; install the service again."
   } else if (result.paired === "paired" && (result.service === "stopped" || result.service === "never_run")) {
     result.action = "start_service"
     result.hint = "Start the sync service to receive messages for this account."
@@ -132,7 +140,9 @@ async function readAccount(paths: LabelPaths, info: Wacli, signal: ToolContext["
       doctorFailed = true
     }
   }
-  nextStep(result, info, doctorFailed)
+  const record = readServiceRecord(paths)
+  const programGone = record !== null && missingServiceFiles(record).length > 0
+  nextStep(result, info, doctorFailed, programGone)
   return result
 }
 
