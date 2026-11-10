@@ -39,7 +39,7 @@ A person runs these commands; never run them unprompted as an agent.
 | `install_wacli` | Install wacli 0.26 or later from <https://github.com/openclaw/wacli> (`brew install openclaw/tap/wacli` on macOS, or a release binary).                                |
 | `update_wacli`  | Update to wacli 0.26 or later from <https://github.com/openclaw/wacli> (`brew upgrade openclaw/tap/wacli` on macOS, or replace the release binary), then restart sync. |
 | `pair`          | Run `whatsapp-tools-cli pair --account <label>` and scan the QR code from the phone; a revoked device must be paired again.                                            |
-| `start_service` | Run `whatsapp-tools-cli service install --account <label>` to install/start the sync service.                                                                          |
+| `start_service` | Run `whatsapp-tools-cli service install --account <label>` to install/start the sync service, or to install it again once the program it was installed with is gone.   |
 | `check_service` | Run `whatsapp-tools-cli service status --account <label>` and inspect the log it identifies (`Log`: a file on macOS, a journal command on Linux).                      |
 
 History starts at pairing: the phone sends some history then, best effort, and
