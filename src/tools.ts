@@ -2,6 +2,7 @@ import type { ToolSpec } from "./core"
 import { whatsappAccountRead } from "./core/account/read"
 import { whatsappChatRead } from "./core/chat/read"
 import { whatsappChatArchive } from "./core/chat/state/archive"
+import { whatsappChatMark } from "./core/chat/state/mark"
 import { whatsappChatMute } from "./core/chat/state/mute"
 import { whatsappChatPin } from "./core/chat/state/pin"
 import { whatsappContactRead } from "./core/contact/read"
@@ -17,6 +18,7 @@ import { whatsappMessageSend } from "./core/message/send"
 export const ALL_TOOLS: ToolSpec[] = [
   whatsappAccountRead,
   whatsappChatArchive,
+  whatsappChatMark,
   whatsappChatMute,
   whatsappChatPin,
   whatsappChatRead,

@@ -28,6 +28,17 @@ export const MUTE_WORDS = {
   always: "Always",
 } as const
 
+/** The English words and templates the chat mark tool writes in its approval prompt. */
+export const MARK_WORDS = {
+  title: "Mark a chat read or unread",
+  intent: "About to mark a chat read or unread",
+  readHeadline: "About to mark {chat} as read",
+  unreadHeadline: "About to mark {chat} as unread",
+  receiptsLabel: "Receipts",
+  receiptsSent: "Sent to the senders of up to 100 unread messages",
+  receiptsNone: "Not sent; nobody learns of it",
+} as const
+
 /** The translations of the chat state tools' words. */
 export const CHAT_STATE_TRANSLATIONS: Translations = {
   ja: {
@@ -47,5 +58,12 @@ export const CHAT_STATE_TRANSLATIONS: Translations = {
     [MUTE_WORDS.eightHours]: "8 時間",
     [MUTE_WORDS.oneWeek]: "1 週間",
     [MUTE_WORDS.always]: "常に",
+    [MARK_WORDS.title]: "チャットを既読・未読にする",
+    [MARK_WORDS.intent]: "チャットの既読・未読を切り替えようとしています",
+    [MARK_WORDS.readHeadline]: "{chat} を既読にしようとしています",
+    [MARK_WORDS.unreadHeadline]: "{chat} を未読にしようとしています",
+    [MARK_WORDS.receiptsLabel]: "受信確認",
+    [MARK_WORDS.receiptsSent]: "未読メッセージ最大 100 件の送信者に送る",
+    [MARK_WORDS.receiptsNone]: "送らない（誰にも伝わらない）",
   },
 }
