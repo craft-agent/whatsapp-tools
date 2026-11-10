@@ -4,6 +4,7 @@ import { backfillOperation, HISTORY_BACKFILL_OP, type BackfillLimits } from "./b
 import { editMessage, MESSAGE_EDIT_OP } from "./edit"
 import { FILE_SEND_OP, sendFile } from "./file-send"
 import { downloadFromPhone, MEDIA_DOWNLOAD_OP } from "./media"
+import { MESSAGE_REACT_OP, reactToMessage } from "./react"
 import { MESSAGE_SEND_OP, sendText } from "./send"
 import type { ServiceOperationContext, ServiceOperations } from "./service-socket"
 import { runWacli } from "./wacli"
@@ -72,7 +73,7 @@ export type ServiceOperationOptions = {
  * the check to it, and writes nothing. `media_download` runs while the sync runs too: wacli hands the request to
  * upload a file again to it, and the sync writes the file. `message_send` runs while the sync runs too: wacli hands
  * the text to it, and the sync sends it; so does `file_send` with a file of the outbox, and `message_edit`, which
- * changes the text of a message the user sent. `history_backfill` runs with the sync stopped, and writes the local mirror.
+ * changes the text of a message the user sent, and `message_react`, which reacts to a message. `history_backfill` runs with the sync stopped, and writes the local mirror.
  */
 export function serviceOperations({ backfill }: ServiceOperationOptions = {}): ServiceOperations {
   return {
@@ -80,6 +81,7 @@ export function serviceOperations({ backfill }: ServiceOperationOptions = {}): S
     [MEDIA_DOWNLOAD_OP]: { kind: "delegated", writes: true, run: downloadFromPhone },
     [MESSAGE_SEND_OP]: { kind: "delegated", writes: true, run: sendText },
     [MESSAGE_EDIT_OP]: { kind: "delegated", writes: true, run: editMessage },
+    [MESSAGE_REACT_OP]: { kind: "delegated", writes: true, run: reactToMessage },
     [FILE_SEND_OP]: { kind: "delegated", writes: true, run: sendFile },
     [HISTORY_BACKFILL_OP]: backfillOperation(backfill),
   }
