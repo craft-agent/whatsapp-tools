@@ -35,6 +35,7 @@ const NO_ANSWER =
 
 /** The codes the service answers only for a send that never left; any other failure after the hand-off may have sent it. */
 const NOT_SENT_CODES: ReadonlySet<string> = new Set([
+  "forbidden",
   "invalid_argument",
   "not_found",
   "unauthenticated",
@@ -78,22 +79,27 @@ export function checkedText(given: string, { maxCharacters, tooLong }: TextRules
   return text
 }
 
-/** The message id `reply_to` names, or `invalid_argument` naming `reply_to`. The text is not echoed. */
-export function replyToOf(given: string): string {
+/** The message id `name` names, or `invalid_argument` naming `name`. The value is not echoed. */
+export function messageIdOf(given: string, name: string): string {
   if (!MESSAGE_ID_FORM.test(given)) {
     throw new ToolError(
       "invalid_argument",
-      "reply_to must be a message id as whatsapp_chat_read gives it: letters, digits, `.`, `_` and `-`.",
+      `${name} must be a message id as whatsapp_chat_read gives it: letters, digits, \`.\`, \`_\` and \`-\`.`,
     )
   }
   return given
 }
 
-/** The error for a sync service that is not running, saying that a send needs it. Nothing was sent. */
+/** The message id `reply_to` names, or `invalid_argument` naming `reply_to`. The text is not echoed. */
+export function replyToOf(given: string): string {
+  return messageIdOf(given, "reply_to")
+}
+
+/** The error for a sync service that is not running, saying that a send or an action needs it. Nothing left. */
 export function serviceNotRunning(error: ToolError): ToolError {
   return new ToolError(
     "upstream_error",
-    `${error.message} A send goes through the sync service (see whatsapp_account_read). Nothing was sent.`,
+    `${error.message} Sends and actions go through the sync service (see whatsapp_account_read). Nothing was sent or changed.`,
     { cause: error },
   )
 }
@@ -163,11 +169,12 @@ export function uncertainMessage(subject: string): string {
 /**
  * The error to throw for a call to the sync service that failed. The service not running and the codes it answers
  * only for a send that never left keep their meaning, an abort before the hand-off stays an abort (the client
- * reports one after it as `uncertain`), and anything else is `uncertain`, since the `subject` may have gone out.
+ * reports one after it as `uncertain`), and anything else is `uncertain`, since the `subject` may have gone out;
+ * `uncertain` is the message it carries, by default the one `uncertainMessage` gives for a send of the `subject`.
  */
-export function deliveryFailure(error: unknown, subject: string): unknown {
+export function deliveryFailure(error: unknown, subject: string, uncertain = uncertainMessage(subject)): unknown {
   if (isServiceNotRunning(error)) return serviceNotRunning(error as ToolError)
   if (isAbortError(error)) return error
   if (isToolError(error) && NOT_SENT_CODES.has(error.code)) return error
-  return new ToolError("uncertain", uncertainMessage(subject), { cause: error })
+  return new ToolError("uncertain", uncertain, { cause: error })
 }
