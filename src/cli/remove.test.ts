@@ -1,5 +1,7 @@
 import { afterEach, describe, expect, test } from "bun:test"
 import { existsSync } from "node:fs"
+import { mkdir, writeFile } from "node:fs/promises"
+import { join } from "node:path"
 import { ensureLabelDir, listLabels } from "../core/whatsapp/labels"
 import type { ServiceHost } from "../core/whatsapp/service"
 import { DOCTOR_OK } from "../core/whatsapp/sync.testing"
@@ -8,6 +10,7 @@ import { PROJECT } from "../project"
 import { commandFixture, type CommandFixture } from "./command.testing"
 import { EXIT_FAILED, EXIT_OK, EXIT_USAGE, type CommandIo } from "./command-io"
 import { runRemoveCommand } from "./remove"
+import { SERVICE_ID, SERVICE_LAUNCHER } from "./service"
 
 const LOGOUT_OK: FakeResponse = { args: ["auth", "logout"], stdout: envelope({ logged_out: true }) }
 const LOGOUT_FAILS: FakeResponse = { args: ["auth", "logout"], stderr: failure("connect failed"), exit: 1 }
@@ -100,6 +103,18 @@ describe("CLI remove", () => {
     expect(stdout).toContain('Removed "work".')
     expect(stderr).toBe("")
     expect(await listLabels(fixture.stateDir)).toEqual([])
+  })
+
+  test("deletes the launcher script along with the label", async () => {
+    await withWork()
+    const launcherDir = join(fixture.stateDir, "Library", "Application Support", SERVICE_ID)
+    await mkdir(launcherDir, { recursive: true })
+    await writeFile(join(launcherDir, `${SERVICE_LAUNCHER}-work`), "x")
+
+    const { code } = await remove(["--account", "work", "--yes"])
+
+    expect(code).toBe(EXIT_OK)
+    expect(existsSync(launcherDir)).toBe(false)
   })
 
   test("says to remove the device on the phone when it could not be logged out", async () => {

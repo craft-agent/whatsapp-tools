@@ -48,6 +48,7 @@ describe("service-systemd", () => {
       program: "/usr/local/bin/node",
       args: ["/opt/whatsapp-tools/cli.js", "sync", "--account", "personal", "$100", "%h"],
       path: "/usr/local/bin:/usr/bin",
+      launcher: "example-sync",
     }
 
     const unit = buildSystemdUnit(spec)
@@ -69,6 +70,7 @@ describe("service-systemd", () => {
       program: "/bin/node",
       args: ["cli.js"],
       path: "/usr/bin:/home/%u/bin:%h",
+      launcher: "example-sync",
     }
 
     const unit = buildSystemdUnit(spec)
@@ -82,6 +84,7 @@ describe("service-systemd", () => {
       program: "/bin/node",
       args: ["sync"],
       path: "/bin",
+      launcher: "example-sync",
     }
 
     expect(() => buildSystemdUnit({ ...baseSpec, program: "/bin/no\nde" })).toThrow(
@@ -117,6 +120,7 @@ describe("service-systemd", () => {
         program: "/bin/node",
         args: ["cli.js", "sync"],
         path: "/bin",
+        launcher: "example-sync",
       }
 
       const result = await installSystemdService(spec, host)
@@ -155,6 +159,7 @@ describe("service-systemd", () => {
         program: "/bin/node",
         args: [],
         path: "/bin",
+        launcher: "example-sync",
       }
 
       await installSystemdService(spec, host)
@@ -202,6 +207,7 @@ describe("service-systemd", () => {
         program: "/bin/node",
         args: [],
         path: "/bin",
+        launcher: "example-sync",
       }
 
       const { host: hostNotInstalled } = createFakeHost(dir)

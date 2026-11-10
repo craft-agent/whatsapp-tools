@@ -17,6 +17,7 @@ describe("service dispatcher", () => {
     program: "/bin/node",
     args: [],
     path: "/bin",
+    launcher: "example-sync",
   }
 
   test("refuses Windows platform with invalid_argument and terminal run advice", async () => {
@@ -36,7 +37,7 @@ describe("service dispatcher", () => {
     expect((installError as ToolError).code).toBe("invalid_argument")
     expect((installError as ToolError).message).toBe(expectedMessage)
 
-    const uninstallError = await uninstallService(spec.id, spec.label, host).catch((e: unknown) => e)
+    const uninstallError = await uninstallService(spec, spec.label, host).catch((e: unknown) => e)
     expect(uninstallError).toBeInstanceOf(ToolError)
     expect((uninstallError as ToolError).code).toBe("invalid_argument")
     expect((uninstallError as ToolError).message).toBe(expectedMessage)
@@ -63,7 +64,7 @@ describe("service dispatcher", () => {
     expect((installError as ToolError).code).toBe("invalid_argument")
     expect((installError as ToolError).message).toBe(expectedMessage)
 
-    const uninstallError = await uninstallService(spec.id, spec.label, host).catch((e: unknown) => e)
+    const uninstallError = await uninstallService(spec, spec.label, host).catch((e: unknown) => e)
     expect(uninstallError).toBeInstanceOf(ToolError)
     expect((uninstallError as ToolError).code).toBe("invalid_argument")
     expect((uninstallError as ToolError).message).toBe(expectedMessage)

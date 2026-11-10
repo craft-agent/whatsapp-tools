@@ -7,7 +7,7 @@ import { DOCTOR_OK, doctor } from "../core/whatsapp/sync.testing"
 import { PROJECT } from "../project"
 import { commandFixture, type CommandFixture } from "./command.testing"
 import { EXIT_FAILED, EXIT_OK, EXIT_USAGE } from "./command-io"
-import { SERVICE_ID, runServiceCommand } from "./service"
+import { SERVICE_ID, SERVICE_LAUNCHER, runServiceCommand } from "./service"
 
 const SELF = { program: "/bin/node", script: "/bin/cli.js" }
 
@@ -52,6 +52,8 @@ describe("CLI service install", () => {
       expect(definition).toContain(`<string>${argument}</string>`)
     }
     expect(definition).toContain(`${SERVICE_ID}.default`)
+    const launcher = join(fixture.stateDir, "Library", "Application Support", SERVICE_ID, `${SERVICE_LAUNCHER}-default`)
+    expect(definition).toContain(`<array>\n\t\t<string>${launcher}</string>\n\t\t<string>/bin/node</string>`)
   })
 
   test("fails with usage listing accounts when --account is absent and several exist", async () => {

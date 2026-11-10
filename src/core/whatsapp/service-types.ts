@@ -9,10 +9,19 @@ const MAX_PROGRAM_ERROR_LENGTH = 300
 /** How long a service management command may run before timing out. */
 const DEFAULT_RUN_TIMEOUT_MS = 30_000
 
-/** The specification for installing the sync service for one label. */
-export type ServiceSpec = {
+/** What names one service across its labels. */
+export type ServiceName = {
   /** The reverse-DNS prefix for the service, e.g. "io.github.craft-agent.whatsapp-tools". */
   id: string
+  /**
+   * The file name the launcher script is given, before `-<label>`; the agent is
+   * listed under it where the platform names background items after their program.
+   */
+  launcher: string
+}
+
+/** The specification for installing the sync service for one label. */
+export type ServiceSpec = ServiceName & {
   /** The account label this service syncs for. */
   label: string
   /** The absolute path to the node runtime binary. */
@@ -80,6 +89,19 @@ export function checkServiceSpecControlChars(spec: ServiceSpec): void {
   }
   if (CONTROL_CHARACTERS.test(spec.path)) {
     throw new ToolError("invalid_argument", "Control characters are not allowed in PATH.")
+  }
+}
+
+/** A launcher name safe as a file name: it starts with a letter or digit and holds no separator. */
+const LAUNCHER_NAME = /^[A-Za-z0-9][A-Za-z0-9._-]*$/
+
+/** Refuses a launcher name that is not a plain file name. */
+export function checkLauncherName(name: string): void {
+  if (!LAUNCHER_NAME.test(name)) {
+    throw new ToolError(
+      "invalid_argument",
+      "The launcher name may hold only letters, digits, dots, hyphens and underscores, and must start with a letter or digit.",
+    )
   }
 }
 

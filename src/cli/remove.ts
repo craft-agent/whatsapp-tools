@@ -4,7 +4,7 @@ import { removeLabel } from "../core/whatsapp/removal"
 import { defaultServiceHost, uninstallService } from "../core/whatsapp/service"
 import { handleCommandError, parseCommandStateDir, parseFlagArgs, printCommandError, usageError } from "./command-args"
 import { defaultReadLine, EXIT_FAILED, EXIT_OK, EXIT_USAGE, type CommandIo } from "./command-io"
-import { SERVICE_ID } from "./service"
+import { SERVICE_NAME } from "./service"
 
 type RemoveArgs = {
   label: string
@@ -74,7 +74,7 @@ export async function runRemoveCommand(argv: string[], io: CommandIo): Promise<n
       signal: io.signal,
       uninstall: async () => {
         try {
-          await uninstallService(SERVICE_ID, label, host)
+          await uninstallService(SERVICE_NAME, label, host)
         } catch (error) {
           // On unsupported platforms, services cannot be installed so removal may proceed.
           if (isToolError(error) && error.code === "invalid_argument") {
