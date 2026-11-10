@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test"
 import { translator } from "./core"
 import { FACT_TRANSLATIONS } from "./core/facts"
+import { ARCHIVE_WORDS, MUTE_WORDS, PIN_WORDS } from "./core/chat/state/words"
 import { FILE_SEND_WORDS } from "./core/file/send/words"
 import { FILE_SAVE_WORDS } from "./core/file/words"
 import { HISTORY_WORDS } from "./core/history/words"
@@ -17,6 +18,9 @@ const ENGLISH_WORDS: string[] = [
   ...Object.values(EDIT_WORDS),
   ...Object.values(DELETE_WORDS),
   ...Object.values(REACT_WORDS),
+  ...Object.values(ARCHIVE_WORDS),
+  ...Object.values(PIN_WORDS),
+  ...Object.values(MUTE_WORDS),
   ...Object.values(FILE_SAVE_WORDS),
   ...Object.values(FILE_SEND_WORDS),
   ...Object.values(HISTORY_WORDS),

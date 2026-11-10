@@ -5,6 +5,9 @@ manifest_version: 1
 requires_hermes: ">=0.22"
 provides_tools:
   - whatsapp_account_read
+  - whatsapp_chat_archive
+  - whatsapp_chat_mute
+  - whatsapp_chat_pin
   - whatsapp_chat_read
   - whatsapp_contact_read
   - whatsapp_file_save

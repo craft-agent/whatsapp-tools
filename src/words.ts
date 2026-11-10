@@ -1,5 +1,6 @@
 import { mergeTranslations, type Translations } from "./core"
 import { FACT_TRANSLATIONS } from "./core/facts"
+import { CHAT_STATE_TRANSLATIONS } from "./core/chat/state/words"
 import { FILE_SEND_TRANSLATIONS } from "./core/file/send/words"
 import { FILE_SAVE_TRANSLATIONS } from "./core/file/words"
 import { HISTORY_TRANSLATIONS } from "./core/history/words"
@@ -14,6 +15,7 @@ export const ALL_TRANSLATIONS: Translations = mergeTranslations(
   EDIT_TRANSLATIONS,
   DELETE_TRANSLATIONS,
   REACT_TRANSLATIONS,
+  CHAT_STATE_TRANSLATIONS,
   FILE_SAVE_TRANSLATIONS,
   FILE_SEND_TRANSLATIONS,
   HISTORY_TRANSLATIONS,
