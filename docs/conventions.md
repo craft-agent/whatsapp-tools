@@ -670,11 +670,13 @@ Every entry point takes the same settings:
   | `whatsapp_file_save`        | `Kind`, `From` (the sender, or you), `Unpack` when asked of a document         | —          | —                   |
   | `whatsapp_history_backfill` | `Sync` (paused for the call), `Batches`, `Oldest held`                         | —          | —                   |
   | `whatsapp_message_edit`     | `Chat`, `Sent` (the message's time), `Current` (its text as it stands)         | `New text` | —                   |
+  | `whatsapp_message_react`    | `Chat`, `From` (the author, or you), `Sent`                                    | —          | —                   |
 
   A reply shows who wrote the quoted message and when, never its text: the
   text is someone else's, and the person approving knows the message by its
   author and time. An edit shows the text it replaces, since that text is
-  the user's own. A file's size can stay the same while its bytes change,
+  the user's own. A reaction shows who wrote the message and when, never its
+  text. A file's size can stay the same while its bytes change,
   so a send pins each file's SHA-256. A headline value is quoted as data, so
   a count stays out of it: several files are counted per kind in the facts.
 

@@ -1,13 +1,14 @@
 ---
 name: whatsapp-actions
-description: "Use when the user asks to edit a WhatsApp message they sent, or when such an action fails or its outcome is unclear."
+description: "Use when the user asks to edit or react to a WhatsApp message, or when such an action fails or its outcome is unclear."
 ---
 
 # Actions
 
-| Tool                    | Does                                         | Writes |
-| ----------------------- | -------------------------------------------- | ------ |
-| `whatsapp_message_edit` | replaces the text of a message the user sent | yes    |
+| Tool                     | Does                                                               | Writes |
+| ------------------------ | ------------------------------------------------------------------ | ------ |
+| `whatsapp_message_edit`  | replaces the text of a message the user sent                       | yes    |
+| `whatsapp_message_react` | reacts to a message with one emoji, or removes the user's reaction | yes    |
 
 The tools are in the `actions` toolset, which is off by default. They work
 through the sync service, which must be running (see `whatsapp_account_read`).
@@ -32,6 +33,15 @@ refused. The new `text` goes out exactly as given, surrounding blank space
 trimmed, at most 4,000 characters. The people in the chat see the message
 marked as edited, and the earlier text is gone from it.
 
+## React
+
+`whatsapp_message_react` reacts to any readable message of a person's or a
+group's chat, the user's own or someone else's, with no time limit. `emoji` is
+exactly one emoji; a new reaction replaces the user's earlier one on that
+message. `remove: true` takes the user's reaction off instead; give `emoji` or
+`remove`, never both. A call or a vote on a poll cannot be reacted to, but a
+poll can.
+
 ## Outcomes
 
 A result means WhatsApp accepted the action, not that every device shows it
@@ -42,7 +52,7 @@ A failure before anything went out says what to do: the service is not
 running (start it), the message is not the user's or too old, or WhatsApp's
 queue dropped the request (`upstream_error`, trying again is safe).
 
-`uncertain` means the edit may have gone out. Read the chat with
+`uncertain` means the edit or reaction may have gone out. Read the chat with
 `whatsapp_chat_read` (the mirror may not show it yet), tell the user, and ask
 before trying again; never repeat it on your own.
 

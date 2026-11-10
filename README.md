@@ -258,9 +258,10 @@ Hermes.
 
 ### Actions (`actions`)
 
-| Tool                    | What it does                                                                   | Class     |
-| ----------------------- | ------------------------------------------------------------------------------ | --------- |
-| `whatsapp_message_edit` | replaces the text of a text message the user sent, at most 15 minutes after it | overwrite |
+| Tool                     | What it does                                                                   | Class     |
+| ------------------------ | ------------------------------------------------------------------------------ | --------- |
+| `whatsapp_message_edit`  | replaces the text of a text message the user sent, at most 15 minutes after it | overwrite |
+| `whatsapp_message_react` | reacts to a message with one emoji, or removes the user's reaction             | overwrite |
 
 Off by default: turn it on with the `actions` toolset. Each action goes
 through the label's running sync service and acts only on a chat and a message
