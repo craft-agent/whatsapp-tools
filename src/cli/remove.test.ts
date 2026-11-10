@@ -27,7 +27,11 @@ function fakeHost(home: string, overrides: Partial<ServiceHost> = {}): ServiceHo
     home,
     uid: 501,
     env: { PATH: "/bin" },
-    run: async () => ({ code: 0, stdout: "", stderr: "" }),
+    sleep: async () => {},
+    run: async (argv) =>
+      argv[1] === "print"
+        ? { code: 113, stdout: "", stderr: "Could not find service" }
+        : { code: 0, stdout: "", stderr: "" },
     ...overrides,
   }
 }

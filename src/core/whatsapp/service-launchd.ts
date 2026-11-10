@@ -1,5 +1,7 @@
 import { chmod, lstat, mkdir, rename, rmdir, stat, unlink, writeFile } from "node:fs/promises"
 import { basename, dirname, join } from "node:path"
+import { setTimeout } from "node:timers/promises"
+import { ToolError } from "../errors"
 import type { ExecResult } from "../exec"
 import {
   checkLauncherName,
@@ -94,6 +96,38 @@ function isLaunchdNotLoaded(result: ExecResult): boolean {
   )
 }
 
+/** How long to wait between checks that launchd has let go of the job. */
+const STOP_POLL_INTERVAL_MS = 200
+
+/**
+ * How long to wait for the job to go. launchd kills a job 20 seconds after
+ * asking it to stop (the default ExitTimeOut), so it is gone well within this.
+ */
+const STOP_TIMEOUT_MS = 30_000
+
+/** Unloads the agent and returns once launchd no longer lists it. */
+async function unloadLaunchdAgent(host: ServiceHost, agentLabel: string): Promise<void> {
+  const target = `gui/${host.uid}/${agentLabel}`
+  const bootoutResult = await host.run(["launchctl", "bootout", target])
+  if (!isLaunchdNotLoaded(bootoutResult)) {
+    throw mapProgramError("launchctl", bootoutResult)
+  }
+
+  // bootout returns before launchd has torn the job down, and loading it
+  // again until then fails with an input/output error.
+  const sleep = host.sleep ?? setTimeout
+  const polls = Math.ceil(STOP_TIMEOUT_MS / STOP_POLL_INTERVAL_MS)
+  for (let poll = 0; poll < polls; poll++) {
+    const printResult = await host.run(["launchctl", "print", target])
+    if (printResult.code !== 0) return
+    await sleep(STOP_POLL_INTERVAL_MS)
+  }
+  throw new ToolError(
+    "upstream_error",
+    `The service did not stop within ${STOP_TIMEOUT_MS / 1000} seconds; run the command again.`,
+  )
+}
+
 /** Installs and loads the launchd agent on macOS. */
 export async function installLaunchdService(
   spec: ServiceSpec,
@@ -126,10 +160,7 @@ export async function installLaunchdService(
   await writeFile(plistPath, plistContent, { encoding: "utf8", mode: 0o644 })
   await chmod(plistPath, 0o644)
 
-  const bootoutResult = await host.run(["launchctl", "bootout", `gui/${host.uid}/${agentLabel}`])
-  if (!isLaunchdNotLoaded(bootoutResult)) {
-    throw mapProgramError("launchctl", bootoutResult)
-  }
+  await unloadLaunchdAgent(host, agentLabel)
 
   const bootstrapResult = await host.run(["launchctl", "bootstrap", `gui/${host.uid}`, plistPath])
   if (bootstrapResult.code !== 0) {
@@ -146,10 +177,7 @@ export async function installLaunchdService(
 export async function uninstallLaunchdService(name: ServiceName, label: string, host: ServiceHost): Promise<void> {
   const { agentLabel, plistPath } = launchdPaths(name.id, label, host.home)
 
-  const bootoutResult = await host.run(["launchctl", "bootout", `gui/${host.uid}/${agentLabel}`])
-  if (!isLaunchdNotLoaded(bootoutResult)) {
-    throw mapProgramError("launchctl", bootoutResult)
-  }
+  await unloadLaunchdAgent(host, agentLabel)
 
   try {
     await unlink(plistPath)

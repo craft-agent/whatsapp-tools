@@ -23,7 +23,11 @@ function fakeHost(home: string, overrides: Partial<ServiceHost> = {}): ServiceHo
     home,
     uid: 501,
     env: { PATH: "/bin" },
-    run: async () => ({ code: 0, stdout: "", stderr: "" }),
+    sleep: async () => {},
+    run: async (argv) =>
+      argv[1] === "print"
+        ? { code: 113, stdout: "", stderr: "Could not find service" }
+        : { code: 0, stdout: "", stderr: "" },
     ...overrides,
   }
 }
@@ -133,11 +137,18 @@ describe("CLI service install", () => {
 describe("CLI service status and uninstall", () => {
   test("status and uninstall output format", async () => {
     await withLabels([DOCTOR_OK], "default")
+    let loaded = false
     const host = fakeHost(fixture.stateDir, {
-      run: async (argv) =>
-        argv[1] === "print"
-          ? { code: 0, stdout: "state = running\npid = 1234\nlast exit code = 0\n", stderr: "" }
-          : { code: 0, stdout: "", stderr: "" },
+      run: async (argv) => {
+        if (argv[1] === "bootstrap") loaded = true
+        if (argv[1] === "bootout") loaded = false
+        if (argv[1] === "print") {
+          return loaded
+            ? { code: 0, stdout: "state = running\npid = 1234\nlast exit code = 0\n", stderr: "" }
+            : { code: 113, stdout: "", stderr: "Could not find service" }
+        }
+        return { code: 0, stdout: "", stderr: "" }
+      },
     })
 
     await fixture.run(runServiceCommand, ["install"], { serviceHost: host, self: SELF })

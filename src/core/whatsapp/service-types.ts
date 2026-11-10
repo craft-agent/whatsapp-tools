@@ -1,4 +1,5 @@
 import { homedir } from "node:os"
+import { setTimeout } from "node:timers/promises"
 import { ToolError } from "../errors"
 import { exec, type ExecResult } from "../exec"
 import { maskNumbers } from "./mask"
@@ -44,6 +45,8 @@ export type ServiceHost = {
   env: Record<string, string | undefined>
   /** Executes a command with timeout. */
   run(argv: string[]): Promise<ExecResult>
+  /** Waits between polls; defaults to a timer. Tests pass one that returns at once. */
+  sleep?(ms: number): Promise<void>
 }
 
 /** The status of the sync service for one label. */
@@ -113,6 +116,7 @@ export function defaultServiceHost(): ServiceHost {
     home: homedir(),
     uid: typeof process.getuid === "function" ? process.getuid() : 0,
     env,
+    sleep: (ms) => setTimeout(ms),
     run(argv: string[]): Promise<ExecResult> {
       const explicitEnv: Record<string, string> = {}
       for (const name of ["PATH", "HOME", "XDG_RUNTIME_DIR", "DBUS_SESSION_BUS_ADDRESS"]) {
