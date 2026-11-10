@@ -3,8 +3,7 @@ import type { Mirror } from "../chat/mirror"
 import { isUnreadable, type WacliMessage } from "../chat/rows"
 import { ToolError, isToolError } from "../errors"
 import type { CallFact } from "../tool"
-import { chatDisplayName } from "./describe"
-import { MESSAGE_WORDS } from "./words"
+import { chatDisplayName, chatKindFact } from "./describe"
 
 const NOT_IN_MIRROR =
   "This chat is not in this account's mirror. Find the chat with whatsapp_chat_read list. Nothing was changed."
@@ -39,11 +38,7 @@ export async function actionChat(mirror: Mirror, chat: string): Promise<ActionCh
   }
   const kind = chatKind(row.kind, chat)
   if (kind !== "person" && kind !== "group") throw new ToolError("invalid_argument", PEOPLE_AND_GROUPS_ONLY)
-  const value = kind === "person" ? MESSAGE_WORDS.person : MESSAGE_WORDS.group
-  return {
-    name: chatDisplayName(chat, row.name),
-    fact: { label: MESSAGE_WORDS.chatLabel, value: { text: value } },
-  }
+  return { name: chatDisplayName(chat, row.name), fact: chatKindFact(kind) }
 }
 
 /**
