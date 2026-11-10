@@ -375,8 +375,8 @@ Every entry point takes the same settings:
 - **Each label keeps all of its state in one directory**,
   `<state root>/<label>/`, created with mode 700: the wacli store (the session
   keys, wacli's mirror of the messages, downloaded media, its lock and its
-  socket), the sync service's socket, and the short-lived copies of files
-  being sent. Every call to wacli names the store with `--store`; wacli's own
+  socket), the sync service's socket, the service record, and the short-lived
+  copies of files being sent. Every call to wacli names the store with `--store`; wacli's own
   account registry (`wacli accounts`, its `config.yaml`, `~/.wacli`) is never
   used, since it lives outside the state root and any wacli command could
   change it. The state root is the `state_dir` setting, by default
@@ -456,6 +456,23 @@ Every entry point takes the same settings:
   error it ends with says so when the child could not be started. The mirror stops receiving while the service is down,
   and a caller learns that from the call that stopped it, not from the next
   call that finds the service gone.
+- **The service record names what the service starts.** Installing the
+  service writes `<label>/service-program.json`, mode 600: the program and the
+  script it runs, as paths, and nothing else; uninstalling deletes it. (The
+  label's `service.json` is another file, the state the service last recorded
+  about itself.) The account read checks that both still exist, since a
+  program removed by an update stops the service only at its next start, and
+  the system's own log names just the missing file. A stopped service is then
+  told to be installed again, and a running one is told before it stops,
+  rather than after receiving has ended.
+- **Installing prefers a program at a path that outlives updates.** A
+  program whose path holds its own version goes when that version is
+  removed, so installing looks on the recorded `PATH` for one at a path
+  without it that starts the same program, and says so when there is none.
+  One under the temporary or runtime directory is passed over, since it is
+  gone after a restart. The program is the same at install only: a link or
+  a shim follows whatever its owner makes current later, which is the point
+  of choosing it.
 - **The service sends no read receipts or typing indicators of its own**, so
   the phone keeps its notifications and nobody learns that a message was read
   by a tool. A read receipt goes out only when a call asks for one (see
