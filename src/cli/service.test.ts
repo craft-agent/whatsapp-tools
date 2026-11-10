@@ -129,7 +129,7 @@ describe("CLI service install", () => {
       "View logs with: journalctl --user -u io-github-craft-agent-whatsapp-tools-default.service",
     )
     expect(stdout).toContain("The service starts automatically at logon and restarts after a failure.")
-    expect(stdout).toContain("Install the service again after updating this package, as it records the package path.")
+    expect(stdout).toContain("Install the service again after updating Node or this package, as it records both paths.")
     expect(stdout).toContain('Run "loginctl enable-linger" to keep the service running while logged out.')
   })
 })

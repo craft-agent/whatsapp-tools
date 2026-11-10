@@ -35,8 +35,11 @@ export type CommandIo = {
   stdoutIsTTY?: boolean
   /** Reads a line of input with an optional prompt; used for interactive confirmations. */
   readLine?(prompt: string): Promise<string | undefined>
-  /** The node binary and the CLI script to put in the service; default `process.execPath` and the realpath of `process.argv[1]`. */
-  self?: { program: string; script: string }
+  /**
+   * The node binary and the CLI script to put in the service, and the version of that binary;
+   * default `process.execPath`, the realpath of `process.argv[1]` and `process.versions.node`.
+   */
+  self?: { program: string; script: string; version?: string }
   /** Injectable service host for managing system services; defaults to the operating system host. */
   serviceHost?: ServiceHost
 }

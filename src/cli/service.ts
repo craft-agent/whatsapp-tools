@@ -5,15 +5,23 @@ import {
   defaultServiceHost,
   installService,
   serviceStatus,
+  serviceWorkingDirectory,
   uninstallService,
   type ServiceHost,
   type ServiceName,
   type ServiceSpec,
 } from "../core/whatsapp/service"
+import {
+  missingServiceFiles,
+  readServiceRecord,
+  removeServiceRecord,
+  writeServiceRecord,
+} from "../core/whatsapp/service-record"
 import { checkSession } from "../core/whatsapp/sync-session"
 import { PROJECT } from "../project"
 import { handleCommandError, parseCommandStateDir, parseFlagArgs, usageError } from "./command-args"
 import { EXIT_OK, type CommandIo } from "./command-io"
+import { pickStableProgram } from "./service-program"
 
 /** The reverse-DNS prefix the system knows the sync services by. */
 export const SERVICE_ID = "io.github.craft-agent.whatsapp-tools"
@@ -113,16 +121,29 @@ export async function runServiceCommand(argv: string[], io: CommandIo): Promise<
       await checkPaired(parsed.stateDir, label, io)
 
       const self = resolveSelf(io.self)
+      const path = io.env.PATH ?? process.env.PATH ?? ""
+      const picked = await pickStableProgram({
+        program: self.program,
+        version: io.self?.version ?? process.versions.node,
+        path,
+        home: host.home,
+        cwd: serviceWorkingDirectory(host),
+        volatileRoots: [io.env.TMPDIR ?? "", io.env.XDG_RUNTIME_DIR ?? ""],
+      })
       const spec: ServiceSpec = {
         id: SERVICE_ID,
         label,
-        program: self.program,
+        program: picked.program,
         args: [self.script, "sync", "--account", label, "--state-dir", parsed.stateDir],
-        path: io.env.PATH ?? process.env.PATH ?? "",
+        path,
         launcher: SERVICE_LAUNCHER,
       }
 
+      // Removed first, so an install that fails part way leaves no record of an older program.
+      const paths = labelPaths(parsed.stateDir, label)
+      await removeServiceRecord(paths)
       const result = await installService(spec, host)
+      await writeServiceRecord(paths, { program: picked.program, script: self.script })
       io.stdout(`Installed sync service for "${label}" (${result.file}).\n`)
       if (result.log) {
         const logMsg =
@@ -130,15 +151,21 @@ export async function runServiceCommand(argv: string[], io: CommandIo): Promise<
         io.stdout(`${logMsg}\n`)
       }
       io.stdout("The service starts automatically at logon and restarts after a failure.\n")
-      io.stdout("Install the service again after updating this package, as it records the package path.\n")
+      io.stdout("Install the service again after updating Node or this package, as it records both paths.\n")
       if (host.platform === "linux") {
         io.stdout('Run "loginctl enable-linger" to keep the service running while logged out.\n')
+      }
+      if (picked.versioned) {
+        io.stderr(
+          `Warning: the service runs Node at a path that holds its version (${picked.program}); removing that version stops the service. Install the service again after updating Node, or put a node at a path without the version first on PATH.\n`,
+        )
       }
       return EXIT_OK
     }
 
     if (parsed.action === "uninstall") {
       await uninstallService(SERVICE_NAME, label, host)
+      await removeServiceRecord(labelPaths(parsed.stateDir, label))
       io.stdout(`Uninstalled sync service for "${label}".\n`)
       return EXIT_OK
     }
@@ -156,6 +183,21 @@ export async function runServiceCommand(argv: string[], io: CommandIo): Promise<
     io.stdout(`  File: ${status.file}\n`)
     if (status.log) {
       io.stdout(`  Log: ${status.log}\n`)
+    }
+
+    const record = readServiceRecord(labelPaths(parsed.stateDir, label))
+    if (record) {
+      io.stdout(`  Program: ${record.program}\n`)
+      io.stdout(`  Script: ${record.script}\n`)
+      const missing = missingServiceFiles(record)
+      for (const name of missing) {
+        io.stdout(`  Missing: ${record[name]}\n`)
+      }
+      if (missing.length > 0) {
+        io.stdout(
+          `The ${missing.join(" and ")} it was installed with ${missing.length > 1 ? "are" : "is"} gone, as after updating Node or this package; install it again with: ${PROJECT.cli} service install --account ${label}\n`,
+        )
+      }
     }
     return EXIT_OK
   } catch (error) {
