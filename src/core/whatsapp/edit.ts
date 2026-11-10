@@ -2,10 +2,10 @@ import { z } from "zod"
 import { ToolError } from "../errors"
 import type { ExecResult } from "../exec"
 import { MESSAGE_ID_FORM } from "./media"
-import { detailOf, notDispatched, sentOf, type SendOutcomeOptions } from "./send-outcome"
+import { notDispatched, sentOf, storeWarningOf, type SendOutcomeOptions } from "./send-outcome"
 import { MESSAGE_TEXT_MAX_CHARACTERS, messageText, reachableChat } from "./send"
 import type { ServiceOperationContext } from "./service-socket"
-import { execWacli, failureText } from "./wacli"
+import { execWacli } from "./wacli"
 
 /** The name of the service operation that edits the text of one message. */
 export const MESSAGE_EDIT_OP = "message_edit"
@@ -94,16 +94,9 @@ const OUTCOME: SendOutcomeOptions = {
   notSent,
 }
 
-/** What wacli said of writing the mirror, when it failed only there after WhatsApp accepted the edit, else undefined. */
-function storeWarningOf(result: ExecResult): string | undefined {
-  if (result.code === 0 || result.timedOut || result.signal) return undefined
-  const text = failureText(result)?.trim()
-  return text !== undefined && STORE_FAILED.test(text) ? detailOf(text) : undefined
-}
-
 /** The answer of an edit that succeeded, else the error it ended with; a success that proves no edit is `uncertain`. */
 function answerOf(result: ExecResult): EditAnswer {
-  const storeWarning = storeWarningOf(result)
+  const storeWarning = storeWarningOf(result, STORE_FAILED)
   if (storeWarning !== undefined) return { accepted_ms: Date.now(), store_warning: storeWarning }
   sentOf(result, editedText, OUTCOME)
   return { accepted_ms: Date.now() }

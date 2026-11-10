@@ -3,10 +3,10 @@ import { ToolError } from "../errors"
 import type { ExecResult } from "../exec"
 import { DELETED_MESSAGE, NOT_OWN_MESSAGE, NO_SUCH_MESSAGE } from "./edit"
 import { MESSAGE_ID_FORM } from "./media"
-import { detailOf, sentOf, type SendOutcomeOptions } from "./send-outcome"
+import { sentOf, storeWarningOf, type SendOutcomeOptions } from "./send-outcome"
 import { reachableChat } from "./send"
 import type { ServiceOperation, ServiceOperationContext } from "./service-socket"
-import { execWacli, failureText } from "./wacli"
+import { execWacli } from "./wacli"
 
 /** The name of the service operation that deletes one message for everyone. */
 export const MESSAGE_DELETE_OP = "message_delete"
@@ -80,16 +80,9 @@ const OUTCOME: SendOutcomeOptions = {
   notSent,
 }
 
-/** What wacli said of writing the mirror, when it failed only there after WhatsApp accepted the deletion, else undefined. */
-function storeWarningOf(result: ExecResult): string | undefined {
-  if (result.code === 0 || result.timedOut || result.signal) return undefined
-  const text = failureText(result)?.trim()
-  return text !== undefined && STORE_FAILED.test(text) ? detailOf(text) : undefined
-}
-
 /** The result of a deletion that succeeded, else the error it ended with; a success that proves no deletion is `uncertain`. */
 function resultOf(result: ExecResult): DeleteResult {
-  const storeWarning = storeWarningOf(result)
+  const storeWarning = storeWarningOf(result, STORE_FAILED)
   if (storeWarning !== undefined) return { accepted_ms: Date.now(), store_warning: storeWarning }
   sentOf(result, revokedMessage, OUTCOME)
   return { accepted_ms: Date.now() }

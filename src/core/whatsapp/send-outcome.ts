@@ -59,6 +59,13 @@ export function detailOf(text: string): string {
   return maskNumbers(text).trim().slice(0, MAX_DETAIL_LENGTH)
 }
 
+/** What wacli said of writing the mirror, when it failed only there after WhatsApp accepted the request (its text opens as `storeFailed` says), else undefined. */
+export function storeWarningOf(result: ExecResult, storeFailed: RegExp): string | undefined {
+  if (result.code === 0 || result.timedOut || result.signal) return undefined
+  const text = failureText(result)?.trim()
+  return text !== undefined && storeFailed.test(text) ? detailOf(text) : undefined
+}
+
 /** The error for a wacli text that says its send queue dropped a request for `subject` (an `edit`, …) before dispatching it, else undefined. */
 export function notDispatched(text: string, subject: string): ToolError | undefined {
   if (!NOT_DISPATCHED.test(text)) return undefined
