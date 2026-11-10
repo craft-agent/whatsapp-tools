@@ -1,6 +1,6 @@
 import type { Translations } from "../words"
 
-/** The English words and templates the message tools write in their approval prompts, and those of the chat and reply facts they share. */
+/** The English words and templates the message tools write in their approval prompts, and those of the chat, reply and sent-time facts they share. */
 export const MESSAGE_WORDS = {
   title: "Send a message",
   intent: "About to send a message",
@@ -12,6 +12,7 @@ export const MESSAGE_WORDS = {
   replyLabel: "Reply to",
   replyFrom: "{sender}, {time}",
   replyFromMe: "You, {time}",
+  sentLabel: "Sent",
   textLabel: "Message",
 } as const
 
@@ -28,6 +29,7 @@ export const MESSAGE_TRANSLATIONS: Translations = {
     [MESSAGE_WORDS.replyLabel]: "返信先",
     [MESSAGE_WORDS.replyFrom]: "{sender}、{time}",
     [MESSAGE_WORDS.replyFromMe]: "自分、{time}",
+    [MESSAGE_WORDS.sentLabel]: "送信日時",
     [MESSAGE_WORDS.textLabel]: "メッセージ",
   },
 }

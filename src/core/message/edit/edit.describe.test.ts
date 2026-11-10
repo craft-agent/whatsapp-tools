@@ -56,7 +56,7 @@ describe("the description of a message edit", () => {
       headline: { text: EDIT_WORDS.headline, values: { chat: "Alice" } },
       facts: [
         { label: MESSAGE_WORDS.chatLabel, value: { text: MESSAGE_WORDS.person } },
-        { label: EDIT_WORDS.sentLabel, value: minuteOf(SENT_AT) },
+        { label: MESSAGE_WORDS.sentLabel, value: minuteOf(SENT_AT) },
         { label: EDIT_WORDS.currentLabel, value: CURRENT_TEXT },
       ],
       text: { label: EDIT_WORDS.textLabel, body: "See you at 7" },

@@ -13,6 +13,7 @@ import { callService } from "../../whatsapp/service-client"
 import { promptTime, openPromptMirror } from "../describe"
 import { checkedChat, checkedText, chatOf, deliveryFailure, messageIdOf, type TextRules } from "../recipient"
 import { actionChat, actionMessage, ownMessage, type ActionChat } from "../target"
+import { MESSAGE_WORDS } from "../words"
 import {
   EDIT_NOTE,
   EDIT_WINDOW,
@@ -129,7 +130,7 @@ export const whatsappMessageEdit = defineTool({
       headline: { text: EDIT_WORDS.headline, values: { chat: name } },
       facts: [
         fact,
-        { label: EDIT_WORDS.sentLabel, value: promptTime(Date.parse(row.Timestamp)) },
+        { label: MESSAGE_WORDS.sentLabel, value: promptTime(Date.parse(row.Timestamp)) },
         { label: EDIT_WORDS.currentLabel, value: row.Text },
       ],
       text: { label: EDIT_WORDS.textLabel, body: request.text },
