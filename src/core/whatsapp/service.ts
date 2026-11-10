@@ -26,6 +26,18 @@ function checkPlatform(platform: NodeJS.Platform): void {
 }
 
 /**
+ * The directory the platform's service manager starts the service in: `/` for
+ * a launchd agent, the user's home for a systemd user unit. A program found on
+ * the `PATH` can resolve differently from one directory to another, so
+ * anything checked for the service must be checked from this directory.
+ * Refuses on other platforms.
+ */
+export function serviceWorkingDirectory(host: ServiceHost = defaultServiceHost()): string {
+  checkPlatform(host.platform)
+  return host.platform === "darwin" ? "/" : host.home
+}
+
+/**
  * Installs and enables the background sync service for one label.
  *
  * Supported on macOS (launchd agent) and Linux (systemd user unit).
