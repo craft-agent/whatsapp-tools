@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test"
 import { ALICE, BOB, HIDDEN, NEWS, TEAM, wacliChat } from "../read.testing"
 import { whatsappChatArchive } from "./archive"
+import { whatsappChatMark } from "./mark"
 import { whatsappChatMute } from "./mute"
 import { whatsappChatPin } from "./pin"
 import { createStateTest, type StateTest } from "./state.testing"
@@ -21,6 +22,7 @@ const CALLS = [
   ["whatsapp_chat_archive", whatsappChatArchive, { archived: true }],
   ["whatsapp_chat_pin", whatsappChatPin, { pinned: true }],
   ["whatsapp_chat_mute", whatsappChatMute, { mute: "always" }],
+  ["whatsapp_chat_mark", whatsappChatMark, { read: true }],
 ] as const
 
 describe.each(CALLS)("the chat of %s", (_id, tool, change) => {

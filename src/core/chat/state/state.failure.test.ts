@@ -1,9 +1,10 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test"
 import { ToolError, type ErrorCode } from "../../errors"
-import { CHAT_ARCHIVE_OP, CHAT_MUTE_OP, CHAT_PIN_OP } from "../../whatsapp/chat-state"
+import { CHAT_ARCHIVE_OP, CHAT_MARK_OP, CHAT_MUTE_OP, CHAT_PIN_OP } from "../../whatsapp/chat-state"
 import { failure } from "../../whatsapp/wacli.testing"
 import { ALICE } from "../read.testing"
 import { whatsappChatArchive } from "./archive"
+import { whatsappChatMark } from "./mark"
 import { whatsappChatMute } from "./mute"
 import { whatsappChatPin } from "./pin"
 import { createStateTest, type StateTest } from "./state.testing"
@@ -23,6 +24,7 @@ const CALLS = [
   ["whatsapp_chat_archive", whatsappChatArchive, { archived: true }],
   ["whatsapp_chat_pin", whatsappChatPin, { pinned: false }],
   ["whatsapp_chat_mute", whatsappChatMute, { mute: "1_week" }],
+  ["whatsapp_chat_mark", whatsappChatMark, { read: false }],
 ] as const
 
 describe.each(CALLS)("%s that ends in a failure", (_id, tool, change) => {
@@ -57,6 +59,7 @@ describe.each(CALLS)("%s that ends in a failure", (_id, tool, change) => {
         [CHAT_ARCHIVE_OP]: { kind: "delegated", writes: true, run },
         [CHAT_PIN_OP]: { kind: "delegated", writes: true, run },
         [CHAT_MUTE_OP]: { kind: "delegated", writes: true, run },
+        [CHAT_MARK_OP]: { kind: "delegated", writes: true, run },
       },
     })
     const error = await t.failure(tool, args)

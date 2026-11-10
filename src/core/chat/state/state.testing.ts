@@ -16,7 +16,7 @@ import { envelope, type FakeCall, type FakeMirror, type FakeResponse } from "../
 import { ALICE, BOB, TEAM, wacliChat } from "../read.testing"
 
 /** The subcommands of `wacli chats` that change a chat's state. */
-const WRITE_ACTIONS = ["archive", "unarchive", "pin", "unpin", "mute", "unmute"] as const
+const WRITE_ACTIONS = ["archive", "unarchive", "pin", "unpin", "mute", "unmute", "mark-read", "mark-unread"] as const
 
 /** The mirror a test starts with: a person who has a name, one who has none, and a group, none pinned. */
 export const HELD_MIRROR: FakeMirror = {
