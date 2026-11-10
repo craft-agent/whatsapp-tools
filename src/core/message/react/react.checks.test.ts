@@ -136,13 +136,6 @@ describe("the author of the message", () => {
     expect(await t.reactCalls()).toEqual([])
   })
 
-  test("is refused the same way for the user's own group message that names no author", async () => {
-    await t.serve({ mirror: GROUP_MIRROR({ SenderJID: "", FromMe: true }) })
-    const error = await t.failure({ ...ARGS, chat: TEAM })
-    expect(error.code).toBe("upstream_error")
-    expect(await t.reactCalls()).toEqual([])
-  })
-
   test("is the chat itself for someone else's message in a person's chat that names no author", async () => {
     await t.serve({
       mirror: { chats: [wacliChat({ jid: BOB })], messages: [messageRow({ chat: BOB, SenderJID: "" })] },

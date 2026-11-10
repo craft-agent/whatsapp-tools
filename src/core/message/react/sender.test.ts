@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test"
 import type { WacliMessage } from "../../chat/rows"
 import { ToolError } from "../../errors"
-import { reactionSender } from "./sender"
+import { OWN_JID, reactionSender } from "./sender"
 
 const CHAT = "15550100001@s.whatsapp.net"
 const TEAM = "120363000000000001@g.us"
@@ -17,8 +17,13 @@ describe("reactionSender", () => {
     expect(reactionSender(rowOf(true, ""), CHAT, "person")).toBeUndefined()
   })
 
-  test("is the user's own JID for the user's own message in a group", () => {
+  test("is the user's own JID for the user's own message in a group, without the device", () => {
     expect(reactionSender(rowOf(true, ME), TEAM, "group")).toBe(ME)
+    expect(reactionSender(rowOf(true, "15550100000:4@s.whatsapp.net"), TEAM, "group")).toBe(ME)
+  })
+
+  test("is the account's own JID, to be told by the account, for the user's own group message the mirror names no author of", () => {
+    for (const blank of ["", "   "]) expect(reactionSender(rowOf(true, blank), TEAM, "group")).toBe(OWN_JID)
   })
 
   test("is the author the mirror names for someone else's message", () => {
@@ -37,12 +42,9 @@ describe("reactionSender", () => {
     expect(reactionSender(rowOf(false, "99887766554433:3@lid"), TEAM, "group")).toBe("99887766554433@lid")
   })
 
-  test.each([
-    ["someone else's message in a group", false],
-    ["the user's own message in a group", true],
-  ])("is upstream_error for %s when the mirror names no author", (_what, fromMe) => {
+  test("is upstream_error for someone else's message in a group when the mirror names no author", () => {
     for (const blank of ["", "   "]) {
-      const attempt = () => reactionSender(rowOf(fromMe, blank), TEAM, "group")
+      const attempt = () => reactionSender(rowOf(false, blank), TEAM, "group")
       expect(attempt).toThrow(ToolError)
       expect(attempt).toThrow(expect.objectContaining({ code: "upstream_error" }))
       expect(attempt).toThrow("does not say who wrote this message")

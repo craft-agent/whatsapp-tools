@@ -6,6 +6,7 @@ import { ToolError } from "../../errors"
 import { formatLocalTime } from "../../time"
 import { defineTool, type CallFact, type CallHeadline, type ToolContext } from "../../tool"
 import { pickLabel, type LabelPaths } from "../../whatsapp/labels"
+import { linkedJid } from "../../whatsapp/linked-jid"
 import { MESSAGE_REACT_DEADLINE_MS, MESSAGE_REACT_OP, reactAnswer, type ReactAnswer } from "../../whatsapp/react"
 import { callService } from "../../whatsapp/service-client"
 import { chatDisplayName, openPromptMirror, promptTime } from "../describe"
@@ -14,7 +15,7 @@ import { checkedChat, deliveryFailure, messageIdOf } from "../recipient"
 import { actionChat, actionMessage, actionTargets, type ActionChat } from "../target"
 import { MESSAGE_WORDS } from "../words"
 import { REACT_NOTE, input, output, type MessageReactInput, type MessageReactOutput } from "./schema"
-import { reactionSender } from "./sender"
+import { OWN_JID, reactionSender, type ReactionSender } from "./sender"
 import { REACT_WORDS } from "./words"
 
 const TOOL_ID = "whatsapp_message_react"
@@ -24,14 +25,17 @@ const UNCERTAIN_REACTION =
 
 const NOT_REACTABLE = "A call or a vote on a poll cannot be reacted to. Nothing was changed."
 
+const NO_LINKED_JID =
+  "wacli did not say which account this label is linked to, which a reaction to the user's own group message needs. Nothing was changed."
+
 const EMOJI_OR_REMOVE =
   "Give exactly one of emoji (the reaction) and remove: true (to take the user's reaction off). Nothing was changed."
 
 /** The arguments of a call as far as they can be checked without the mirror; `emoji` is null to remove the reaction. */
 type ReactRequest = { chat: string; id: string; emoji: string | null }
 
-/** What the mirror says of the call: the chat's name and fact, the message, and who wrote it as WhatsApp must be told (undefined when it is not). */
-type ReactTarget = ActionChat & { row: WacliMessage; sender: string | undefined }
+/** What the mirror says of the call: the chat's name and fact, the message, and who wrote it as WhatsApp must be told (undefined when it is not, `OWN_JID` for the account itself). */
+type ReactTarget = ActionChat & { row: WacliMessage; sender: ReactionSender }
 
 /** The emoji to react with, or null to remove the reaction; `invalid_argument` unless exactly one of the two is asked for. */
 function reactionOf({ emoji, remove }: MessageReactInput): string | null {
@@ -74,8 +78,18 @@ function headlineOf(emoji: string | null, chat: string): CallHeadline {
 function fromFact({ row, sender }: ReactTarget): CallFact {
   return {
     label: REACT_WORDS.fromLabel,
-    value: row.FromMe ? { text: REACT_WORDS.fromMe } : chatDisplayName(sender ?? row.SenderJID, row.SenderName),
+    value: row.FromMe
+      ? { text: REACT_WORDS.fromMe }
+      : chatDisplayName(typeof sender === "string" ? sender : row.SenderJID, row.SenderName),
   }
+}
+
+/** The sender to tell the service: the one the mirror gave, or the account's own JID when the mirror could only say it is the user's. */
+async function senderOf(sender: ReactionSender, paths: LabelPaths, ctx: ToolContext): Promise<string | undefined> {
+  if (sender !== OWN_JID) return sender
+  const own = await linkedJid(paths, ctx.signal)
+  if (own === undefined) throw new ToolError("upstream_error", NO_LINKED_JID)
+  return own
 }
 
 /** The sync service's answer to the reaction, with `uncertain` told in the tool's words. */
@@ -145,8 +159,8 @@ export const whatsappMessageReact = defineTool({
     if (!stateDir) throw new ToolError("internal_error", "The entry point did not supply a state directory.")
     const paths = await pickLabel(stateDir, args.account)
 
-    const { sender } = await targetOf(openMirror(paths, ctx.signal), request)
-    const accepted = await requestReaction(paths, request, sender, ctx)
+    const target = await targetOf(openMirror(paths, ctx.signal), request)
+    const accepted = await requestReaction(paths, request, await senderOf(target.sender, paths, ctx), ctx)
     return {
       chat: request.chat,
       id: request.id,

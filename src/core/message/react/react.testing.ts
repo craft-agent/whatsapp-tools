@@ -41,11 +41,24 @@ export const REACTED: Omit<FakeResponse, "args"> = {
   stdout: envelope({ sent: true, to: CHAT, id: "3EB0FFFFFFFFFFFF", target: MESSAGE_ID, reaction: THUMBS_UP }),
 }
 
+/** A `doctor` answer for a usable session that reports the account the label is linked to as `linkedJid`. */
+export const doctorLinkedTo = (linkedJid: string): FakeResponse => ({
+  args: ["doctor"],
+  stdout: envelope({
+    authenticated: true,
+    session_revoked: false,
+    lock_held: false,
+    connected: false,
+    store: {},
+    linked_jid: linkedJid,
+  }),
+})
+
 /** The author of the messages in the group the tests use, as the mirror holds it. */
 export const AUTHOR = BOB
 
 /** What a test sets up: the mirror, and the answer to `send react`. */
-export type ReactSetup = { mirror?: FakeMirror; react?: Omit<FakeResponse, "args"> }
+export type ReactSetup = { mirror?: FakeMirror; react?: Omit<FakeResponse, "args">; doctor?: FakeResponse }
 
 /** One tool call's surroundings: a label `main` with a fake wacli on `PATH`, the sync service and the tool. */
 export type ReactTest = {
@@ -80,9 +93,9 @@ export async function createReactTest(): Promise<ReactTest> {
   process.env.PATH = fixture.fake.env.PATH
   let service: Awaited<ReturnType<typeof startService>> | undefined
 
-  const setUp: ReactTest["setUp"] = ({ mirror = HELD_MIRROR, react = REACTED } = {}) => {
+  const setUp: ReactTest["setUp"] = ({ mirror = HELD_MIRROR, react = REACTED, doctor = DOCTOR_OK } = {}) => {
     fixture.fake.setMirror(mirror)
-    fixture.fake.setResponses([DOCTOR_OK, HANGING_SYNC, { args: ["send", "react"], ...react }])
+    fixture.fake.setResponses([doctor, HANGING_SYNC, { args: ["send", "react"], ...react }])
   }
   const reactCalls: ReactTest["reactCalls"] = async () =>
     (await fixture.fake.calls()).filter((call) => call.argv.includes("react"))
