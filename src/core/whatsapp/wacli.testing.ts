@@ -114,6 +114,7 @@ export function pathsIn(dir: string, label = "main"): LabelPaths {
     outbox: join(labelDir, "outbox"),
     serviceLock: join(labelDir, "service.lock"),
     serviceStatus: join(labelDir, "service.json"),
+    serviceRecord: join(labelDir, "service-program.json"),
   }
 }
 

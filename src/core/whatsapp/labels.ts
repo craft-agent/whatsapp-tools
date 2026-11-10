@@ -56,6 +56,8 @@ export type LabelPaths = {
   serviceLock: string
   /** `<dir>/service.json` — the state the sync service last recorded. */
   serviceStatus: string
+  /** `<dir>/service-program.json` — what the installed sync service starts: program and script paths. */
+  serviceRecord: string
 }
 
 /**
@@ -80,6 +82,7 @@ export function labelPaths(stateDir: string, label: string): LabelPaths {
     outbox: join(dir, "outbox"),
     serviceLock: join(dir, "service.lock"),
     serviceStatus: join(dir, "service.json"),
+    serviceRecord: join(dir, "service-program.json"),
   }
   for (const socketPath of [paths.wacliSocket, paths.socket]) {
     const socketBytes = Buffer.byteLength(socketPath, "utf8")
