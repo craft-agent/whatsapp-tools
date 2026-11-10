@@ -3,17 +3,15 @@ import { messageKind, readKinds } from "../../chat/kinds"
 import { openMirror, type Mirror } from "../../chat/mirror"
 import type { WacliMessage } from "../../chat/rows"
 import { ToolError } from "../../errors"
-import { ANY_TARGET } from "../../targets"
 import { formatLocalTime } from "../../time"
 import { defineTool, type CallFact, type CallHeadline, type ToolContext } from "../../tool"
-import { labelTargets } from "../../whatsapp/label-targets"
 import { pickLabel, type LabelPaths } from "../../whatsapp/labels"
 import { MESSAGE_REACT_DEADLINE_MS, MESSAGE_REACT_OP, reactAnswer, type ReactAnswer } from "../../whatsapp/react"
 import { callService } from "../../whatsapp/service-client"
 import { chatDisplayName, openPromptMirror, promptTime } from "../describe"
 import { checkedEmoji } from "../emoji"
-import { checkedChat, chatOf, deliveryFailure, messageIdOf } from "../recipient"
-import { actionChat, actionMessage, type ActionChat } from "../target"
+import { checkedChat, deliveryFailure, messageIdOf } from "../recipient"
+import { actionChat, actionMessage, actionTargets, type ActionChat } from "../target"
 import { MESSAGE_WORDS } from "../words"
 import { REACT_NOTE, input, output, type MessageReactInput, type MessageReactOutput } from "./schema"
 import { reactionSender } from "./sender"
@@ -108,17 +106,6 @@ async function requestReaction(
   return answer.data
 }
 
-/** What the call writes to: the account and the chat, or `*` when either cannot be told. */
-async function reactTargets(args: MessageReactInput, ctx: ToolContext): Promise<string[]> {
-  let chat: string
-  try {
-    chat = chatOf(args.chat, TOOL_ID)
-  } catch {
-    return [ANY_TARGET]
-  }
-  return labelTargets(ctx, args.account, chat)
-}
-
 /** The `whatsapp_message_react` tool definition. */
 export const whatsappMessageReact = defineTool({
   id: TOOL_ID,
@@ -138,7 +125,7 @@ export const whatsappMessageReact = defineTool({
   class: "overwrite",
   input,
   output,
-  targets: reactTargets,
+  targets: actionTargets(TOOL_ID),
   async describe(args, ctx) {
     const request = requestOf(args)
     const mirror = await openPromptMirror(ctx, args.account)

@@ -2,17 +2,15 @@ import { messageKind, readKinds } from "../../chat/kinds"
 import { openMirror, type Mirror } from "../../chat/mirror"
 import type { WacliMessage } from "../../chat/rows"
 import { ToolError } from "../../errors"
-import { ANY_TARGET } from "../../targets"
 import { formatLocalTime } from "../../time"
 import { defineTool, type ToolContext } from "../../tool"
 import { MESSAGE_EDIT_DEADLINE_MS, MESSAGE_EDIT_OP, editAnswer, type EditAnswer } from "../../whatsapp/edit"
-import { labelTargets } from "../../whatsapp/label-targets"
 import { pickLabel, type LabelPaths } from "../../whatsapp/labels"
 import { MESSAGE_TEXT_MAX_CHARACTERS } from "../../whatsapp/send"
 import { callService } from "../../whatsapp/service-client"
 import { promptTime, openPromptMirror } from "../describe"
-import { checkedChat, checkedText, chatOf, deliveryFailure, messageIdOf, type TextRules } from "../recipient"
-import { actionChat, actionMessage, ownMessage, type ActionChat } from "../target"
+import { checkedChat, checkedText, deliveryFailure, messageIdOf, type TextRules } from "../recipient"
+import { actionChat, actionMessage, actionTargets, ownMessage, type ActionChat } from "../target"
 import { MESSAGE_WORDS } from "../words"
 import {
   EDIT_NOTE,
@@ -90,17 +88,6 @@ async function requestEdit(paths: LabelPaths, request: EditRequest, ctx: ToolCon
   return answer.data
 }
 
-/** What the call writes to: the account and the chat, or `*` when either cannot be told. */
-async function editTargets(args: MessageEditInput, ctx: ToolContext): Promise<string[]> {
-  let chat: string
-  try {
-    chat = chatOf(args.chat, TOOL_ID)
-  } catch {
-    return [ANY_TARGET]
-  }
-  return labelTargets(ctx, args.account, chat)
-}
-
 /** The `whatsapp_message_edit` tool definition. */
 export const whatsappMessageEdit = defineTool({
   id: TOOL_ID,
@@ -121,7 +108,7 @@ export const whatsappMessageEdit = defineTool({
   class: "overwrite",
   input,
   output,
-  targets: editTargets,
+  targets: actionTargets(TOOL_ID),
   async describe(args, ctx) {
     const request = requestOf(args)
     const mirror = await openPromptMirror(ctx, args.account)

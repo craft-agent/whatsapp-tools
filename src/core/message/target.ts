@@ -2,8 +2,11 @@ import { chatKind } from "../chat/jid"
 import type { Mirror } from "../chat/mirror"
 import { isUnreadable, type WacliMessage } from "../chat/rows"
 import { ToolError, isToolError } from "../errors"
-import type { CallFact } from "../tool"
+import { ANY_TARGET } from "../targets"
+import type { CallFact, ToolContext } from "../tool"
+import { labelTargets } from "../whatsapp/label-targets"
 import { chatDisplayName, chatKindFact } from "./describe"
+import { chatOf } from "./recipient"
 
 const NOT_IN_MIRROR =
   "This chat is not in this account's mirror. Find the chat with whatsapp_chat_read list. Nothing was changed."
@@ -21,6 +24,21 @@ const REACTION_MESSAGE = "A reaction is not a message to act on. Nothing was cha
 
 /** The name and the `Chat` fact of the chat an action works on. */
 export type ActionChat = { name: string; fact: CallFact }
+
+/** The `targets` of an action tool `toolId`: what the call writes to, the account and the chat, or `*` when either cannot be told. */
+export function actionTargets(
+  toolId: string,
+): (args: { chat?: string; account?: string }, ctx: ToolContext) => Promise<string[]> {
+  return async (args, ctx) => {
+    let chat: string
+    try {
+      chat = chatOf(args.chat, toolId)
+    } catch {
+      return [ANY_TARGET]
+    }
+    return labelTargets(ctx, args.account, chat)
+  }
+}
 
 /**
  * The name and the `Chat` fact of the person's or group's chat an action works on, which the mirror must hold:
