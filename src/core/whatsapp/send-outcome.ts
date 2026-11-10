@@ -59,6 +59,15 @@ export function detailOf(text: string): string {
   return maskNumbers(text).trim().slice(0, MAX_DETAIL_LENGTH)
 }
 
+/** The error for a wacli text that says its send queue dropped a request for `subject` (an `edit`, …) before dispatching it, else undefined. */
+export function notDispatched(text: string, subject: string): ToolError | undefined {
+  if (!NOT_DISPATCHED.test(text)) return undefined
+  return new ToolError(
+    "upstream_error",
+    `WhatsApp did not get the ${subject}: wacli's send queue dropped it before it was dispatched (${detailOf(text)}). Nothing was changed; trying again is safe.`,
+  )
+}
+
 /** The error for a wacli text of a quote or a queue that says the request ended before anything was sent, else undefined. */
 export function commonNotSent(text: string): ToolError | undefined {
   if (NOT_DISPATCHED.test(text)) {

@@ -2,7 +2,7 @@ import { z } from "zod"
 import { ToolError } from "../errors"
 import type { ExecResult } from "../exec"
 import { MESSAGE_ID_FORM } from "./media"
-import { commonNotSent, detailOf, sentOf, type SendOutcomeOptions } from "./send-outcome"
+import { detailOf, notDispatched, sentOf, type SendOutcomeOptions } from "./send-outcome"
 import { MESSAGE_TEXT_MAX_CHARACTERS, messageText, reachableChat } from "./send"
 import type { ServiceOperationContext } from "./service-socket"
 import { execWacli, failureText } from "./wacli"
@@ -61,7 +61,7 @@ export type EditAnswer = z.infer<typeof editAnswer>
 
 /** The error for a wacli text that says the request ended before anything was changed, else undefined. */
 function notSent(text: string): ToolError | undefined {
-  const known = commonNotSent(text)
+  const known = notDispatched(text, "edit")
   if (known) return known
   if (NOT_OWN_MESSAGE.test(text)) {
     return new ToolError("forbidden", "Only the user's own messages can be edited. Nothing was changed.")

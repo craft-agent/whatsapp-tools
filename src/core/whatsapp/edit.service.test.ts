@@ -155,6 +155,13 @@ describe("what wacli says when the edit fails", () => {
     expect(error.message).not.toContain("15550100001")
   })
 
+  test("names the edit when the queue dropped it", async () => {
+    fails("request timed out in the send queue before dispatch; it was not sent")
+    const message = (await asked()).message
+    expect(message).toStartWith("WhatsApp did not get the edit:")
+    expect(message).toEndWith("Nothing was changed; trying again is safe.")
+  })
+
   test("says nothing was changed for what it maps itself", async () => {
     fails(`message ${ID} was not sent by me`)
     expect((await asked()).message).toBe("Only the user's own messages can be edited. Nothing was changed.")
