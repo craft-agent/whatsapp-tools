@@ -7,6 +7,7 @@ import {
   serviceStatus,
   uninstallService,
   type ServiceHost,
+  type ServiceName,
   type ServiceSpec,
 } from "../core/whatsapp/service"
 import { checkSession } from "../core/whatsapp/sync-session"
@@ -16,6 +17,12 @@ import { EXIT_OK, type CommandIo } from "./command-io"
 
 /** The reverse-DNS prefix the system knows the sync services by. */
 export const SERVICE_ID = "io.github.craft-agent.whatsapp-tools"
+
+/** The name the macOS Login Items list shows for the agent, before `-<label>`. */
+export const SERVICE_LAUNCHER = `${PROJECT.name}-sync`
+
+/** What names the service on disk, passed to uninstall. */
+export const SERVICE_NAME: ServiceName = { id: SERVICE_ID, launcher: SERVICE_LAUNCHER }
 
 const WINDOWS_TRACKING_URL = "https://github.com/craft-agent/whatsapp-tools/issues/11"
 
@@ -112,6 +119,7 @@ export async function runServiceCommand(argv: string[], io: CommandIo): Promise<
         program: self.program,
         args: [self.script, "sync", "--account", label, "--state-dir", parsed.stateDir],
         path: io.env.PATH ?? process.env.PATH ?? "",
+        launcher: SERVICE_LAUNCHER,
       }
 
       const result = await installService(spec, host)
@@ -130,7 +138,7 @@ export async function runServiceCommand(argv: string[], io: CommandIo): Promise<
     }
 
     if (parsed.action === "uninstall") {
-      await uninstallService(SERVICE_ID, label, host)
+      await uninstallService(SERVICE_NAME, label, host)
       io.stdout(`Uninstalled sync service for "${label}".\n`)
       return EXIT_OK
     }

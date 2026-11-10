@@ -7,7 +7,7 @@ import { DOCTOR_OK, doctor } from "../core/whatsapp/sync.testing"
 import { PROJECT } from "../project"
 import { commandFixture, type CommandFixture } from "./command.testing"
 import { EXIT_FAILED, EXIT_OK, EXIT_USAGE } from "./command-io"
-import { SERVICE_ID, runServiceCommand } from "./service"
+import { SERVICE_ID, SERVICE_LAUNCHER, runServiceCommand } from "./service"
 
 const SELF = { program: "/bin/node", script: "/bin/cli.js" }
 
@@ -23,7 +23,11 @@ function fakeHost(home: string, overrides: Partial<ServiceHost> = {}): ServiceHo
     home,
     uid: 501,
     env: { PATH: "/bin" },
-    run: async () => ({ code: 0, stdout: "", stderr: "" }),
+    sleep: async () => {},
+    run: async (argv) =>
+      argv[1] === "print"
+        ? { code: 113, stdout: "", stderr: "Could not find service" }
+        : { code: 0, stdout: "", stderr: "" },
     ...overrides,
   }
 }
@@ -52,6 +56,8 @@ describe("CLI service install", () => {
       expect(definition).toContain(`<string>${argument}</string>`)
     }
     expect(definition).toContain(`${SERVICE_ID}.default`)
+    const launcher = join(fixture.stateDir, "Library", "Application Support", SERVICE_ID, `${SERVICE_LAUNCHER}-default`)
+    expect(definition).toContain(`<array>\n\t\t<string>${launcher}</string>\n\t\t<string>/bin/node</string>`)
   })
 
   test("fails with usage listing accounts when --account is absent and several exist", async () => {
@@ -131,11 +137,18 @@ describe("CLI service install", () => {
 describe("CLI service status and uninstall", () => {
   test("status and uninstall output format", async () => {
     await withLabels([DOCTOR_OK], "default")
+    let loaded = false
     const host = fakeHost(fixture.stateDir, {
-      run: async (argv) =>
-        argv[1] === "print"
-          ? { code: 0, stdout: "state = running\npid = 1234\nlast exit code = 0\n", stderr: "" }
-          : { code: 0, stdout: "", stderr: "" },
+      run: async (argv) => {
+        if (argv[1] === "bootstrap") loaded = true
+        if (argv[1] === "bootout") loaded = false
+        if (argv[1] === "print") {
+          return loaded
+            ? { code: 0, stdout: "state = running\npid = 1234\nlast exit code = 0\n", stderr: "" }
+            : { code: 113, stdout: "", stderr: "Could not find service" }
+        }
+        return { code: 0, stdout: "", stderr: "" }
+      },
     })
 
     await fixture.run(runServiceCommand, ["install"], { serviceHost: host, self: SELF })

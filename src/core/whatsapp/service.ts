@@ -1,9 +1,15 @@
 import { ToolError } from "../errors"
 import { installLaunchdService, launchdServiceStatus, uninstallLaunchdService } from "./service-launchd"
 import { installSystemdService, systemdServiceStatus, uninstallSystemdService } from "./service-systemd"
-import { defaultServiceHost, type ServiceHost, type ServiceSpec, type ServiceStatus } from "./service-types"
+import {
+  defaultServiceHost,
+  type ServiceHost,
+  type ServiceName,
+  type ServiceSpec,
+  type ServiceStatus,
+} from "./service-types"
 
-export type { ServiceHost, ServiceSpec, ServiceStatus }
+export type { ServiceHost, ServiceName, ServiceSpec, ServiceStatus }
 export { defaultServiceHost }
 
 const UNSUPPORTED_PLATFORM = "Running the sync service is supported on macOS and Linux only."
@@ -37,20 +43,21 @@ export async function installService(
 }
 
 /**
- * Stops, disables, and deletes the sync service for one label.
+ * Stops, disables, and deletes the sync service for one label. On macOS the
+ * launcher script goes too, and its directory once empty.
  *
  * Missing or already-uninstalled services complete without error.
  */
 export async function uninstallService(
-  id: string,
+  name: ServiceName,
   label: string,
   host: ServiceHost = defaultServiceHost(),
 ): Promise<void> {
   checkPlatform(host.platform)
   if (host.platform === "darwin") {
-    return uninstallLaunchdService(id, label, host)
+    return uninstallLaunchdService(name, label, host)
   }
-  return uninstallSystemdService(id, label, host)
+  return uninstallSystemdService(name.id, label, host)
 }
 
 /**

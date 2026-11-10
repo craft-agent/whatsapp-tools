@@ -1,4 +1,5 @@
 import { homedir } from "node:os"
+import { setTimeout } from "node:timers/promises"
 import { ToolError } from "../errors"
 import { exec, type ExecResult } from "../exec"
 import { maskNumbers } from "./mask"
@@ -9,10 +10,19 @@ const MAX_PROGRAM_ERROR_LENGTH = 300
 /** How long a service management command may run before timing out. */
 const DEFAULT_RUN_TIMEOUT_MS = 30_000
 
-/** The specification for installing the sync service for one label. */
-export type ServiceSpec = {
+/** What names one service across its labels. */
+export type ServiceName = {
   /** The reverse-DNS prefix for the service, e.g. "io.github.craft-agent.whatsapp-tools". */
   id: string
+  /**
+   * The file name the launcher script is given, before `-<label>`; the agent is
+   * listed under it where the platform names background items after their program.
+   */
+  launcher: string
+}
+
+/** The specification for installing the sync service for one label. */
+export type ServiceSpec = ServiceName & {
   /** The account label this service syncs for. */
   label: string
   /** The absolute path to the node runtime binary. */
@@ -35,6 +45,8 @@ export type ServiceHost = {
   env: Record<string, string | undefined>
   /** Executes a command with timeout. */
   run(argv: string[]): Promise<ExecResult>
+  /** Waits between polls; defaults to a timer. Tests pass one that returns at once. */
+  sleep?(ms: number): Promise<void>
 }
 
 /** The status of the sync service for one label. */
@@ -83,6 +95,19 @@ export function checkServiceSpecControlChars(spec: ServiceSpec): void {
   }
 }
 
+/** A launcher name safe as a file name: it starts with a letter or digit and holds no separator. */
+const LAUNCHER_NAME = /^[A-Za-z0-9][A-Za-z0-9._-]*$/
+
+/** Refuses a launcher name that is not a plain file name. */
+export function checkLauncherName(name: string): void {
+  if (!LAUNCHER_NAME.test(name)) {
+    throw new ToolError(
+      "invalid_argument",
+      "The launcher name may hold only letters, digits, dots, hyphens and underscores, and must start with a letter or digit.",
+    )
+  }
+}
+
 /** Default host environment for service management. */
 export function defaultServiceHost(): ServiceHost {
   const env = process.env
@@ -91,6 +116,7 @@ export function defaultServiceHost(): ServiceHost {
     home: homedir(),
     uid: typeof process.getuid === "function" ? process.getuid() : 0,
     env,
+    sleep: (ms) => setTimeout(ms),
     run(argv: string[]): Promise<ExecResult> {
       const explicitEnv: Record<string, string> = {}
       for (const name of ["PATH", "HOME", "XDG_RUNTIME_DIR", "DBUS_SESSION_BUS_ADDRESS"]) {

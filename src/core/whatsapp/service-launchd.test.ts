@@ -1,16 +1,22 @@
 import { describe, expect, test } from "bun:test"
-import { mkdtemp, rm, stat } from "node:fs/promises"
+import { existsSync } from "node:fs"
+import { lstat, mkdir, mkdtemp, readdir, readFile, rm, stat, symlink, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
-import { join } from "node:path"
+import { dirname, join } from "node:path"
 import type { ExecResult } from "../exec"
 import {
   buildLaunchdPlist,
+  LAUNCHER_SCRIPT,
   installLaunchdService,
   launchdServiceStatus,
   uninstallLaunchdService,
   xmlEscape,
 } from "./service-launchd"
 import type { ServiceHost, ServiceSpec } from "./service-types"
+
+const LAUNCHER = "example-sync"
+const NOT_FOUND: ExecResult = { code: 113, stdout: "", stderr: "Could not find service" }
+const FOUND: ExecResult = { code: 0, stdout: "state = running\n", stderr: "" }
 
 function createFakeHost(
   home: string,
@@ -26,10 +32,12 @@ function createFakeHost(
     home,
     uid: 501,
     env: { PATH: "/usr/bin:/bin" },
+    sleep: async () => {},
     ...overrides,
     run: async (argv: string[]): Promise<ExecResult> => {
       calls.push(argv)
       if (customRun) return customRun(argv)
+      if (argv[1] === "print") return NOT_FOUND
       return { code: 0, stdout: "", stderr: "" }
     },
   }
@@ -48,10 +56,16 @@ describe("service-launchd", () => {
       program: "/path/to/node",
       args: ["/path/to/cli.js", "sync", "--account", "work <test>", "--state-dir", "/state & dir"],
       path: "/usr/local/bin:/usr/bin",
+      launcher: LAUNCHER,
     }
     const logPath = "/Users/test/Library/Logs/io.github.craft-agent.whatsapp-tools/work.log"
-    const xml = buildLaunchdPlist(spec, logPath)
+    const launcherPath =
+      "/Users/test/Library/Application Support/io.github.craft-agent.whatsapp-tools/example-sync-work"
+    const xml = buildLaunchdPlist(spec, logPath, launcherPath)
 
+    expect(xml).toContain(
+      `<key>ProgramArguments</key>\n\t<array>\n\t\t<string>${launcherPath}</string>\n\t\t<string>/path/to/node</string>\n\t\t<string>/path/to/cli.js</string>\n\t\t<string>sync</string>`,
+    )
     expect(xml).toContain("<key>Label</key>\n\t<string>io.github.craft-agent.whatsapp-tools.work</string>")
     expect(xml).toContain("<string>/path/to/node</string>")
     expect(xml).toContain("<string>work &lt;test&gt;</string>")
@@ -72,18 +86,20 @@ describe("service-launchd", () => {
       program: "/bin/node",
       args: ["sync"],
       path: "/bin",
+      launcher: LAUNCHER,
     }
     const logPath = "/tmp/test.log"
+    const launcherPath = "/tmp/example-sync-work"
 
-    expect(() => buildLaunchdPlist({ ...baseSpec, program: "/bin/no\nde" }, logPath)).toThrow(
+    expect(() => buildLaunchdPlist({ ...baseSpec, program: "/bin/no\nde" }, logPath, launcherPath)).toThrow(
       "Control characters are not allowed in the program.",
     )
 
-    expect(() => buildLaunchdPlist({ ...baseSpec, args: ["sync", "arg\x00bad"] }, logPath)).toThrow(
+    expect(() => buildLaunchdPlist({ ...baseSpec, args: ["sync", "arg\x00bad"] }, logPath, launcherPath)).toThrow(
       "Control characters are not allowed in an argument.",
     )
 
-    expect(() => buildLaunchdPlist({ ...baseSpec, path: "/bin:\r/usr/bin" }, logPath)).toThrow(
+    expect(() => buildLaunchdPlist({ ...baseSpec, path: "/bin:\r/usr/bin" }, logPath, launcherPath)).toThrow(
       "Control characters are not allowed in PATH.",
     )
 
@@ -110,6 +126,7 @@ describe("service-launchd", () => {
         program: "/bin/node",
         args: ["cli.js", "sync"],
         path: "/bin",
+        launcher: LAUNCHER,
       }
 
       const result = await installLaunchdService(spec, host)
@@ -126,11 +143,168 @@ describe("service-launchd", () => {
 
       expect(calls).toEqual([
         ["launchctl", "bootout", "gui/501/io.github.craft-agent.whatsapp-tools.default"],
+        ["launchctl", "print", "gui/501/io.github.craft-agent.whatsapp-tools.default"],
         ["launchctl", "bootstrap", "gui/501", expectedPlist],
       ])
     } finally {
       await rm(dir, { recursive: true, force: true })
     }
+  })
+
+  describe("launcher script", () => {
+    const spec: ServiceSpec = {
+      id: "io.github.craft-agent.whatsapp-tools",
+      label: "default",
+      program: "/bin/node",
+      args: ["cli.js", "sync"],
+      path: "/bin",
+      launcher: LAUNCHER,
+    }
+    const launcherRelative = `Library/Application Support/${spec.id}/${spec.launcher}-${spec.label}`
+
+    test("installLaunchdService writes an executable launcher and lists it first in the plist", async () => {
+      const dir = await mkdtemp(join(tmpdir(), "wa-"))
+      try {
+        const { host } = createFakeHost(dir)
+        const result = await installLaunchdService(spec, host)
+
+        const launcherPath = join(dir, launcherRelative)
+        expect(await readFile(launcherPath, "utf8")).toBe(LAUNCHER_SCRIPT)
+        expect((await stat(launcherPath)).mode & 0o777).toBe(0o755)
+        expect((await stat(dirname(launcherPath))).mode & 0o777).toBe(0o700)
+
+        const plist = await readFile(result.file, "utf8")
+        expect(plist).toContain(
+          `<array>\n\t\t<string>${launcherPath}</string>\n\t\t<string>/bin/node</string>\n\t\t<string>cli.js</string>`,
+        )
+      } finally {
+        await rm(dir, { recursive: true, force: true })
+      }
+    })
+
+    test("installing again replaces the existing launcher", async () => {
+      const dir = await mkdtemp(join(tmpdir(), "wa-"))
+      try {
+        const { host } = createFakeHost(dir)
+        await installLaunchdService(spec, host)
+        await installLaunchdService(spec, host)
+
+        expect(await readFile(join(dir, launcherRelative), "utf8")).toBe(LAUNCHER_SCRIPT)
+        expect(await readdir(dirname(join(dir, launcherRelative)))).toEqual([`${spec.launcher}-${spec.label}`])
+      } finally {
+        await rm(dir, { recursive: true, force: true })
+      }
+    })
+
+    test("a symlink at the launcher path is replaced, never followed", async () => {
+      const dir = await mkdtemp(join(tmpdir(), "wa-"))
+      try {
+        const { host } = createFakeHost(dir)
+        const launcherPath = join(dir, launcherRelative)
+        const target = join(dir, "target.txt")
+        await writeFile(target, "keep me")
+        await mkdir(dirname(launcherPath), { recursive: true })
+        await symlink(target, launcherPath)
+
+        await installLaunchdService(spec, host)
+
+        expect(await readFile(target, "utf8")).toBe("keep me")
+        expect((await lstat(launcherPath)).isFile()).toBe(true)
+        expect(await readFile(launcherPath, "utf8")).toBe(LAUNCHER_SCRIPT)
+      } finally {
+        await rm(dir, { recursive: true, force: true })
+      }
+    })
+
+    const name = { id: spec.id, launcher: spec.launcher }
+
+    test("uninstalling deletes the launcher and its directory", async () => {
+      const dir = await mkdtemp(join(tmpdir(), "wa-"))
+      try {
+        const { host } = createFakeHost(dir)
+        await installLaunchdService(spec, host)
+        const launcherPath = join(dir, launcherRelative)
+
+        await uninstallLaunchdService(name, spec.label, host)
+
+        await expect(lstat(launcherPath)).rejects.toThrow()
+        await expect(lstat(dirname(launcherPath))).rejects.toThrow()
+      } finally {
+        await rm(dir, { recursive: true, force: true })
+      }
+    })
+
+    test("uninstalling one label keeps the launcher of another", async () => {
+      const dir = await mkdtemp(join(tmpdir(), "wa-"))
+      try {
+        const { host } = createFakeHost(dir)
+        await installLaunchdService(spec, host)
+        await installLaunchdService({ ...spec, label: "work" }, host)
+        const launcherPath = join(dir, launcherRelative)
+        const workPath = join(dirname(launcherPath), `${spec.launcher}-work`)
+
+        await uninstallLaunchdService(name, spec.label, host)
+
+        await expect(lstat(launcherPath)).rejects.toThrow()
+        expect(await readFile(workPath, "utf8")).toBe(LAUNCHER_SCRIPT)
+      } finally {
+        await rm(dir, { recursive: true, force: true })
+      }
+    })
+
+    test("a symlink at the launcher path is not followed when uninstalling", async () => {
+      const dir = await mkdtemp(join(tmpdir(), "wa-"))
+      try {
+        const { host } = createFakeHost(dir)
+        const launcherPath = join(dir, launcherRelative)
+        const target = join(dir, "target.txt")
+        await writeFile(target, "keep me")
+        await mkdir(dirname(launcherPath), { recursive: true })
+        await symlink(target, launcherPath)
+
+        await uninstallLaunchdService(name, spec.label, host)
+
+        expect(await readFile(target, "utf8")).toBe("keep me")
+        expect((await lstat(launcherPath)).isSymbolicLink()).toBe(true)
+      } finally {
+        await rm(dir, { recursive: true, force: true })
+      }
+    })
+
+    test("an invalid launcher name is refused only after the agent is unloaded", async () => {
+      const dir = await mkdtemp(join(tmpdir(), "wa-"))
+      try {
+        const { host, calls } = createFakeHost(dir)
+        const { file } = await installLaunchdService(spec, host)
+
+        const error = await uninstallLaunchdService({ ...name, launcher: "../x" }, spec.label, host).catch(
+          (e: unknown) => e,
+        )
+
+        expect((error as { code: string }).code).toBe("invalid_argument")
+        expect(calls.at(-2)).toEqual(["launchctl", "bootout", `gui/501/${spec.id}.${spec.label}`])
+        expect(calls.at(-1)).toEqual(["launchctl", "print", `gui/501/${spec.id}.${spec.label}`])
+        await expect(lstat(file)).rejects.toThrow()
+      } finally {
+        await rm(dir, { recursive: true, force: true })
+      }
+    })
+
+    test("refuses an invalid launcher name and writes nothing", async () => {
+      for (const launcher of ["", "../x", "a/b", ".hidden"]) {
+        const dir = await mkdtemp(join(tmpdir(), "wa-"))
+        try {
+          const { host, calls } = createFakeHost(dir)
+          const error = await installLaunchdService({ ...spec, launcher }, host).catch((e: unknown) => e)
+
+          expect((error as { code: string }).code).toBe("invalid_argument")
+          expect(await readdir(dir)).toEqual([])
+          expect(calls).toEqual([])
+        } finally {
+          await rm(dir, { recursive: true, force: true })
+        }
+      }
+    })
   })
 
   test("installLaunchdService ignores 'not loaded' during bootout but maps bootstrap failure to upstream_error", async () => {
@@ -144,6 +318,7 @@ describe("service-launchd", () => {
           if (argv[1] === "bootstrap") {
             return { code: 1, stdout: "", stderr: "Bootstrap failed for +1234567890 permission denied" }
           }
+          if (argv[1] === "print") return NOT_FOUND
           return { code: 0, stdout: "", stderr: "" }
         },
       })
@@ -153,6 +328,7 @@ describe("service-launchd", () => {
         program: "/bin/node",
         args: [],
         path: "/bin",
+        launcher: LAUNCHER,
       }
 
       const error = await installLaunchdService(spec, host).catch((e: unknown) => e)
@@ -171,15 +347,116 @@ describe("service-launchd", () => {
           if (argv[1] === "bootout") {
             return { code: 1, stdout: "", stderr: "service is not loaded" }
           }
+          if (argv[1] === "print") return NOT_FOUND
           return { code: 0, stdout: "", stderr: "" }
         },
       })
 
-      await uninstallLaunchdService("io.github.craft-agent.whatsapp-tools", "default", host)
+      await uninstallLaunchdService({ id: "io.github.craft-agent.whatsapp-tools", launcher: LAUNCHER }, "default", host)
       expect(calls[0]).toEqual(["launchctl", "bootout", "gui/501/io.github.craft-agent.whatsapp-tools.default"])
+      expect(await readdir(dir)).toEqual([])
     } finally {
       await rm(dir, { recursive: true, force: true })
     }
+  })
+
+  describe("waiting for launchd to let go of the job", () => {
+    const spec: ServiceSpec = {
+      id: "io.github.craft-agent.whatsapp-tools",
+      label: "default",
+      program: "/bin/node",
+      args: [],
+      path: "/bin",
+      launcher: LAUNCHER,
+    }
+    const name = { id: spec.id, launcher: spec.launcher }
+    const plistRelative = `Library/LaunchAgents/${spec.id}.${spec.label}.plist`
+    const maxPolls = 150
+
+    /** A host whose `print` finds the job for the first `found` polls, or always when `found` is Infinity. */
+    function lingeringHost(dir: string, found: number, onPrint: () => void = () => {}) {
+      const sleeps: number[] = []
+      let prints = 0
+      const fake = createFakeHost(dir, {
+        sleep: async (ms) => {
+          sleeps.push(ms)
+        },
+        run: async (argv) => {
+          if (argv[1] !== "print") return { code: 0, stdout: "", stderr: "" }
+          prints++
+          onPrint()
+          return prints <= found ? FOUND : NOT_FOUND
+        },
+      })
+      return { ...fake, sleeps, prints: () => prints }
+    }
+
+    test("install bootstraps only once the job is gone", async () => {
+      const dir = await mkdtemp(join(tmpdir(), "wa-"))
+      try {
+        const { host, calls, sleeps } = lingeringHost(dir, 2)
+
+        await installLaunchdService(spec, host)
+
+        expect(calls.map((argv) => argv[1])).toEqual(["bootout", "print", "print", "print", "bootstrap"])
+        expect(sleeps).toEqual([200, 200])
+      } finally {
+        await rm(dir, { recursive: true, force: true })
+      }
+    })
+
+    test("install gives up when the job never goes", async () => {
+      const dir = await mkdtemp(join(tmpdir(), "wa-"))
+      try {
+        const { host, calls, prints } = lingeringHost(dir, Infinity)
+
+        const error = await installLaunchdService(spec, host).catch((e: unknown) => e)
+
+        expect((error as { code: string }).code).toBe("upstream_error")
+        expect((error as Error).message).toContain("30 seconds")
+        expect(calls.some((argv) => argv[1] === "bootstrap")).toBe(false)
+        expect(prints()).toBe(maxPolls)
+      } finally {
+        await rm(dir, { recursive: true, force: true })
+      }
+    })
+
+    test("uninstall deletes the plist only once the job is gone", async () => {
+      const dir = await mkdtemp(join(tmpdir(), "wa-"))
+      try {
+        await installLaunchdService(spec, createFakeHost(dir).host)
+        const plist = join(dir, plistRelative)
+        const plistPresentAtPrint: boolean[] = []
+        const { host } = lingeringHost(dir, 2, () => {
+          plistPresentAtPrint.push(existsSync(plist))
+        })
+
+        await uninstallLaunchdService(name, spec.label, host)
+
+        expect(plistPresentAtPrint).toEqual([true, true, true])
+        expect(existsSync(plist)).toBe(false)
+      } finally {
+        await rm(dir, { recursive: true, force: true })
+      }
+    })
+
+    test("uninstall that times out leaves the plist and launcher in place", async () => {
+      const dir = await mkdtemp(join(tmpdir(), "wa-"))
+      try {
+        await installLaunchdService(spec, createFakeHost(dir).host)
+        const { host } = lingeringHost(dir, Infinity)
+
+        const error = await uninstallLaunchdService(name, spec.label, host).catch((e: unknown) => e)
+
+        expect((error as { code: string }).code).toBe("upstream_error")
+        expect(existsSync(join(dir, plistRelative))).toBe(true)
+        expect(existsSync(join(dir, `Library/Application Support/${spec.id}/${spec.launcher}-${spec.label}`))).toBe(
+          true,
+        )
+      } finally {
+        await rm(dir, { recursive: true, force: true })
+      }
+    })
   })
 
   test("launchdServiceStatus parses state, pid, and last exit code", async () => {
@@ -191,6 +468,7 @@ describe("service-launchd", () => {
         program: "/bin/node",
         args: [],
         path: "/bin",
+        launcher: LAUNCHER,
       }
 
       const { host: host1 } = createFakeHost(dir)
