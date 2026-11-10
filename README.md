@@ -261,6 +261,7 @@ Hermes.
 | Tool                      | What it does                                                                   | Class          |
 | ------------------------- | ------------------------------------------------------------------------------ | -------------- |
 | `whatsapp_chat_archive`   | archives a chat, or unarchives it                                              | idempotent     |
+| `whatsapp_chat_mark`      | marks a chat read or unread, optionally sending read receipts                  | idempotent     |
 | `whatsapp_chat_mute`      | mutes a chat for 8 hours, a week or always, or unmutes it                      | idempotent     |
 | `whatsapp_chat_pin`       | pins a chat, or unpins it, up to the three WhatsApp allows                     | idempotent     |
 | `whatsapp_message_delete` | deletes a message the user sent for everyone, at most two days after it        | administrative |
@@ -275,10 +276,13 @@ says whether it syncs again. It keeps to the limits WhatsApp's own apps hold,
 and refuses past them before anything leaves. A result means WhatsApp
 accepted the action; a failure known to happen before anything left says so,
 and every other failure is `uncertain`: the chat is checked and the user asked
-before the action is tried again. A chat's archive, pin and mute are states
-only the user's own devices show, and setting one again is safe, so its
-`uncertain` says to call again. The
-skill is [`whatsapp-actions`](skills/whatsapp-actions/SKILL.md), shown as
+before the action is tried again. A chat's archive, pin, mute and read state
+are states only the user's own devices show, and setting one again is safe,
+so their `uncertain` says so. Marking a chat read tells no one by default;
+only when the user asks for it does `receipts: true` send read receipts for up
+to 100 unread messages instead, which tells their senders and clears only the
+mirror's unread count, not necessarily the phone's mark. The skill is
+[`whatsapp-actions`](skills/whatsapp-actions/SKILL.md), shown as
 `whatsapp-tools:whatsapp-actions` in Claude Code and `whatsapp-tools:actions`
 in Hermes.
 
