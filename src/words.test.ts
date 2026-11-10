@@ -4,6 +4,7 @@ import { FACT_TRANSLATIONS } from "./core/facts"
 import { FILE_SEND_WORDS } from "./core/file/send/words"
 import { FILE_SAVE_WORDS } from "./core/file/words"
 import { HISTORY_WORDS } from "./core/history/words"
+import { EDIT_WORDS } from "./core/message/edit/words"
 import { MESSAGE_WORDS } from "./core/message/words"
 import { ALL_TOOLS } from "./tools"
 import { ALL_TRANSLATIONS } from "./words"
@@ -11,6 +12,7 @@ import { ALL_TRANSLATIONS } from "./words"
 /** Every English word and template the tools write in their approval prompts; each domain appends its own. */
 const ENGLISH_WORDS: string[] = [
   ...Object.values(MESSAGE_WORDS),
+  ...Object.values(EDIT_WORDS),
   ...Object.values(FILE_SAVE_WORDS),
   ...Object.values(FILE_SEND_WORDS),
   ...Object.values(HISTORY_WORDS),
