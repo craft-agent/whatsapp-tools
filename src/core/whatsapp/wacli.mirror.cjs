@@ -10,8 +10,8 @@
  * Its full-text mode only stands in for wacli's ordering: it matches each word as a substring, where FTS5 matches
  * whole tokens or their prefixes, so a test must not rely on a match inside a word.
  *
- * - `chats list [--query q] [--unread] [--limit n]`: pinned first, then the latest message first; a limit of 0 or
- *   less means 50; `null` data for no chat.
+ * - `chats list [--query q] [--unread] [--pinned] [--limit n]`: pinned first, then the latest message first; a limit of
+ *   0 or less means 50; `null` data for no chat.
  * - `chats show --jid j`: one chat, else the error wacli prints for a missing one.
  * - `messages list [--chat j] [--after t] [--before t] [--limit n] [--asc]`: newest first by second, then by the
  *   order the messages are listed in (wacli's row id); `--after` and `--before` exclusive, in whole seconds; a
@@ -158,9 +158,11 @@ function messagesContext(args, messages) {
 function chatsList(args, chats) {
   const query = (flagValue(args, "--query") ?? "").toLowerCase()
   const unread = args.includes("--unread")
+  const pinned = args.includes("--pinned")
   const kept = chats
     .filter((chat) => query === "" || chat.name.toLowerCase().includes(query) || chat.jid.toLowerCase().includes(query))
     .filter((chat) => !unread || chat.unread)
+    .filter((chat) => !pinned || chat.pinned)
     .sort((a, b) => Number(b.pinned) - Number(a.pinned) || (a.last_message_ts < b.last_message_ts ? 1 : -1))
   const page = kept.slice(0, limitOf(args))
   return success(page.length > 0 ? page : null)

@@ -61,6 +61,14 @@ describe("the fake wacli's mirror", () => {
     expect(await ask("chats", "list", "--limit", "1")).toHaveLength(1)
   })
 
+  test("lists only the pinned chats with --pinned", async () => {
+    expect((await ask("chats", "list", "--pinned")).map((chat: { jid: string }) => chat.jid)).toEqual([
+      "b@s.whatsapp.net",
+    ])
+    fake.setMirror({ chats: [{ jid: "a@s.whatsapp.net", name: "Ann", pinned: false, last_message_ts: "" }] })
+    expect(await ask("chats", "list", "--pinned")).toBeNull()
+  })
+
   test("shows one chat, and fails as wacli does for a missing one", async () => {
     expect((await ask("chats", "show", "--jid", "c@g.us")).name).toBe("Crew")
     await expect(ask("chats", "show", "--jid", "d@g.us")).rejects.toMatchObject({

@@ -51,8 +51,8 @@ export type SearchHits = {
 export type Mirror = {
   /** The label of the account it belongs to, which a cursor is bound to. */
   readonly label: string
-  /** Every chat that matches, in wacli's order. */
-  chats(filter: { query?: string; unread?: boolean }): Promise<WacliChat[]>
+  /** Every chat that matches, in wacli's order; `pinned` keeps only the pinned ones. */
+  chats(filter: { query?: string; unread?: boolean; pinned?: boolean }): Promise<WacliChat[]>
   /** One chat, or `not_found`. */
   chat(jid: string): Promise<WacliChat>
   /** The newest messages of a chat first, bounded in whole seconds (exclusive). */
@@ -104,10 +104,11 @@ export function openMirror(paths: LabelPaths, signal: AbortSignal | undefined): 
   const read = (args: string[]) => runWacli(paths, args, { env, mode: "read", signal })
   return {
     label: paths.label,
-    async chats({ query, unread }) {
+    async chats({ query, unread, pinned }) {
       const args = ["chats", "list", "--limit", String(CHATS_LIMIT)]
       if (query) args.push(`--query=${query}`)
       if (unread) args.push("--unread")
+      if (pinned) args.push("--pinned")
       return parse(z.array(wacliChat).nullable(), await read(args), "a chat list") ?? []
     },
     async chat(jid) {
