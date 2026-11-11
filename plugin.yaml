@@ -1,6 +1,6 @@
 name: whatsapp-tools
 version: 0.0.0
-description: "WhatsApp tools for coding agents: chats, messages, contacts, history, received files and sends."
+description: "WhatsApp tools for coding agents: chats, contacts, history, received files, sends and actions."
 manifest_version: 1
 requires_hermes: ">=0.22"
 provides_tools:

@@ -1,7 +1,7 @@
 {
   "name": "@craftsamo/whatsapp-tools",
   "version": "0.0.0",
-  "description": "WhatsApp tools for coding agents: chats, messages, contacts, history, received files and sends.",
+  "description": "WhatsApp tools for coding agents: chats, contacts, history, received files, sends and actions.",
   "author": "craftsamo",
   "license": "LicenseRef-AGPL-3.0-Commons-Clause",
   "repository": {
