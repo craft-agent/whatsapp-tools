@@ -12,7 +12,7 @@ const DEFAULT_RUN_TIMEOUT_MS = 30_000
 
 /** What names one service across its labels. */
 export type ServiceName = {
-  /** The reverse-DNS prefix for the service, e.g. "io.github.craft-agent.whatsapp-tools". */
+  /** The reverse-DNS prefix for the service, e.g. "io.github.example.tools". */
   id: string
   /**
    * The file name the launcher script is given, before `-<label>`; the agent is
