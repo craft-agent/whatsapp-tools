@@ -9,7 +9,7 @@ import {
 } from "./settings"
 import { failure, profile } from "./settings.testing"
 
-const DIRECTORIES = { state_dir: expect.any(String), download_dir: expect.any(String), send_dirs: [] }
+const DEFAULTS = { state_dir: expect.any(String), download_dir: expect.any(String), send_dirs: [], options: {} }
 
 const fromOptions = (options: Record<string, unknown> | undefined, env: Record<string, string | undefined> = {}) =>
   settingsFromOptions(options, env, profile)
@@ -23,9 +23,9 @@ describe("languageVariable", () => {
 
 describe("settingsFromOptions language", () => {
   test("reads the option trimmed, and treats blank as unset", () => {
-    expect(fromOptions({ language: "ja" })).toEqual({ ...DIRECTORIES, language: "ja" })
+    expect(fromOptions({ language: "ja" })).toEqual({ ...DEFAULTS, language: "ja" })
     expect(fromOptions({ language: " ja-JP " }).language).toBe("ja-JP")
-    expect(fromOptions({ language: "  " })).toEqual(DIRECTORIES)
+    expect(fromOptions({ language: "  " })).toEqual(DEFAULTS)
     expect(fromOptions({ language: "xx-unknown" }).language).toBe("xx-unknown")
   })
 
@@ -36,7 +36,7 @@ describe("settingsFromOptions language", () => {
 
   test("falls back to the environment, and an option wins over it", () => {
     expect(fromOptions({}, { DEMO_LANGUAGE: " fr " }).language).toBe("fr")
-    expect(fromOptions({}, { DEMO_LANGUAGE: " " })).toEqual(DIRECTORIES)
+    expect(fromOptions({}, { DEMO_LANGUAGE: " " })).toEqual(DEFAULTS)
     expect(fromOptions({ language: "ja" }, { DEMO_LANGUAGE: "fr" }).language).toBe("ja")
   })
 
@@ -53,8 +53,8 @@ describe("the command-line parsers", () => {
 
   test("ignore the language variable", () => {
     const env = { DEMO_LANGUAGE: "ja" }
-    expect(parseSettings([], env, profile)).toEqual({ ...DIRECTORIES, confirm: "harness" })
-    expect(parseToolSettings([], env, profile)).toEqual(DIRECTORIES)
+    expect(parseSettings([], env, profile)).toEqual({ ...DEFAULTS, confirm: "harness" })
+    expect(parseToolSettings([], env, profile)).toEqual(DEFAULTS)
   })
 })
 

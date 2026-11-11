@@ -28,11 +28,14 @@ describe("settingVariables", () => {
       "DEMO_STATE_DIR",
       "DEMO_DOWNLOAD_DIR",
       "DEMO_SEND_DIRS",
+      "DEMO_NOTE_TEXT",
     ])
   })
 
   test("uses the package's own prefix by default", () => {
-    expect(settingVariables()).toEqual(settingVariables({ ...profile, envPrefix: PROJECT.envPrefix }))
+    expect(settingVariables()).toEqual(
+      settingVariables({ ...profile, envPrefix: PROJECT.envPrefix, options: PROJECT.options }),
+    )
   })
 })
 
@@ -53,6 +56,7 @@ describe("parseSettings", () => {
       state_dir: expect.any(String),
       download_dir: expect.any(String),
       send_dirs: [],
+      options: {},
     })
   })
 
@@ -88,6 +92,7 @@ describe("parseSettings", () => {
       state_dir: "/custom/state",
       download_dir: "/custom/downloads",
       send_dirs: ["/custom/a", resolve(homedir(), "b")],
+      options: {},
     })
   })
 
@@ -112,6 +117,7 @@ describe("parseSettings", () => {
       state_dir: "/custom/state",
       download_dir: resolve(homedir(), "saved"),
       send_dirs: ["/custom/send"],
+      options: {},
     })
   })
 
@@ -136,6 +142,7 @@ describe("parseSettings", () => {
       state_dir: "/env/state",
       download_dir: "/env/downloads",
       send_dirs: ["/env/a", "/env/b"],
+      options: {},
     })
   })
 
@@ -208,6 +215,7 @@ describe("parseSettings", () => {
       state_dir: "/flag/state",
       download_dir: "/flag/downloads",
       send_dirs: ["/flag/send"],
+      options: {},
     })
   })
 
@@ -217,6 +225,7 @@ describe("parseSettings", () => {
       state_dir: expect.any(String),
       download_dir: expect.any(String),
       send_dirs: [],
+      options: {},
     })
   })
 
@@ -328,7 +337,12 @@ describe("parseDirectorySettings", () => {
 
 describe("parseToolSettings", () => {
   test("reads the tool settings and gives no confirm setting", () => {
-    expect(parseTool([])).toEqual({ state_dir: expect.any(String), download_dir: expect.any(String), send_dirs: [] })
+    expect(parseTool([])).toEqual({
+      state_dir: expect.any(String),
+      download_dir: expect.any(String),
+      send_dirs: [],
+      options: {},
+    })
     expect(
       parseTool(
         ["--toolsets=gamma", "--read-only", "--tools", "a", "--state-dir=/tool/state", "--download-dir=/tool/files"],
@@ -342,6 +356,7 @@ describe("parseToolSettings", () => {
       state_dir: "/tool/state",
       download_dir: "/tool/files",
       send_dirs: [],
+      options: {},
     })
   })
 
@@ -355,6 +370,7 @@ describe("parseToolSettings", () => {
       state_dir: expect.any(String),
       download_dir: expect.any(String),
       send_dirs: [],
+      options: {},
     })
   })
 })
