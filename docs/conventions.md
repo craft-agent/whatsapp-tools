@@ -334,6 +334,17 @@ Every entry point takes the same settings:
 - **`download_dir`**: where received files are saved (see "Files").
 - **`send_dirs`**: the directories files may be sent from besides the working
   directory (see "Files").
+- **Options** are the package's own settings, the ones the tools themselves
+  read, listed in `options` in `src/project.ts` (and `OPTIONS` in the Hermes
+  plugin's `project.py`), each mapping a snake_case name to its type (`text`,
+  `boolean`, `number` or `list`). Its flag is the name with `_` as `-` (a
+  `boolean` flag takes no value), its variable is `<envPrefix>_<NAME>`
+  uppercased, and its plugin option or setting is the name itself. A flag wins
+  over its variable, an option over its variable, and a blank text or empty
+  list counts as unset. They reach a tool as `context.options`, keyed by name,
+  and one that is not given is absent: a neutral default means unset, and the
+  tool then does nothing extra. A tool reads an option when it runs, so a
+  change applies on the next call.
 
 ## Skills
 
@@ -376,7 +387,9 @@ Every entry point takes the same settings:
   the call writes to.
 - `execute(args, context)` gets the working directory, an abort signal, an
   optional `ownDir` (the directory the tools are installed in, never the
-  working tree) and an optional `confirm(request) => Promise<boolean>` hook.
+  working tree), the values of the package's own settings as `options` (see
+  "Toolsets and settings"; `describe` and `targets` get them too) and an
+  optional `confirm(request) => Promise<boolean>` hook.
   Nothing in it names a harness. An entry point supplies `confirm` when the
   `elicitation` setting is on; without it the harness's approval stands, and a
   tool that needs a confirmation treats a missing hook as the harness having
