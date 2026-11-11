@@ -1,4 +1,4 @@
-import { inputJsonSchema, type ToolSpec, type Translator } from "../core"
+import { inputJsonSchema, type ToolOptions, type ToolSpec, type Translator } from "../core"
 import { DESCRIBE_TIMEOUT_MS } from "../entry/description"
 import { approvalOf } from "../entry/pin"
 import {
@@ -49,12 +49,18 @@ function workingDir(context: V1ToolContext): string {
   return context.worktree && context.worktree !== "/" ? context.worktree : context.directory
 }
 
-function v1Tool(spec: ToolSpec, ownDir: string | undefined, directories: PluginDirectories, t: Translator): V1Tool {
+function v1Tool(
+  spec: ToolSpec,
+  ownDir: string | undefined,
+  directories: PluginDirectories,
+  t: Translator,
+  options: ToolOptions,
+): V1Tool {
   return {
     description: `${spec.description}${describeArguments(spec)}`,
     args: spec.input.shape,
     async execute(args: unknown, context: V1ToolContext): Promise<string> {
-      const ctx = { cwd: workingDir(context), ownDir, ...directories, signal: context.abort }
+      const ctx = { cwd: workingDir(context), ownDir, ...directories, options, signal: context.abort }
       let pin: string | undefined
       if (needsPermission(spec)) {
         const approval = await approvalOf(spec, args, ctx, DESCRIBE_TIMEOUT_MS, t)
@@ -81,9 +87,9 @@ function v1Tool(spec: ToolSpec, ownDir: string | undefined, directories: PluginD
  */
 export function createV1Server(specs: ToolSpec[], deps: PluginDeps = {}): OpenCodePlugin["server"] {
   return async function server(_input: unknown, options?: PluginOptions): Promise<V1Hooks> {
-    const { tools, directories, translator } = selectedTools(specs, options, deps)
+    const { tools, directories, translator, options: toolOptions } = selectedTools(specs, options, deps)
     const tool: V1Hooks["tool"] = {}
-    for (const spec of tools) tool[spec.id] = v1Tool(spec, deps.ownDir, directories, translator)
+    for (const spec of tools) tool[spec.id] = v1Tool(spec, deps.ownDir, directories, translator, toolOptions)
     return { tool }
   }
 }

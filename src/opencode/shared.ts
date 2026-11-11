@@ -4,6 +4,7 @@ import {
   isToolError,
   selectTools,
   type ToolContext,
+  type ToolOptions,
   type ToolSpec,
   type Translations,
   type Translator,
@@ -69,13 +70,14 @@ export function selectedTools(
   specs: ToolSpec[],
   options: PluginOptions | undefined,
   deps: PluginDeps,
-): { tools: ToolSpec[]; directories: PluginDirectories; translator: Translator } {
+): { tools: ToolSpec[]; directories: PluginDirectories; translator: Translator; options: ToolOptions } {
   const profile = deps.profile ?? PROJECT_PROFILE
   const settings = settingsFromOptions(options, deps.env ?? process.env, profile)
   return {
     tools: selectTools(specs, settings, profile.toolsets),
     directories: { ...toolDirectories(settings), programName: PROJECT.name },
     translator: promptTranslator(deps.translations ?? {}, settings.language),
+    options: settings.options,
   }
 }
 

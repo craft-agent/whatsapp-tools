@@ -314,17 +314,21 @@ const DIRECTORY_OPTION_NAMES: readonly OptionName[] = ["state_dir", "download_di
 
 /**
  * Reads only the directory settings (`state_dir`, `download_dir`, `send_dirs`)
- * from a command line that takes no other setting, for commands that resolve
- * what a call writes to: any other settings flag is `invalid_argument`. A flag
- * wins over its environment variable.
+ * and the package's own settings (`options`) from a command line that takes
+ * no other setting, for commands that resolve what a call writes to: any
+ * other settings flag is `invalid_argument`. A flag wins over its environment
+ * variable.
  */
 export function parseDirectorySettings(
   argv: string[],
   env: Record<string, string | undefined>,
   profile: EntryProfile = PROJECT_PROFILE,
-): DirectorySettings {
+): DirectorySettings & { options: ToolOptions } {
   const flags = readFlags(argv, profile)
-  const other = Object.keys(flags).find((name) => !(DIRECTORY_OPTION_NAMES as readonly string[]).includes(name))
+  const known = profileOptions(profile)
+  const other = Object.keys(flags).find(
+    (name) => !(DIRECTORY_OPTION_NAMES as readonly string[]).includes(name) && !(name in known),
+  )
   if (other !== undefined)
     throw new ToolError("invalid_argument", `Option ${settingOptions(profile)[other]!.flag} is not available here.`)
   const value = (name: OptionName): SettingText | undefined =>
@@ -333,6 +337,7 @@ export function parseDirectorySettings(
     state_dir: resolveStateDir(value("state_dir"), env, profile),
     download_dir: resolveDownloadDir(value("download_dir"), env, profile),
     send_dirs: resolveSendDirs(listedDirectories(value("send_dirs")), env),
+    options: optionsFrom(flags, env, profile),
   }
 }
 

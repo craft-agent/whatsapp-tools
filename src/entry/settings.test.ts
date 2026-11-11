@@ -318,11 +318,12 @@ describe("parseDirectorySettings", () => {
         env,
         profile,
       ),
-    ).toEqual({ state_dir: "/flag/state", download_dir: "/flag/files", send_dirs: ["/flag/a"] })
+    ).toEqual({ state_dir: "/flag/state", download_dir: "/flag/files", send_dirs: ["/flag/a"], options: {} })
     expect(parseDirectorySettings([], env, profile)).toEqual({
       state_dir: "/env/state",
       download_dir: "/env/files",
       send_dirs: ["/env/a", "/env/b"],
+      options: {},
     })
   })
 

@@ -1,4 +1,4 @@
-import type { ToolSpec, Translator } from "../core"
+import type { ToolOptions, ToolSpec, Translator } from "../core"
 import { DESCRIBE_TIMEOUT_MS } from "../entry/description"
 import { approvalOf } from "../entry/pin"
 import { loadSkills } from "./skills"
@@ -28,6 +28,7 @@ function v2Tool(
   ownDir: string | undefined,
   directories: PluginDirectories,
   t: Translator,
+  options: ToolOptions,
 ): V2Tool {
   return {
     name: spec.id,
@@ -36,7 +37,7 @@ function v2Tool(
     output: spec.output,
     async execute(input: unknown, { sessionID, signal }: V2ToolContext): Promise<V2ToolResult> {
       const directory = await sessionDirectory(ctx, sessionID)
-      const toolContext = { cwd: directory ?? process.cwd(), ownDir, ...directories, signal }
+      const toolContext = { cwd: directory ?? process.cwd(), ownDir, ...directories, options, signal }
       let pin: string | undefined
       if (needsPermission(spec)) {
         if (directory === undefined) {
@@ -72,7 +73,7 @@ export function createV2Setup(specs: ToolSpec[], deps: PluginDeps = {}): OpenCod
   return async function setup(ctx: V2Context): Promise<void> {
     const selection = selectedTools(specs, ctx.options, deps)
     const tools = selection.tools.map((spec) =>
-      v2Tool(ctx, spec, deps.ownDir, selection.directories, selection.translator),
+      v2Tool(ctx, spec, deps.ownDir, selection.directories, selection.translator, selection.options),
     )
     const skills =
       deps.skillsDir === undefined
