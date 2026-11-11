@@ -101,7 +101,8 @@ agy plugin install https://github.com/craft-agent/whatsapp-tools/tree/v<version>
 
 ### Hermes Agent
 
-Hermes installs a commit, not a tag, and the plugin installs disabled:
+The plugin needs Hermes Agent 0.22 or later. Hermes installs a commit, not a
+tag, and the plugin installs disabled:
 
 ```sh
 hermes plugins install craft-agent/whatsapp-tools --ref <sha>
@@ -205,6 +206,9 @@ service syncs again:
   [Settings](#settings)) needs `tool_timeout_sec = 330`.
 - **Antigravity** stops a call after 180 s. Give the server
   `"timeoutSeconds": 330` in its MCP configuration.
+- **Hermes** gives the plugin's calls 150 s, and 330 s to
+  `whatsapp_history_backfill`, `whatsapp_file_save` and `whatsapp_file_send`;
+  nothing needs setting.
 
 ### Files (`files`)
 
@@ -356,7 +360,8 @@ Where a write is asked about, and where it is not:
 ## Settings
 
 Every entry point takes the same settings. A flag wins over its environment
-variable, and an option or setting wins over the variable too.
+variable, and an option or setting wins over the variable too, except in
+Hermes, noted below.
 
 | Setting         | Flag              | Variable                       | Meaning                                                                           |
 | --------------- | ----------------- | ------------------------------ | --------------------------------------------------------------------------------- |
@@ -397,8 +402,12 @@ same way. Where each harness reads them:
   Without a `language` setting, the approval card follows Hermes's own
   `display.language` (or `HERMES_LANGUAGE`), the language of its approval
   buttons, and else stays in English. The plugin passes its own environment
-  to the command line it runs, so the variables work too. A running gateway keeps the environment it started with;
-  restart it (`hermes gateway restart`) after changing one.
+  to the command line it runs, so the variables work too. A setting that is
+  off or empty (`read_only: false`, `tools: []`, `exclude_tools: []`,
+  `send_dirs: []`) passes nothing, so a variable set in that environment
+  still applies: `WHATSAPP_TOOLS_READ_ONLY=true` keeps the plugin read-only
+  whatever the setting says. A running gateway keeps the environment it
+  started with; restart it (`hermes gateway restart`) after changing one.
 
 - **Claude Code, Grok Build and Antigravity** start the plugin's server without
   flags and pass it the client's environment, so set the variables in the
@@ -463,6 +472,15 @@ macOS, `brew install openclaw/tap/wacli`; elsewhere, a release binary. macOS
 and Linux are supported; Windows is
 [#11](https://github.com/craft-agent/whatsapp-tools/issues/11).
 
+The commands come with the npm package, apart from any harness plugin: a
+plugin gives the tools, not a command on your `PATH`. Install the package
+globally, at the version of the plugin you use, so that the service it
+installs keeps a stable path:
+
+```sh
+npm install -g @craftsamo/whatsapp-tools@<version>
+```
+
 ```sh
 # On the phone, WhatsApp > Linked devices > Link a device, then scan the QR.
 whatsapp-tools-cli pair --account work
@@ -473,7 +491,8 @@ whatsapp-tools-cli service status
 ```
 
 `--account` may be left out when only one label exists (`pair` names a new
-one `default`), and every command takes `--state-dir` like the tools. With
+one `default`), except by `remove`, which always needs it; every command takes
+`--state-dir` like the tools. With
 several labels, add `--account work` to `service status` too.
 
 Every command below follows `whatsapp-tools-cli`:
