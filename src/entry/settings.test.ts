@@ -307,6 +307,12 @@ describe("parseStateDir", () => {
     expect(failure(() => parseStateDir(["--download-dir", "/x"], {}, profile)).message).toContain("--download-dir")
     expect(failure(() => parseStateDir(["--tools", "a"], {}, profile)).message).toContain("--tools")
   })
+
+  test("refuses a tool option flag, naming it", () => {
+    expect(failure(() => parseStateDir(["--note-text", "x"], {}, profile)).message).toBe(
+      "Option --note-text is not available here.",
+    )
+  })
 })
 
 describe("parseDirectorySettings", () => {
@@ -325,6 +331,13 @@ describe("parseDirectorySettings", () => {
       send_dirs: ["/env/a", "/env/b"],
       options: {},
     })
+  })
+
+  test("reads the package's own options beside the directories, from the flag or the environment", () => {
+    expect(parseDirectorySettings(["--note-text", "flag"], { DEMO_NOTE_TEXT: "env" }, profile).options).toEqual({
+      note_text: "flag",
+    })
+    expect(parseDirectorySettings([], { DEMO_NOTE_TEXT: "env" }, profile).options).toEqual({ note_text: "env" })
   })
 
   test("refuses any other settings flag, naming it", () => {
