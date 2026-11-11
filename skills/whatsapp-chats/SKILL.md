@@ -1,6 +1,8 @@
 ---
 name: whatsapp-chats
 description: "Use when finding a WhatsApp chat, reading its messages, searching what people wrote, reading the messages around one, or asking the phone for a chat's older messages."
+metadata:
+  toolset: chats
 ---
 
 # Chats and messages

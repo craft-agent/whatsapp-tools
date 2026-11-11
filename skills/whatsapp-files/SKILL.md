@@ -1,6 +1,8 @@
 ---
 name: whatsapp-files
 description: "Use when saving the file someone sent in a WhatsApp message to disk, looking inside a received archive, unpacking one, or sending one or more files from disk to a WhatsApp chat."
+metadata:
+  toolset: files
 ---
 
 # Files

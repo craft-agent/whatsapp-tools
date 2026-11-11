@@ -1,6 +1,8 @@
 ---
 name: whatsapp-account
 description: "Use when checking which WhatsApp accounts are paired, whether syncing is healthy, or what setup needs attention."
+metadata:
+  toolset: account
 ---
 
 # Account status
