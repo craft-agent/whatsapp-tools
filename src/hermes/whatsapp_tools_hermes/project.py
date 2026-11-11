@@ -11,8 +11,16 @@ CLI_NAME = "whatsapp-tools-cli"
 #: The prefix skills start with: skills named ``<SKILL_PREFIX><topic>`` are registered without it.
 SKILL_PREFIX = "whatsapp-"
 
-#: The emoji each toolset is shown with; empty by default until a project adds its own.
-TOOLSET_EMOJI: dict[str, str] = {"account": "🪪", "chats": "💬", "contacts": "📇", "history": "🕰️", "files": "📎"}
+#: The emoji each toolset is shown with.
+TOOLSET_EMOJI: dict[str, str] = {
+    "account": "🪪",
+    "chats": "💬",
+    "contacts": "📇",
+    "history": "🕰️",
+    "files": "📎",
+    "sends": "📤",
+    "actions": "🔧",
+}
 
 #: How long one call of a tool may take, in seconds, for a tool that may take longer than the default.
 #: ``whatsapp_history_backfill`` waits up to 300 seconds for the phone, so it gets a margin above that;
