@@ -313,6 +313,33 @@ Every entry point takes the same settings:
 - **`send_dirs`**: the directories files may be sent from besides the working
   directory (see "Files").
 
+## Skills
+
+- **A skill names the toolset it documents**, under `metadata` in its
+  frontmatter:
+
+  ```yaml
+  metadata:
+    toolset: notes
+  ```
+
+  The Agent Skills format allows no other top-level key, and its validators
+  refuse one. The value is a plain or quoted one-line scalar; any other form
+  reads as no link. A folder's name never links a skill, so every entry point
+  reads the link the same way without knowing the package's toolsets.
+
+- **A native plugin registers a linked skill only when its toolset is on**:
+  when the settings register at least one tool of that toolset, from the same
+  selection the tools come from. A skill that describes tools the model does
+  not have invites calls that fail. So `read_only`, `tools` and
+  `exclude_tools` count too: a toolset whose every tool is left out takes its
+  skill with it. A skill with no link is always registered.
+- **Plugins that install the skill folder whole cannot follow the settings**:
+  Claude Code, Codex, Grok Build and Antigravity load every skill, since the
+  settings reach only the MCP server.
+- **Every linked skill names one of the package's toolsets**; a test checks
+  it, since a misspelt link would hide the skill wherever it is filtered.
+
 ## The core contract
 
 - A tool spec declares its ID, description, argument schema, output schema,
