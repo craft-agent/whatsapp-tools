@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "description": "WhatsApp tools for coding agents: chats, messages, contacts, history, received files and sends.",
   "author": "craftsamo",
-  "license": "MIT",
+  "license": "LicenseRef-AGPL-3.0-Commons-Clause",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/craft-agent/whatsapp-tools.git"

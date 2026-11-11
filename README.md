@@ -528,4 +528,4 @@ How a release is made is in [`RELEASING.md`](RELEASING.md).
 
 ## License
 
-[MIT](LICENSE)
+[AGPL-3.0 with Commons Clause](LICENSE)
