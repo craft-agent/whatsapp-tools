@@ -1,6 +1,8 @@
 ---
 name: whatsapp-sends
 description: "Use when sending a WhatsApp text to a person or a group, replying to a message, or when a send fails or its outcome is unclear."
+metadata:
+  toolset: sends
 ---
 
 # Sends

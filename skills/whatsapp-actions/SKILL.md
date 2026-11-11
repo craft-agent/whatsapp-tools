@@ -1,6 +1,8 @@
 ---
 name: whatsapp-actions
 description: "Use when the user asks to edit, delete or react to a WhatsApp message, or to archive, pin, mute or mark as read or unread a WhatsApp chat, or when such an action fails or its outcome is unclear."
+metadata:
+  toolset: actions
 ---
 
 # Actions

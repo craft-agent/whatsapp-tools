@@ -1,6 +1,8 @@
 ---
 name: whatsapp-contacts
 description: "Use when finding a WhatsApp contact or its id, or checking whether a phone number is on WhatsApp before a first message."
+metadata:
+  toolset: contacts
 ---
 
 # Contacts
