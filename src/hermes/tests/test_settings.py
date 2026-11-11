@@ -118,6 +118,53 @@ class SettingsFlagsTest(unittest.TestCase):
                 self.flags(**config)
 
 
+class OptionFlagsTest(unittest.TestCase):
+    def test_the_starter_has_no_tool_options(self) -> None:
+        self.assertEqual(project.OPTIONS, {})
+
+    def test_each_kind_becomes_a_flag(self) -> None:
+        options = {"note_text": "text", "note_pinned": "boolean", "note_count": "number", "note_tags": "list"}
+        ctx = StubContext(
+            {"note_text": " hello \n", "note_pinned": True, "note_count": -2.5, "note_tags": [" a ", "", " b"]}
+        )
+        expected = ["--note-text", "hello", "--note-pinned", "--note-count", "-2.5", "--note-tags", "a,b"]
+        self.assertEqual(settings.option_flags(ctx, options), expected)
+        with mock.patch.object(project, "OPTIONS", options):
+            self.assertEqual(settings.settings_flags(ctx), expected)
+
+    def test_absent_and_empty_values_give_no_flags(self) -> None:
+        options = {"note_text": "text", "note_pinned": "boolean", "note_count": "number", "note_tags": "list"}
+        for config in (
+            {},
+            {"note_text": None},
+            {"note_text": " \t", "note_pinned": False, "note_tags": [" ", ""]},
+            {"note_tags": []},
+        ):
+            with self.subTest(config=config):
+                self.assertEqual(settings.option_flags(StubContext(config), options), [])
+
+    def test_zero_is_not_absent(self) -> None:
+        self.assertEqual(
+            settings.option_flags(StubContext({"note_count": 0}), {"note_count": "number"}), ["--note-count", "0"]
+        )
+
+    def test_wrong_types_are_refused(self) -> None:
+        for kind, values in (
+            ("text", [True, 3, []]),
+            ("boolean", ["true", 1, []]),
+            ("number", [True, "3", [], float("nan"), float("inf"), -float("inf")]),
+            ("list", ["a", [1], ["a,b"], True]),
+            ("unknown", ["value"]),
+        ):
+            for value in values:
+                with self.subTest(kind=kind, value=value), self.assertRaises(settings.SettingsError):
+                    settings.option_flags(StubContext({"note_text": value}), {"note_text": kind})
+
+    def test_option_flags_excludes_selection_and_language(self) -> None:
+        ctx = StubContext({"note_text": "hello", "read_only": True, "toolsets": ["things"], "language": "ja"})
+        self.assertEqual(settings.option_flags(ctx, {"note_text": "text"}), ["--note-text", "hello"])
+
+
 class LanguageSettingTest(unittest.TestCase):
     def language(self, **config: Any) -> str | None:
         return settings.language_setting(StubContext(config))

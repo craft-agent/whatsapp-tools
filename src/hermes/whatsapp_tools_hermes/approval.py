@@ -158,6 +158,7 @@ def resolve_target(
     flags: list[str] | None = None,
     language: str | None = None,
     harness_language: Callable[[], str | None] = lambda: display_language(),
+    option_flags: list[str] | None = None,
 ) -> Target:
     """What ``target`` prints: ``["*"]`` for resources that cannot be told, no description for one absent or bad.
 
@@ -173,6 +174,7 @@ def resolve_target(
                 agent_cwd(),
                 *(flags or []),
                 *language_flags(language, _known(harness_language)),
+                *(option_flags or []),
             ],
             stdin=json.dumps(run_arguments(args)),
             timeout=TARGET_TIMEOUT_SECONDS,
@@ -226,6 +228,7 @@ def make_hook(
     language: str | None = None,
     harness_language: Callable[[], str | None] = lambda: display_language(),
     pins: PinStash | None = None,
+    option_flags: list[str] | None = None,
 ) -> Callable[..., dict[str, str] | None]:
     """The ``pre_tool_call`` hook: it sends every call of these tools but a read to the person's approval.
 
@@ -241,7 +244,7 @@ def make_hook(
         tool = by_id.get(tool_name)
         if tool is None or tool.write_class == READ_CLASS:
             return None
-        target = resolve_target(runtime, tool.id, args, flags, language, harness_language)
+        target = resolve_target(runtime, tool.id, args, flags, language, harness_language, option_flags)
         call = pin_key(kwargs)
         if pins is not None and call is not None:
             # An entry left by a call that never reached the pin hook must not stand for this one.
@@ -304,6 +307,7 @@ def register_approval(
     tools: list[ToolInfo],
     flags: list[str] | None = None,
     language: str | None = None,
+    option_flags: list[str] | None = None,
 ) -> None:
     """Hold every non-read call of ``tools`` for approval, with the card in ``language`` (the plugin's setting).
 
@@ -313,6 +317,14 @@ def register_approval(
     pins = PinStash()
     ctx.register_hook(
         HOOK_NAME,
-        make_hook(runtime, tools, flags, surface=lambda: session_surface(ctx), language=language, pins=pins),
+        make_hook(
+            runtime,
+            tools,
+            flags,
+            surface=lambda: session_surface(ctx),
+            language=language,
+            pins=pins,
+            option_flags=option_flags,
+        ),
     )
     ctx.register_hook(HOOK_NAME, make_pin_hook(tools, pins))

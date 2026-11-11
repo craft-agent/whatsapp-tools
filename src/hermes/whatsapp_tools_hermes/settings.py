@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 from collections.abc import Mapping
 from typing import Any
 
@@ -104,6 +105,38 @@ def emoji_setting(ctx: PluginContext, defaults: Mapping[str, str] | None = None)
     return merged
 
 
+def _option_flag(name: str, kind: str, value: Any) -> list[str]:
+    flag = f"--{name.replace('_', '-')}"
+    if kind == "text":
+        if not isinstance(value, str):
+            raise SettingsError(f'setting "{name}" must be text')
+        return [flag, text] if (text := value.strip()) else []
+    if kind == "boolean":
+        if not isinstance(value, bool):
+            raise SettingsError(f'setting "{name}" must be true or false')
+        return [flag] if value else []
+    if kind == "number":
+        if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value):
+            raise SettingsError(f'setting "{name}" must be a finite number')
+        return [flag, str(value)]
+    if kind == "list":
+        if not isinstance(value, list) or not all(isinstance(item, str) and "," not in item for item in value):
+            raise SettingsError(f'setting "{name}" must be a list of strings without commas')
+        items = [item.strip() for item in value if item.strip()]
+        return [flag, ",".join(items)] if items else []
+    raise SettingsError(f'unknown option type "{kind}" for "{name}"')
+
+
+def option_flags(ctx: PluginContext, options: Mapping[str, str] | None = None) -> list[str]:
+    """The package's tool options as flags, with absent settings left to the command line's environment."""
+    flags: list[str] = []
+    for name, kind in (project.OPTIONS if options is None else options).items():
+        value = ctx.get_config(name)
+        if value is not None:
+            flags += _option_flag(name, kind, value)
+    return flags
+
+
 def settings_flags(ctx: PluginContext) -> list[str]:
     """Read the plugin's settings and return the flags that say the same.
 
@@ -135,4 +168,4 @@ def settings_flags(ctx: PluginContext) -> list[str]:
 
     flags += directory_flags(ctx)
 
-    return flags
+    return [*flags, *option_flags(ctx)]

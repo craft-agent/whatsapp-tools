@@ -22,6 +22,11 @@ TOOLSET_EMOJI: dict[str, str] = {
     "actions": "🔧",
 }
 
+#: The settings the tools themselves read, beside the ones every plugin takes: each snake_case name and its type
+#: (``text``, ``boolean``, ``number`` or ``list``), as in ``src/project.ts``. A setting ``a_b`` becomes the flag
+#: ``--a-b`` of the command line.
+OPTIONS: dict[str, str] = {}
+
 #: How long one call of a tool may take, in seconds, for a tool that may take longer than the default.
 #: ``whatsapp_history_backfill`` waits up to 300 seconds for the phone, so it gets a margin above that;
 #: ``whatsapp_file_save`` may wait 150 seconds for WhatsApp's server and then 150 for the phone;
@@ -34,6 +39,7 @@ TOOL_TIMEOUT_SECONDS: dict[str, float] = {
 
 __all__ = [
     "CLI_NAME",
+    "OPTIONS",
     "PLUGIN_NAME",
     "SKILL_PREFIX",
     "TOOLSET_EMOJI",
