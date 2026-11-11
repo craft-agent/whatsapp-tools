@@ -356,17 +356,18 @@ Where a write is asked about, and where it is not:
 Every entry point takes the same settings. A flag wins over its environment
 variable, and an option or setting wins over the variable too.
 
-| Setting         | Flag              | Variable                       | Meaning                                                                       |
-| --------------- | ----------------- | ------------------------------ | ----------------------------------------------------------------------------- |
-| `toolsets`      | `--toolsets`      | `WHATSAPP_TOOLS_TOOLSETS`      | the toolsets that are on, or `all`; default those `src/project.ts` names      |
-| `read_only`     | `--read-only`     | `WHATSAPP_TOOLS_READ_ONLY`     | registers no tool that writes; wins over every other setting                  |
-| `tools`         | `--tools`         | `WHATSAPP_TOOLS_TOOLS`         | single tools to add by ID, whatever their toolset                             |
-| `exclude_tools` | `--exclude-tools` | `WHATSAPP_TOOLS_EXCLUDE_TOOLS` | single tools to remove by ID; wins over `tools` and `toolsets`                |
-| `confirm`       | `--confirm`       | `WHATSAPP_TOOLS_CONFIRM`       | MCP server only: `harness` (default) or `elicitation`, as the conventions say |
-| `language`      | `--language`      | `WHATSAPP_TOOLS_LANGUAGE`      | native plugins only: the approval prompt's language, such as `ja`             |
-| `state_dir`     | `--state-dir`     | `WHATSAPP_TOOLS_STATE_DIR`     | where every label's state lives; default `$XDG_STATE_HOME/whatsapp-tools`     |
-| `download_dir`  | `--download-dir`  | `WHATSAPP_TOOLS_DOWNLOAD_DIR`  | where received files are saved; default `~/Downloads/whatsapp-tools`          |
-| `send_dirs`     | `--send-dirs`     | `WHATSAPP_TOOLS_SEND_DIRS`     | the directories files may be sent from, besides the working directory         |
+| Setting         | Flag              | Variable                       | Meaning                                                                           |
+| --------------- | ----------------- | ------------------------------ | --------------------------------------------------------------------------------- |
+| `toolsets`      | `--toolsets`      | `WHATSAPP_TOOLS_TOOLSETS`      | the toolsets that are on, or `all`; default those `src/project.ts` names          |
+| `read_only`     | `--read-only`     | `WHATSAPP_TOOLS_READ_ONLY`     | registers no tool that writes; wins over every other setting                      |
+| `tools`         | `--tools`         | `WHATSAPP_TOOLS_TOOLS`         | single tools to add by ID, whatever their toolset                                 |
+| `exclude_tools` | `--exclude-tools` | `WHATSAPP_TOOLS_EXCLUDE_TOOLS` | single tools to remove by ID; wins over `tools` and `toolsets`                    |
+| `confirm`       | `--confirm`       | `WHATSAPP_TOOLS_CONFIRM`       | MCP server only: `harness` (default) or `elicitation`, as the conventions say     |
+| `language`      | `--language`      | `WHATSAPP_TOOLS_LANGUAGE`      | native plugins only: the approval prompt's language, such as `ja`                 |
+| `emoji`         | —                 | —                              | Hermes only: the emoji shown beside each toolset, by toolset name (`""` for none) |
+| `state_dir`     | `--state-dir`     | `WHATSAPP_TOOLS_STATE_DIR`     | where every label's state lives; default `$XDG_STATE_HOME/whatsapp-tools`         |
+| `download_dir`  | `--download-dir`  | `WHATSAPP_TOOLS_DOWNLOAD_DIR`  | where received files are saved; default `~/Downloads/whatsapp-tools`              |
+| `send_dirs`     | `--send-dirs`     | `WHATSAPP_TOOLS_SEND_DIRS`     | the directories files may be sent from, besides the working directory             |
 
 Lists are comma-separated in a flag or a variable. Where each harness reads them:
 

@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from typing import Any
 
+from . import project
 from .context import PluginContext
 
 #: The value of ``toolsets`` that turns on every toolset.
@@ -86,6 +88,20 @@ def language_setting(ctx: PluginContext) -> str | None:
     """
     value = ctx.get_config("language")
     return (value.strip() or None) if isinstance(value, str) else None
+
+
+def emoji_setting(ctx: PluginContext, defaults: Mapping[str, str] | None = None) -> dict[str, str]:
+    """The emoji per toolset: ``defaults`` (``project.TOOLSET_EMOJI``) with string entries of ``emoji`` merged over it.
+
+    A setting that is not a ``dict``, and an entry whose key or value is not a
+    ``str``, are ignored so a typo never takes every tool away. It is no flag
+    of ``settings_flags``.
+    """
+    merged = dict(project.TOOLSET_EMOJI if defaults is None else defaults)
+    value = ctx.get_config("emoji")
+    if isinstance(value, dict):
+        merged.update({key: item for key, item in value.items() if isinstance(key, str) and isinstance(item, str)})
+    return merged
 
 
 def settings_flags(ctx: PluginContext) -> list[str]:
