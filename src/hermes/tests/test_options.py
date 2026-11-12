@@ -55,6 +55,18 @@ class ToolOptionsTest(FakeCliCase):
             ["target", "demo_thing_create", "--cwd", CWD, "--language=ja", "--note-text", "hello"],
         )
 
+    def test_the_directory_settings_reach_list_run_and_target(self) -> None:
+        self.reply("run demo_thing_create", stdout='{"result":{}}')
+        self.reply("target demo_thing_create", stdout='{"resources":["north"]}')
+        ctx = self.register({"state_dir": "/s", "download_dir": " /d ", "send_dirs": ["/a", "~/b"], "language": "ja"})
+        ctx.tools["demo_thing_create"]["handler"]({"target": "north"})
+        ctx.hooks[0][1](tool_name="demo_thing_create", args={"target": "north"})
+        options = ["--state-dir", "/s", "--download-dir", "/d", "--send-dirs", "/a,~/b"]
+        calls = self.calls()
+        self.assertEqual(calls[0]["argv"], ["list", *options])
+        self.assertEqual(calls[1]["argv"], ["run", "demo_thing_create", "--cwd", CWD, *options])
+        self.assertEqual(calls[2]["argv"], ["target", "demo_thing_create", "--cwd", CWD, "--language=ja", *options])
+
     def test_wrong_option_types_register_nothing(self) -> None:
         with mock.patch.object(project, "OPTIONS", {"note_count": "number"}):
             ctx = self.register({"note_count": True})

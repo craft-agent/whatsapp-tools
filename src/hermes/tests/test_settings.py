@@ -42,6 +42,25 @@ class SettingsFlagsTest(unittest.TestCase):
     def test_false_and_empty_settings_give_no_flag(self) -> None:
         self.assertEqual(self.flags(toolsets=[], read_only=False, tools=[], exclude_tools=[]), [])
 
+    def test_directory_settings_become_flags_after_the_selection(self) -> None:
+        self.assertEqual(
+            self.flags(state_dir="/s", download_dir="/d", send_dirs=["/a", "~/b"]),
+            ["--state-dir", "/s", "--download-dir", "/d", "--send-dirs", "/a,~/b"],
+        )
+        self.assertEqual(self.flags(state_dir="/custom/path"), ["--state-dir", "/custom/path"])
+        self.assertEqual(self.flags(download_dir="/custom/files"), ["--download-dir", "/custom/files"])
+        self.assertEqual(self.flags(send_dirs=["/a"], read_only=True), ["--read-only", "--send-dirs", "/a"])
+
+    def test_absent_blank_and_empty_directory_settings_give_no_flag(self) -> None:
+        for config in (
+            {"state_dir": None},
+            {"state_dir": "  ", "download_dir": ""},
+            {"send_dirs": []},
+            {"send_dirs": ["", "  "]},
+        ):
+            with self.subTest(config=config):
+                self.assertEqual(self.flags(**config), [])
+
     def test_a_wrong_type_is_refused(self) -> None:
         for config in (
             {"toolsets": "things"},
@@ -50,7 +69,14 @@ class SettingsFlagsTest(unittest.TestCase):
             {"tools": "demo_thing_read"},
             {"exclude_tools": [1]},
             {"state_dir": 123},
+            {"state_dir": True},
+            {"state_dir": []},
             {"download_dir": 123},
+            {"download_dir": []},
+            {"send_dirs": "/a,/b"},
+            {"send_dirs": 123},
+            {"send_dirs": ["/a", 1]},
+            {"send_dirs": ["/a,/b"]},
         ):
             with self.subTest(config=config), self.assertRaises(settings.SettingsError):
                 self.flags(**config)

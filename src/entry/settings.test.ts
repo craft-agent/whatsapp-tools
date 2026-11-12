@@ -3,7 +3,7 @@ import { homedir } from "node:os"
 import { resolve } from "node:path"
 import { PROJECT } from "../project"
 import type { EntryProfile } from "./profile"
-import { forwardedVariables, parseSettings, parseToolSettings, settingVariables } from "./settings"
+import { forwardedVariables, parseSettings, parseToolOptions, parseToolSettings, settingVariables } from "./settings"
 import { failure, profile } from "./settings.testing"
 
 const parse = (argv: string[], env: Record<string, string | undefined> = {}) => parseSettings(argv, env, profile)
@@ -238,6 +238,17 @@ describe("parseSettings", () => {
     })
   })
 
+  test("a blank directory flag counts as unset", () => {
+    const env = { HOME: "/home/user" }
+    expect(parse(["--state-dir", " ", "--download-dir=", "--send-dirs", ","], env)).toEqual({
+      confirm: "harness",
+      state_dir: "/home/user/.local/state/demo-tools",
+      download_dir: "/home/user/Downloads/demo-tools",
+      send_dirs: [],
+      options: {},
+    })
+  })
+
   test("expands ~ in send_dirs and drops a directory named twice", () => {
     const env = { HOME: "/home/user" }
     expect(parse(["--send-dirs", "~/shared,/x,~/shared"], env).send_dirs).toEqual(["/home/user/shared", "/x"])
@@ -303,6 +314,41 @@ describe("parseSettings", () => {
     const none: EntryProfile = { name: "demo-tools", envPrefix: "DEMO", toolsets: { names: [], defaults: [] } }
     expect(failure(() => parseSettings(["--toolsets", "alpha"], {}, none)).message).toContain("no toolsets are defined")
     expect(parseSettings(["--toolsets", "all"], {}, none).toolsets).toBe("all")
+  })
+})
+
+describe("parseToolOptions", () => {
+  test("reads the directory settings, from the flags or the environment", () => {
+    const env = { DEMO_STATE_DIR: "/env/state", DEMO_DOWNLOAD_DIR: "/env/files", DEMO_SEND_DIRS: "/env/a,/env/b" }
+    expect(
+      parseToolOptions(
+        ["--state-dir", "/flag/state", "--download-dir=/flag/files", "--send-dirs=/flag/a,~/b,,/flag/a"],
+        env,
+        profile,
+      ),
+    ).toEqual({
+      state_dir: "/flag/state",
+      download_dir: "/flag/files",
+      send_dirs: ["/flag/a", resolve(homedir(), "b"), "/flag/a"],
+    })
+    expect(parseToolOptions([], env, profile)).toEqual({
+      state_dir: "/env/state",
+      download_dir: "/env/files",
+      send_dirs: ["/env/a", "/env/b"],
+    })
+  })
+
+  test("reads the package's own options beside the directories, from the flag or the environment", () => {
+    expect(parseToolOptions(["--note-text", "flag"], { DEMO_NOTE_TEXT: "env" }, profile)).toEqual({
+      note_text: "flag",
+    })
+    expect(parseToolOptions([], { DEMO_NOTE_TEXT: "env" }, profile)).toEqual({ note_text: "env" })
+  })
+
+  test("refuses any other settings flag, naming it", () => {
+    for (const argv of [["--toolsets", "a"], ["--read-only"], ["--tools", "a"], ["--confirm", "harness"]]) {
+      expect(failure(() => parseToolOptions(argv, {}, profile)).message).toBe(`Unknown option "${argv[0]}".`)
+    }
   })
 })
 

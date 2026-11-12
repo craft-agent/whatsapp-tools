@@ -86,6 +86,17 @@ describe("settingsFromOptions", () => {
     })
   })
 
+  test("a blank directory option counts as unset, and a blank send_dirs item is dropped", () => {
+    const env = { HOME: "/home/user" }
+    expect(fromOptions({ state_dir: " ", download_dir: "", send_dirs: ["", "  "] }, env)).toEqual({
+      state_dir: "/home/user/.local/state/demo-tools",
+      download_dir: "/home/user/Downloads/demo-tools",
+      send_dirs: [],
+      options: {},
+    })
+    expect(fromOptions({ send_dirs: ["/a", " ", "/b"] }, env).send_dirs).toEqual(["/a", "/b"])
+  })
+
   test("an option of the wrong type is rejected, naming it", () => {
     expect(failure(() => fromOptions({ toolsets: "alpha" })).message).toContain('"toolsets"')
     expect(failure(() => fromOptions({ toolsets: [1] })).message).toContain('"toolsets"')
