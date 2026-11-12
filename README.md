@@ -392,20 +392,22 @@ Hermes, noted below.
 | `confirm`       | `--confirm`       | `WHATSAPP_TOOLS_CONFIRM`       | MCP server only: `harness` (default) or `elicitation`, as the conventions say     |
 | `language`      | `--language`      | `WHATSAPP_TOOLS_LANGUAGE`      | native plugins only: the approval prompt's language, such as `ja`                 |
 | `emoji`         | —                 | —                              | Hermes only: the emoji shown beside each toolset, by toolset name (`""` for none) |
-| `state_dir`     | `--state-dir`     | `WHATSAPP_TOOLS_STATE_DIR`     | where every label's state lives; default `$XDG_STATE_HOME/whatsapp-tools`         |
-| `download_dir`  | `--download-dir`  | `WHATSAPP_TOOLS_DOWNLOAD_DIR`  | where received files are saved; default `~/Downloads/whatsapp-tools`              |
-| `send_dirs`     | `--send-dirs`     | `WHATSAPP_TOOLS_SEND_DIRS`     | the directories files may be sent from, besides the working directory             |
+| `state_dir`     | `--state-dir`     | `WHATSAPP_TOOLS_STATE_DIR`     | `path`: where every label's state lives; default `$XDG_STATE_HOME/whatsapp-tools` |
+| `download_dir`  | `--download-dir`  | `WHATSAPP_TOOLS_DOWNLOAD_DIR`  | `path`: where received files are saved; default `~/Downloads/whatsapp-tools`      |
+| `send_dirs`     | `--send-dirs`     | `WHATSAPP_TOOLS_SEND_DIRS`     | `paths`: the directories files may be sent from, besides the working directory    |
 
-Lists are comma-separated in a flag or a variable. A package's own settings,
-listed in `options` in `src/project.ts`, take a row each here and are read the
-same way. A `path` is trimmed; `~` and `~/…` (also with the platform separator)
-stand for the home directory (`HOME` when it is absolute, else the account's).
-It must then be absolute and reaches the tool normalized,
-without a filesystem check. `paths` is a list of such paths, comma-separated
-in a flag or variable and an array of strings in a plugin option. Blank paths
-and lists with no items after trimming and dropping blanks count as unset.
-Bounds check only a given value, not an unset option. Refused values are
-`invalid_argument`, naming the flag, variable or option and what it must be.
+Lists are comma-separated in a flag or a variable. `state_dir`, `download_dir`
+and `send_dirs` are this package's own settings, listed in `options` in
+`src/project.ts` and read the same way. A `path` is trimmed; `~` and `~/…`
+(also with the platform separator) stand for the home directory (`HOME` when
+it is absolute, else the account's). It must then be absolute and reaches the
+tool normalized, without a filesystem check. A blank path counts as unset,
+so the default applies. `paths` is a list of such paths, comma-separated in a
+flag or variable and an array of strings in a plugin option. Blank items are
+dropped, and a list with none left counts as unset. Repeated send directories
+are dropped. Bounds check only a given value, not an unset option. Refused
+values are `invalid_argument`, naming the flag, variable or option and what it
+must be.
 Hermes passes paths and lists to the command line, which checks the paths and
 bounds. Where each harness reads them:
 

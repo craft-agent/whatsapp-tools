@@ -330,10 +330,13 @@ Every entry point takes the same settings:
   mapping, an entry whose value is not a string, and a name that is no toolset
   are ignored rather than refused: the setting only changes what is shown, so a
   typo must not take every tool away.
-- **`state_dir`**: where every account's state lives (see "Accounts and state").
-- **`download_dir`**: where received files are saved (see "Files").
-- **`send_dirs`**: the directories files may be sent from besides the working
-  directory (see "Files").
+- **`state_dir`**: this package's `path` option for where every account's state
+  lives, read as Options below says (see "Accounts and state").
+- **`download_dir`**: this package's `path` option for where received files are
+  saved, read as Options below says (see "Files").
+- **`send_dirs`**: this package's `paths` option for the directories files may
+  be sent from besides the working directory, read as Options below says (see
+  "Files"). Repeated directories are dropped; by default there are none.
 - **Options** are the package's own settings, the ones the tools themselves
   read, listed in `options` in `src/project.ts` (and `OPTIONS` in the Hermes
   plugin's `project.py`), each mapping a snake_case name to its type (`text`,
@@ -461,9 +464,10 @@ Every entry point takes the same settings:
   account registry (`wacli accounts`, its `config.yaml`, `~/.wacli`) is never
   used, since it lives outside the state root and any wacli command could
   change it. The state root is the `state_dir` setting, by default
-  `$XDG_STATE_HOME/whatsapp-tools`, or `~/.local/state/whatsapp-tools` without
-  it. One directory per label means a label is moved, backed up or removed as
-  a whole, and nothing of one account sits in another's.
+  `$XDG_STATE_HOME/whatsapp-tools` when `XDG_STATE_HOME` is absolute, else
+  `~/.local/state/whatsapp-tools`. One directory per label means a label is
+  moved, backed up or removed as a whole, and nothing of one account sits in
+  another's.
 - **`account` picks the label.** Left out, it picks the only paired label;
   with several, the call fails as `invalid_argument` and lists them. One
   account is the common case and needs no argument, while several never
