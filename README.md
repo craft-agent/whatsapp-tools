@@ -118,7 +118,10 @@ hermes plugins enable whatsapp-tools
 ```
 
 If a Hermes gateway is already running, restart it (`hermes gateway restart`) to
-load the plugin.
+load the plugin. While a gateway runs, `hermes chat` runs the plugin's tools in
+the gateway too, so they see the gateway's environment, not the shell's: the
+`PATH` that finds `wacli` and `node`, and any `WHATSAPP_TOOLS_*` variable, are
+the ones the gateway started with.
 
 The plugin runs the Node it found when Hermes started. If a version manager
 removes that version while Hermes runs, a call looks for Node again; when it
@@ -449,7 +452,8 @@ bounds. Where each harness reads them:
   `send_dirs: []`) passes nothing, so a variable set in that environment
   still applies: `WHATSAPP_TOOLS_READ_ONLY=true` keeps the plugin read-only
   whatever the setting says. A running gateway keeps the environment it
-  started with; restart it (`hermes gateway restart`) after changing one.
+  started with, and `hermes chat` runs the tools there while it runs; restart
+  it (`hermes gateway restart`) after changing one.
 
 - **Claude Code, Grok Build and Antigravity** start the plugin's server without
   flags and pass it the client's environment, so set the variables in the
