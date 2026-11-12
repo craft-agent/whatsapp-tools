@@ -1,6 +1,6 @@
 {
   "name": "whatsapp-tools",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "WhatsApp tools for coding agents: chats, contacts, history, received files, sends and actions.",
   "author": {
     "name": "craftsamo",
