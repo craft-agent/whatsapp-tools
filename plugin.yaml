@@ -1,5 +1,5 @@
 name: whatsapp-tools
-version: 0.1.1
+version: 0.1.2
 description: "WhatsApp tools for coding agents: chats, contacts, history, received files, sends and actions."
 manifest_version: 1
 requires_hermes: ">=0.22"
