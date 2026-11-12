@@ -172,6 +172,4 @@ def settings_flags(ctx: PluginContext) -> list[str]:
         if value is not None and (names := _names(key, value)):
             flags += [flag, names]
 
-    flags += directory_flags(ctx)
-
     return [*flags, *option_flags(ctx)]
