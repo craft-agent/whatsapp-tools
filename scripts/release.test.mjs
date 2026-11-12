@@ -25,6 +25,9 @@ const MCP_CONFIGS = {
   ".mcp.json": "${CLAUDE_PLUGIN_ROOT}",
 }
 
+const OPTION_TYPES = ["text", "boolean", "number", "list", "path", "paths"]
+const BOUNDED_OPTION_TYPES = ["number", "list", "paths"]
+
 /** Each marketplace and the plugin entries it lists. */
 const MARKETPLACES = [".claude-plugin/marketplace.json", ".agents/plugins/marketplace.json"]
 
@@ -129,13 +132,27 @@ describe("MCP configurations", () => {
   })
 
   test("the package's options are typed snake_case settings shared with Hermes", () => {
-    for (const [name, kind] of Object.entries(PROJECT.options)) {
+    for (const [name, spec] of Object.entries(PROJECT.options)) {
       expect(name).toMatch(/^[a-z]+(?:_[a-z]+)*$/)
-      expect(["text", "boolean", "number", "list"]).toContain(kind)
+      const { type, ...bounds } = typeof spec === "string" ? { type: spec } : spec
+      expect(OPTION_TYPES).toContain(type)
+      for (const [key, value] of Object.entries(bounds)) {
+        if (key === "integer") {
+          expect(type).toBe("number")
+          expect(value).toBe(true)
+        } else {
+          expect(["min", "max"]).toContain(key)
+          expect(BOUNDED_OPTION_TYPES).toContain(type)
+          expect(Number.isFinite(value)).toBe(true)
+        }
+      }
+      if (bounds.min !== undefined && bounds.max !== undefined) expect(bounds.min).toBeLessThanOrEqual(bounds.max)
     }
-    const declaration = read(`${HERMES_PACKAGE}/project.py`).match(/^OPTIONS: dict\[str, str\] = (\{[^}]*\})/m)
+    const declaration = read(`${HERMES_PACKAGE}/project.py`).match(
+      /^OPTIONS: dict\[str, str \| dict\[str, object\]\] = (\{.*\})$/m,
+    )
     expect(declaration).not.toBeNull()
-    expect(JSON.parse(declaration[1])).toEqual(PROJECT.options)
+    expect(JSON.parse(declaration[1].replace(/\bTrue\b/g, "true"))).toEqual(PROJECT.options)
   })
 })
 

@@ -155,7 +155,6 @@ def resolve_target(
     runtime: Runtime,
     tool_id: str,
     args: Any,
-    flags: list[str] | None = None,
     language: str | None = None,
     harness_language: Callable[[], str | None] = lambda: display_language(),
     option_flags: list[str] | None = None,
@@ -172,7 +171,6 @@ def resolve_target(
                 tool_id,
                 "--cwd",
                 agent_cwd(),
-                *(flags or []),
                 *language_flags(language, _known(harness_language)),
                 *(option_flags or []),
             ],
@@ -223,7 +221,6 @@ def _message(tool: ToolInfo, target: Target, surface: Callable[[], str | None]) 
 def make_hook(
     runtime: Runtime,
     tools: list[ToolInfo],
-    flags: list[str] | None = None,
     surface: Callable[[], str | None] = lambda: None,
     language: str | None = None,
     harness_language: Callable[[], str | None] = lambda: display_language(),
@@ -244,7 +241,7 @@ def make_hook(
         tool = by_id.get(tool_name)
         if tool is None or tool.write_class == READ_CLASS:
             return None
-        target = resolve_target(runtime, tool.id, args, flags, language, harness_language, option_flags)
+        target = resolve_target(runtime, tool.id, args, language, harness_language, option_flags)
         call = pin_key(kwargs)
         if pins is not None and call is not None:
             # An entry left by a call that never reached the pin hook must not stand for this one.
@@ -305,7 +302,6 @@ def register_approval(
     ctx: PluginContext,
     runtime: Runtime,
     tools: list[ToolInfo],
-    flags: list[str] | None = None,
     language: str | None = None,
     option_flags: list[str] | None = None,
 ) -> None:
@@ -320,7 +316,6 @@ def register_approval(
         make_hook(
             runtime,
             tools,
-            flags,
             surface=lambda: session_surface(ctx),
             language=language,
             pins=pins,

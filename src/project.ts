@@ -1,4 +1,4 @@
-import type { OptionType } from "./core"
+import type { OptionSpec } from "./core"
 
 /** What makes this package itself; a project made from the starter sets these once (the setup script does). */
 export const PROJECT = {
@@ -14,8 +14,12 @@ export const PROJECT = {
   toolsets: ["account", "chats", "contacts", "history", "files", "sends", "actions"] as readonly string[],
   /** The toolsets on when a setting names none. */
   defaultToolsets: ["account", "chats", "contacts", "history", "sends"] as readonly string[],
-  /** The package's own settings, which the tools themselves read: each snake_case name and its type. */
-  options: {} as Readonly<Record<string, OptionType>>,
+  /** The package's own settings, which the tools themselves read: each snake_case name and its type, with bounds when it needs them. */
+  options: {
+    state_dir: "path",
+    download_dir: "path",
+    send_dirs: "paths",
+  } as Readonly<Record<string, OptionSpec>>,
   /** The environment variables the tools read besides the settings, which Codex forwards to the server after them. */
   toolVariables: [] as readonly string[],
 } as const

@@ -14,11 +14,12 @@ import {
   type ToolSpec,
   type Translations,
 } from "../core"
+import { directorySettings } from "../entry/directory"
 import { errorBody } from "../entry/errors"
 import { approvalOf, checkPin } from "../entry/pin"
 import { PROJECT_PROFILE, type EntryProfile } from "../entry/profile"
 import {
-  parseDirectorySettings,
+  parseToolOptions,
   parseToolSettings,
   promptLanguage,
   toolDirectories,
@@ -134,12 +135,12 @@ function parseCommand(argv: string[], io: Pick<CliIo, "specs" | "env" | "profile
   if (name === "target") {
     const { value: language, rest: afterLanguage } = takeFlag(rest, LANGUAGE_FLAG)
     const { value: harnessLanguage, rest: targetSettings } = takeFlag(afterLanguage, HARNESS_LANGUAGE_FLAG)
-    const { options: toolOptions, ...directorySettings } = parseDirectorySettings(targetSettings, io.env, profile)
+    const toolOptions = parseToolOptions(targetSettings, io.env, profile)
     return {
       name,
       toolId,
       cwd,
-      directories: toolDirectories(directorySettings),
+      directories: toolDirectories(directorySettings(toolOptions, io.env, profile)),
       language: promptLanguage(language, io.env, harnessLanguage, profile),
       options: toolOptions,
     }

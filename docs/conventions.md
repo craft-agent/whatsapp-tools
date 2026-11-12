@@ -330,21 +330,37 @@ Every entry point takes the same settings:
   mapping, an entry whose value is not a string, and a name that is no toolset
   are ignored rather than refused: the setting only changes what is shown, so a
   typo must not take every tool away.
-- **`state_dir`**: where every account's state lives (see "Accounts and state").
-- **`download_dir`**: where received files are saved (see "Files").
-- **`send_dirs`**: the directories files may be sent from besides the working
-  directory (see "Files").
+- **`state_dir`**: this package's `path` option for where every account's state
+  lives, read as Options below says (see "Accounts and state").
+- **`download_dir`**: this package's `path` option for where received files are
+  saved, read as Options below says (see "Files").
+- **`send_dirs`**: this package's `paths` option for the directories files may
+  be sent from besides the working directory, read as Options below says (see
+  "Files"). Repeated directories are dropped; by default there are none.
 - **Options** are the package's own settings, the ones the tools themselves
   read, listed in `options` in `src/project.ts` (and `OPTIONS` in the Hermes
   plugin's `project.py`), each mapping a snake_case name to its type (`text`,
-  `boolean`, `number` or `list`). Its flag is the name with `_` as `-` (a
+  `boolean`, `number`, `list`, `path` or `paths`) or a declaration with
+  `{ type, integer, min, max }`. `integer: true` requires a whole `number`;
+  `min` and `max` bound a `number` or count the items of a `list` or `paths`.
+  Only `type` is required. Its flag is the name with `_` as `-` (a
   `boolean` flag takes no value), its variable is `<envPrefix>_<NAME>`
   uppercased, and its plugin option or setting is the name itself. A flag wins
-  over its variable, an option over its variable, and a blank text or empty
-  list counts as unset. They reach a tool as `context.options`, keyed by name,
-  and one that is not given is absent: a neutral default means unset, and the
-  tool then does nothing extra. A tool reads an option when it runs, so a
-  change applies on the next call.
+  over its variable, an option over its variable, and a blank text or path or
+  empty list counts as unset. A `path` is trimmed; `~` alone or followed by
+  `/` (or the platform separator) stands for the home directory: `HOME` when
+  it is absolute, else the account's.
+  The expanded path must be absolute and reaches the tool normalized, without
+  a filesystem check. A `paths` value is a list of such paths, comma-separated
+  in a flag or variable and an array of strings in a plugin option; items are
+  trimmed and blank items dropped, and none left counts as unset. Bounds
+  check only a value that is given, after blanks are dropped; unset stays
+  unset. Refused values are `invalid_argument`, naming the flag, variable or
+  option and what it must be. A package should not have to check a directory
+  or a limit again inside its tool. They reach a tool as `context.options`,
+  keyed by name, and one that is not given is absent: a neutral default means
+  unset, and the tool then does nothing extra. A tool reads an option when it
+  runs, so a change applies on the next call.
 
 ## Skills
 
@@ -448,9 +464,10 @@ Every entry point takes the same settings:
   account registry (`wacli accounts`, its `config.yaml`, `~/.wacli`) is never
   used, since it lives outside the state root and any wacli command could
   change it. The state root is the `state_dir` setting, by default
-  `$XDG_STATE_HOME/whatsapp-tools`, or `~/.local/state/whatsapp-tools` without
-  it. One directory per label means a label is moved, backed up or removed as
-  a whole, and nothing of one account sits in another's.
+  `$XDG_STATE_HOME/whatsapp-tools` when `XDG_STATE_HOME` is absolute, else
+  `~/.local/state/whatsapp-tools`. One directory per label means a label is
+  moved, backed up or removed as a whole, and nothing of one account sits in
+  another's.
 - **`account` picks the label.** Left out, it picks the only paired label;
   with several, the call fails as `invalid_argument` and lists them. One
   account is the common case and needs no argument, while several never

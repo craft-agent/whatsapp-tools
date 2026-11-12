@@ -1,5 +1,6 @@
 import { expect } from "bun:test"
 import { isToolError } from "../core"
+import { PROJECT } from "../project"
 import { NOTE_OPTION } from "./options.testing"
 import type { EntryProfile } from "./profile"
 
@@ -9,7 +10,7 @@ export const profile: EntryProfile = {
   name: "demo-tools",
   envPrefix: "DEMO",
   toolsets: { names: ["alpha", "beta", "gamma"], defaults: ["alpha"] },
-  options: { [NOTE_OPTION]: "text" },
+  options: { ...PROJECT.options, [NOTE_OPTION]: "text" },
 }
 
 export function failure(run: () => unknown): Error {

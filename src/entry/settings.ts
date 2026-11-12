@@ -1,5 +1,8 @@
+import { homedir } from "node:os"
+import { isAbsolute, join, resolve as resolvePath, sep } from "node:path"
 import {
   ToolError,
+  type OptionSpec,
   type OptionType,
   type ToolOptions,
   type ToolOptionValue,
@@ -7,19 +10,13 @@ import {
   type Toolsets,
 } from "../core"
 import { PROJECT } from "../project"
-import { toolDirectories, type ToolDirectories } from "./directory"
-import { resolveDownloadDir } from "./download-dir"
+import { directorySettings, toolDirectories, type DirectorySettings, type ToolDirectories } from "./directory"
 import { PROJECT_PROFILE, type EntryProfile } from "./profile"
-import { resolveSendDirs } from "./send-dirs"
-import { resolveStateDir } from "./state-dir"
 
 export { toolDirectories, type ToolDirectories }
 
 /** Who asks the person before an administrative tool acts: the harness, or the tool through the client's form. */
 export type ConfirmMode = "harness" | "elicitation"
-
-/** The directories the settings name, resolved to absolute paths. */
-export type DirectorySettings = { state_dir: string; download_dir: string; send_dirs: string[] }
 
 /** The settings needed to run tools: tool selection, read-only mode, the resolved state, download and send directories, and the values of the package's own settings (`options`, possibly empty). */
 export type RunSettings = ToolSettings & DirectorySettings & { options: ToolOptions }
@@ -31,8 +28,7 @@ const ALL_TOOLSETS = "all"
 const TRUE_VALUES: readonly string[] = ["1", "true"]
 const FALSE_VALUES: readonly string[] = ["0", "false"]
 
-type OptionName =
-  "toolsets" | "read_only" | "tools" | "exclude_tools" | "confirm" | "state_dir" | "download_dir" | "send_dirs"
+type OptionName = "toolsets" | "read_only" | "tools" | "exclude_tools" | "confirm"
 
 /** A setting's command-line flag and the end of its environment variable, which follows the profile's prefix; a boolean flag takes no value. */
 type Option = { flag: string; envSuffix: string; boolean?: true }
@@ -43,9 +39,6 @@ const OPTIONS: Record<OptionName, Option> = {
   tools: { flag: "--tools", envSuffix: "TOOLS" },
   exclude_tools: { flag: "--exclude-tools", envSuffix: "EXCLUDE_TOOLS" },
   confirm: { flag: "--confirm", envSuffix: "CONFIRM" },
-  state_dir: { flag: "--state-dir", envSuffix: "STATE_DIR" },
-  download_dir: { flag: "--download-dir", envSuffix: "DOWNLOAD_DIR" },
-  send_dirs: { flag: "--send-dirs", envSuffix: "SEND_DIRS" },
 }
 
 function profileOptions(profile: EntryProfile): NonNullable<EntryProfile["options"]> {
@@ -53,12 +46,12 @@ function profileOptions(profile: EntryProfile): NonNullable<EntryProfile["option
 }
 
 function settingOptions(profile: EntryProfile): Record<string, Option> {
-  const toolOptions = Object.entries(profileOptions(profile)).map(([name, kind]): [string, Option] => [
+  const toolOptions = Object.entries(profileOptions(profile)).map(([name, spec]): [string, Option] => [
     name,
     {
       flag: `--${name.replace(/_/g, "-")}`,
       envSuffix: name.toUpperCase(),
-      ...(kind === "boolean" && { boolean: true as const }),
+      ...(optionType(spec) === "boolean" && { boolean: true as const }),
     },
   ])
   return { ...OPTIONS, ...Object.fromEntries(toolOptions) }
@@ -113,11 +106,6 @@ function splitList(value: string): string[] {
     .filter((item) => item !== "")
 }
 
-/** A comma-separated directory setting as one entry per directory, each keeping where it came from. */
-function listedDirectories(given: SettingText | undefined): SettingText[] {
-  return given === undefined ? [] : splitList(given.text).map((text) => ({ text, source: given.source }))
-}
-
 function checkToolsets(names: string[], source: string, toolsets: Toolsets): string[] | "all" | undefined {
   if (names.includes(ALL_TOOLSETS)) return ALL_TOOLSETS
   const unknown = names.find((name) => !toolsets.names.includes(name))
@@ -164,6 +152,21 @@ function parseNumber(value: string, source: string): number {
 /** A setting given as text, and where it came from, for error messages. */
 type SettingText = { text: string; source: string }
 
+type Environment = Record<string, string | undefined>
+
+/** The path a `path` setting names: `~` stands for the home directory (`env.HOME` when absolute, else the user's), the result must be absolute and is normalized. */
+function absolutePath(text: string, source: string, env: Environment): string {
+  const home = env.HOME !== undefined && isAbsolute(env.HOME) ? env.HOME : homedir()
+  const expanded =
+    text === "~" || text.startsWith("~/") || text.startsWith(`~${sep}`) ? join(home, text.slice(1)) : text
+  if (!isAbsolute(expanded)) throw new ToolError("invalid_argument", `${source} must be an absolute path.`)
+  return resolvePath(expanded)
+}
+
+function absolutePaths(items: string[], source: string, env: Environment): string[] | undefined {
+  return items.length > 0 ? items.map((item) => absolutePath(item, source, env)) : undefined
+}
+
 function envText(
   name: string,
   env: Record<string, string | undefined>,
@@ -174,7 +177,69 @@ function envText(
   return text === undefined || text.trim() === "" ? undefined : { text, source: variable }
 }
 
-function parseOptionText(kind: OptionType, given: SettingText): ToolOptionValue | undefined {
+type OptionBounds = { type: OptionType; integer?: true; min?: number; max?: number }
+
+function optionType(spec: OptionSpec): OptionType {
+  return typeof spec === "string" ? spec : spec.type
+}
+
+function itemCount(count: number): string {
+  return count === 1 ? "1 item" : `${count} items`
+}
+
+function numberBoundsError({ integer, min, max }: OptionBounds, source: string): ToolError {
+  const range =
+    min !== undefined && max !== undefined
+      ? ` from ${min} to ${max}`
+      : min !== undefined
+        ? ` of at least ${min}`
+        : max !== undefined
+          ? ` of at most ${max}`
+          : ""
+  return new ToolError("invalid_argument", `${source} must be ${integer ? "a whole number" : "a number"}${range}.`)
+}
+
+function countBoundsError({ min, max }: OptionBounds, source: string): ToolError {
+  const range =
+    min !== undefined && max !== undefined
+      ? `from ${min} to ${max} items`
+      : min !== undefined
+        ? `at least ${itemCount(min)}`
+        : `at most ${itemCount(max!)}`
+  return new ToolError("invalid_argument", `${source} must list ${range}.`)
+}
+
+/** The value a setting given by `source` may take: one that is given must meet its declaration's bounds; an unset one is not checked. */
+function withinBounds(
+  spec: OptionSpec,
+  value: ToolOptionValue | undefined,
+  source: string,
+): ToolOptionValue | undefined {
+  if (value === undefined || typeof spec === "string") return value
+  const bounds: OptionBounds = spec
+  const { integer, min, max } = bounds
+  if (typeof value === "number") {
+    if (
+      (integer && !Number.isInteger(value)) ||
+      (min !== undefined && value < min) ||
+      (max !== undefined && value > max)
+    ) {
+      throw numberBoundsError(bounds, source)
+    }
+  } else if (
+    typeof value === "object" &&
+    ((min !== undefined && value.length < min) || (max !== undefined && value.length > max))
+  ) {
+    throw countBoundsError(bounds, source)
+  }
+  return value
+}
+
+function parseOptionText(spec: OptionSpec, given: SettingText, env: Environment): ToolOptionValue | undefined {
+  return withinBounds(spec, parseTypedText(optionType(spec), given, env), given.source)
+}
+
+function parseTypedText(kind: OptionType, given: SettingText, env: Environment): ToolOptionValue | undefined {
   switch (kind) {
     case "text":
       return nonBlank(given.text)
@@ -186,6 +251,12 @@ function parseOptionText(kind: OptionType, given: SettingText): ToolOptionValue 
       const items = splitList(given.text)
       return items.length > 0 ? items : undefined
     }
+    case "path": {
+      const text = nonBlank(given.text)
+      return text === undefined ? undefined : absolutePath(text, given.source, env)
+    }
+    case "paths":
+      return absolutePaths(splitList(given.text), given.source, env)
   }
 }
 
@@ -195,25 +266,15 @@ function optionsFrom(
   profile: EntryProfile,
 ): ToolOptions {
   const options: Record<string, ToolOptionValue> = {}
-  for (const [name, kind] of Object.entries(profileOptions(profile))) {
+  for (const [name, spec] of Object.entries(profileOptions(profile))) {
     if (flags[name] !== undefined) {
-      if (kind === "text") {
-        const text = nonBlank(flags[name])
-        if (text !== undefined) options[name] = text
-        continue
-      }
-      if (kind === "list") {
-        const items = splitList(flags[name])
-        if (items.length > 0) options[name] = items
-        continue
-      }
-      const parsed = parseOptionText(kind, { text: flags[name], source: settingOptions(profile)[name]!.flag })
+      const parsed = parseOptionText(spec, { text: flags[name], source: settingOptions(profile)[name]!.flag }, env)
       if (parsed !== undefined) options[name] = parsed
       continue
     }
     const fromEnv = envText(name, env, profile)
     if (fromEnv !== undefined) {
-      const parsed = parseOptionText(kind, fromEnv)
+      const parsed = parseOptionText(spec, fromEnv, env)
       if (parsed !== undefined) options[name] = parsed
     }
   }
@@ -249,13 +310,8 @@ export function parseSettings(
   const value = (name: OptionName): SettingText | undefined =>
     flags[name] !== undefined ? { text: flags[name], source: OPTIONS[name].flag } : envText(name, env, profile)
 
-  const settings: EntrySettings = {
-    confirm: "harness",
-    state_dir: resolveStateDir(value("state_dir"), env, profile),
-    download_dir: resolveDownloadDir(value("download_dir"), env, profile),
-    send_dirs: resolveSendDirs(listedDirectories(value("send_dirs")), env),
-    options: optionsFrom(flags, env, profile),
-  }
+  const options = optionsFrom(flags, env, profile)
+  const settings: EntrySettings = { confirm: "harness", ...directorySettings(options, env, profile), options }
   const toolsets = value("toolsets")
   if (toolsets) settings.toolsets = checkToolsets(splitList(toolsets.text), toolsets.source, profile.toolsets)
   const readOnly = value("read_only")
@@ -292,64 +348,7 @@ export function parseToolSettings(
   return settings
 }
 
-/**
- * Reads only the `state_dir` setting from a command line that takes no other
- * setting, for commands that select no tools: any other settings flag is
- * `invalid_argument`. The flag wins over its environment variable.
- */
-export function parseStateDir(
-  argv: string[],
-  env: Record<string, string | undefined>,
-  profile: EntryProfile = PROJECT_PROFILE,
-): string {
-  const flags = readFlags(argv, profile)
-  const other = Object.keys(flags).find((name) => name !== "state_dir")
-  if (other !== undefined)
-    throw new ToolError("invalid_argument", `Option ${settingOptions(profile)[other]!.flag} is not available here.`)
-  const given = flags.state_dir !== undefined ? { text: flags.state_dir, source: OPTIONS.state_dir.flag } : undefined
-  return resolveStateDir(given ?? envText("state_dir", env, profile), env, profile)
-}
-
-const DIRECTORY_OPTION_NAMES: readonly OptionName[] = ["state_dir", "download_dir", "send_dirs"]
-
-/**
- * Reads only the directory settings (`state_dir`, `download_dir`, `send_dirs`)
- * and the package's own settings (`options`) from a command line that takes
- * no other setting, for commands that resolve what a call writes to: any
- * other settings flag is `invalid_argument`. A flag wins over its environment
- * variable.
- */
-export function parseDirectorySettings(
-  argv: string[],
-  env: Record<string, string | undefined>,
-  profile: EntryProfile = PROJECT_PROFILE,
-): DirectorySettings & { options: ToolOptions } {
-  const flags = readFlags(argv, profile)
-  const known = profileOptions(profile)
-  const other = Object.keys(flags).find(
-    (name) => !(DIRECTORY_OPTION_NAMES as readonly string[]).includes(name) && !(name in known),
-  )
-  if (other !== undefined)
-    throw new ToolError("invalid_argument", `Option ${settingOptions(profile)[other]!.flag} is not available here.`)
-  const value = (name: OptionName): SettingText | undefined =>
-    flags[name] !== undefined ? { text: flags[name], source: OPTIONS[name].flag } : envText(name, env, profile)
-  return {
-    state_dir: resolveStateDir(value("state_dir"), env, profile),
-    download_dir: resolveDownloadDir(value("download_dir"), env, profile),
-    send_dirs: resolveSendDirs(listedDirectories(value("send_dirs")), env),
-    options: optionsFrom(flags, env, profile),
-  }
-}
-
-const TOOL_OPTION_NAMES = [
-  "toolsets",
-  "read_only",
-  "tools",
-  "exclude_tools",
-  "state_dir",
-  "download_dir",
-  "send_dirs",
-] as const satisfies readonly OptionName[]
+const TOOL_OPTION_NAMES = ["toolsets", "read_only", "tools", "exclude_tools"] as const satisfies readonly OptionName[]
 type ToolOptionName = (typeof TOOL_OPTION_NAMES)[number]
 
 function stringList(value: unknown): string[] | undefined {
@@ -358,13 +357,6 @@ function stringList(value: unknown): string[] | undefined {
 
 function optionError(name: string, expected: string): ToolError {
   return new ToolError("invalid_argument", `Option "${name}" must be ${expected}.`)
-}
-
-type DirectoryOptionName = Extract<OptionName, "state_dir" | "download_dir">
-
-function directoryOption(name: DirectoryOptionName, value: unknown): string {
-  if (typeof value !== "string") throw optionError(name, "an absolute path")
-  return value
 }
 
 function toolsetsOption(value: unknown, toolsets: Toolsets): string[] | "all" | undefined {
@@ -420,7 +412,16 @@ function languageOption(value: unknown): string | undefined {
   return nonBlank(value)
 }
 
-function toolOption(name: string, kind: OptionType, value: unknown): ToolOptionValue | undefined {
+function toolOption(name: string, spec: OptionSpec, value: unknown, env: Environment): ToolOptionValue | undefined {
+  return withinBounds(spec, toolOptionOfType(name, optionType(spec), value, env), `Option "${name}"`)
+}
+
+function toolOptionOfType(
+  name: string,
+  kind: OptionType,
+  value: unknown,
+  env: Environment,
+): ToolOptionValue | undefined {
   switch (kind) {
     case "text":
       if (typeof value !== "string") throw optionError(name, "text")
@@ -436,6 +437,20 @@ function toolOption(name: string, kind: OptionType, value: unknown): ToolOptionV
       if (!list) throw optionError(name, "a list of strings")
       const items = list.map((item) => item.trim()).filter((item) => item !== "")
       return items.length > 0 ? items : undefined
+    }
+    case "path": {
+      if (typeof value !== "string") throw optionError(name, "an absolute path")
+      const text = nonBlank(value)
+      return text === undefined ? undefined : absolutePath(text, `Option "${name}"`, env)
+    }
+    case "paths": {
+      const list = stringList(value)
+      if (!list) throw optionError(name, "a list of absolute paths")
+      return absolutePaths(
+        list.flatMap((item) => nonBlank(item) ?? []),
+        `Option "${name}"`,
+        env,
+      )
     }
   }
 }
@@ -471,33 +486,18 @@ export function settingsFromOptions(
     return text !== undefined ? fromText(text) : undefined
   }
 
-  const directoryGiven = (name: DirectoryOptionName): SettingText | undefined =>
-    given[name] !== undefined
-      ? { text: directoryOption(name, given[name]), source: `Option "${name}"` }
-      : envText(name, env, profile)
-  const sendDirsGiven = (): SettingText[] => {
-    if (given.send_dirs === undefined) return listedDirectories(envText("send_dirs", env, profile))
-    const list = stringList(given.send_dirs)
-    if (!list) throw optionError("send_dirs", "a list of absolute paths")
-    return list.map((text) => ({ text, source: 'Option "send_dirs"' }))
-  }
   const parsedOptions: Record<string, ToolOptionValue> = {}
-  for (const [name, kind] of Object.entries(profileOptions(profile))) {
+  for (const [name, spec] of Object.entries(profileOptions(profile))) {
     let parsed: ToolOptionValue | undefined
     if (given[name] !== undefined) {
-      parsed = toolOption(name, kind, given[name])
+      parsed = toolOption(name, spec, given[name], env)
     } else {
       const fromEnv = envText(name, env, profile)
-      if (fromEnv !== undefined) parsed = parseOptionText(kind, fromEnv)
+      if (fromEnv !== undefined) parsed = parseOptionText(spec, fromEnv, env)
     }
     if (parsed !== undefined) parsedOptions[name] = parsed
   }
-  const settings: PluginSettings = {
-    state_dir: resolveStateDir(directoryGiven("state_dir"), env, profile),
-    download_dir: resolveDownloadDir(directoryGiven("download_dir"), env, profile),
-    send_dirs: resolveSendDirs(sendDirsGiven(), env),
-    options: parsedOptions,
-  }
+  const settings: PluginSettings = { ...directorySettings(parsedOptions, env, profile), options: parsedOptions }
   const toolsets = resolve(
     "toolsets",
     (value) => toolsetsOption(value, profile.toolsets),
