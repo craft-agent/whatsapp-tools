@@ -22,10 +22,10 @@ TOOLSET_EMOJI: dict[str, str] = {
     "actions": "🔧",
 }
 
-#: The settings the tools themselves read, beside the ones every plugin takes: each snake_case name and its type
-#: (``text``, ``boolean``, ``number`` or ``list``), as in ``src/project.ts``. A setting ``a_b`` becomes the flag
-#: ``--a-b`` of the command line.
-OPTIONS: dict[str, str] = {}
+#: The settings the tools themselves read: each snake_case name and a type (``text``, ``boolean``, ``number``,
+#: ``list``, ``path`` or ``paths``) or a dict with ``type`` and optional bounds (``integer``, ``min``, ``max``),
+#: as in ``src/project.ts``. Write OPTIONS on one line with double quotes. A setting ``a_b`` becomes ``--a-b``.
+OPTIONS: dict[str, str | dict[str, object]] = {}
 
 #: How long one call of a tool may take, in seconds, for a tool that may take longer than the default.
 #: ``whatsapp_history_backfill`` waits up to 300 seconds for the phone, so it gets a margin above that;
