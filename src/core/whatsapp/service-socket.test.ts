@@ -4,7 +4,7 @@ import { setTimeout as delay } from "node:timers/promises"
 import { ToolError } from "../errors"
 import { callService } from "./service-client"
 import type { ServiceOperation, ServiceOperations } from "./service-socket"
-import { gate, startService, syncFixture, type SyncFixture } from "./sync.testing"
+import { gate, startService, syncFixture, type SyncFixture, untilAborted } from "./sync.testing"
 import { resetWacliCache } from "./wacli"
 
 let fixture: SyncFixture
@@ -261,5 +261,26 @@ describe("the service socket's queue", () => {
     expect((error as ToolError).code).toBe("uncertain")
     expect((error as ToolError).message).toContain("ran out of time")
     expect(seen).toEqual(["aborted"])
+  })
+
+  test("stops within a few seconds after a caller gave up on a running request", async () => {
+    const started = gate()
+    await serve({
+      wait: {
+        kind: "delegated",
+        writes: true,
+        run: (_args, { signal }) => untilAborted(signal, started.open),
+      },
+    })
+    const controller = new AbortController()
+    const abandoned = callService(fixture.paths, "wait", undefined, { mode: "write", signal: controller.signal })
+    await started.opened
+    controller.abort()
+    await abandoned.catch(() => {})
+
+    const stop = stopService!
+    stopService = undefined
+    const stopped = await Promise.race([stop().then(() => true), delay(3_000).then(() => false)])
+    expect(stopped).toBe(true)
   })
 })
