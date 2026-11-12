@@ -24,64 +24,6 @@ def _names(key: str, value: Any) -> str | None:
     return ",".join(value) or None
 
 
-def _directory_flags(ctx: PluginContext, key: str, flag: str) -> list[str]:
-    """Read the directory setting ``key`` and return ``[flag, value]``, or ``[]`` when absent.
-
-    Raises:
-        SettingsError: the setting is present but not a non-empty string.
-    """
-    value = ctx.get_config(key)
-    if value is None:
-        return []
-    if not isinstance(value, str) or not value.strip():
-        raise SettingsError(f'setting "{key}" must be a path')
-    return [flag, value]
-
-
-def state_dir_flags(ctx: PluginContext) -> list[str]:
-    """Read ``state_dir`` and return ``["--state-dir", value]``, or ``[]`` when absent.
-
-    Raises:
-        SettingsError: the setting is present but not a non-empty string.
-    """
-    return _directory_flags(ctx, "state_dir", "--state-dir")
-
-
-def download_dir_flags(ctx: PluginContext) -> list[str]:
-    """Read ``download_dir`` and return ``["--download-dir", value]``, or ``[]`` when absent.
-
-    Raises:
-        SettingsError: the setting is present but not a non-empty string.
-    """
-    return _directory_flags(ctx, "download_dir", "--download-dir")
-
-
-def _is_path_item(item: Any) -> bool:
-    """Whether ``item`` is a non-empty string that survives the flag's comma-separated form whole."""
-    return isinstance(item, str) and bool(item.strip()) and "," not in item
-
-
-def send_dirs_flags(ctx: PluginContext) -> list[str]:
-    """Read ``send_dirs`` and return ``["--send-dirs", "a,b"]``, or ``[]`` when absent or empty.
-
-    The flag is comma-separated, so a path holding a comma is refused rather than split in two.
-
-    Raises:
-        SettingsError: the setting is present but not a list of non-empty strings without commas.
-    """
-    value = ctx.get_config("send_dirs")
-    if value is None:
-        return []
-    if not isinstance(value, list) or not all(_is_path_item(item) for item in value):
-        raise SettingsError('setting "send_dirs" must be a list of paths without commas')
-    return ["--send-dirs", ",".join(value)] if value else []
-
-
-def directory_flags(ctx: PluginContext) -> list[str]:
-    """The flags of the directory settings, which is all the ``target`` command takes."""
-    return state_dir_flags(ctx) + download_dir_flags(ctx) + send_dirs_flags(ctx)
-
-
 def language_setting(ctx: PluginContext) -> str | None:
     """The ``language`` setting, stripped; ``None`` when it is absent, blank or not a string.
 
