@@ -62,6 +62,7 @@ export const settings = (overrides: Partial<EntrySettings> = {}): EntrySettings 
   state_dir: "/default/state",
   download_dir: "/default/downloads",
   send_dirs: [],
+  options: {},
   ...overrides,
 })
 

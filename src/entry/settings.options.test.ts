@@ -7,7 +7,7 @@ const fromOptions = (options: Record<string, unknown> | undefined, env: Record<s
 
 describe("settingsFromOptions", () => {
   test("gives no setting for no options", () => {
-    const none = { state_dir: expect.any(String), download_dir: expect.any(String), send_dirs: [] }
+    const none = { state_dir: expect.any(String), download_dir: expect.any(String), send_dirs: [], options: {} }
     expect(fromOptions(undefined)).toEqual(none)
     expect(fromOptions({})).toEqual(none)
   })
@@ -35,6 +35,7 @@ describe("settingsFromOptions", () => {
       state_dir: "/custom/state",
       download_dir: "/custom/downloads",
       send_dirs: ["/custom/send", "/custom/more"],
+      options: {},
     })
     expect(fromOptions({ toolsets: "all" }).toolsets).toBe("all")
     expect(fromOptions({ toolsets: ["alpha", "all"] }).toolsets).toBe("all")
@@ -57,6 +58,7 @@ describe("settingsFromOptions", () => {
       state_dir: "/env/state",
       download_dir: "/env/downloads",
       send_dirs: ["/env/a", "/env/b"],
+      options: {},
     })
     expect(
       fromOptions(
@@ -76,6 +78,7 @@ describe("settingsFromOptions", () => {
       state_dir: "/opt/state",
       download_dir: "/opt/downloads",
       send_dirs: ["/opt/send"],
+      options: {},
     })
   })
 

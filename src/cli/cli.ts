@@ -10,6 +10,7 @@ import {
   ToolError,
   type ErrorCode,
   type ErrorDetails,
+  type ToolOptions,
   type ToolSpec,
   type Translations,
 } from "../core"
@@ -74,8 +75,16 @@ type Command =
       pin: string | undefined
       selected: ToolSpec[]
       directories: ToolDirectories
+      options: ToolOptions
     }
-  | { name: "target"; toolId: string; cwd: string; directories: ToolDirectories; language: string | undefined }
+  | {
+      name: "target"
+      toolId: string
+      cwd: string
+      directories: ToolDirectories
+      language: string | undefined
+      options: ToolOptions
+    }
 
 /** Splits `<flag> <value>` or `<flag>=<value>` from the remaining arguments; the last one given wins. */
 function takeFlag(argv: string[], flag: string): { value: string | undefined; rest: string[] } {
@@ -99,9 +108,17 @@ function takeFlag(argv: string[], flag: string): { value: string | undefined; re
 /** Reads the command line; a mistake in it, in the settings or in the tool selection is `invalid_argument`. */
 function parseCommand(argv: string[], io: Pick<CliIo, "specs" | "env" | "profile">): Command {
   const profile = io.profile ?? PROJECT_PROFILE
+  const select = (flags: string[]) => {
+    const settings = parseToolSettings(flags, io.env, profile)
+    return {
+      selected: selectTools(io.specs, settings, profile.toolsets),
+      directories: toolDirectories(settings),
+      options: settings.options,
+    }
+  }
   const [name, ...args] = argv
   if (name === "list") {
-    return { name, selected: selectTools(io.specs, parseToolSettings(args, io.env, profile), profile.toolsets) }
+    return { name, selected: select(args).selected }
   }
   if (name !== "run" && name !== "target") {
     const given = name === undefined ? "No command given" : `Unknown command "${name}"`
@@ -116,13 +133,15 @@ function parseCommand(argv: string[], io: Pick<CliIo, "specs" | "env" | "profile
   if (cwd === undefined) throw usageError(`Command ${name} needs ${CWD_FLAG} <dir>.`)
   if (name === "target") {
     const { value: language, rest: afterLanguage } = takeFlag(rest, LANGUAGE_FLAG)
-    const { value: harnessLanguage, rest: directoryOptions } = takeFlag(afterLanguage, HARNESS_LANGUAGE_FLAG)
+    const { value: harnessLanguage, rest: targetSettings } = takeFlag(afterLanguage, HARNESS_LANGUAGE_FLAG)
+    const { options: toolOptions, ...directorySettings } = parseDirectorySettings(targetSettings, io.env, profile)
     return {
       name,
       toolId,
       cwd,
-      directories: toolDirectories(parseDirectorySettings(directoryOptions, io.env, profile)),
+      directories: toolDirectories(directorySettings),
       language: promptLanguage(language, io.env, harnessLanguage, profile),
+      options: toolOptions,
     }
   }
 
@@ -130,15 +149,7 @@ function parseCommand(argv: string[], io: Pick<CliIo, "specs" | "env" | "profile
   if (pin !== undefined && !PIN_PATTERN.test(pin)) {
     throw usageError(`Option ${PIN_FLAG} needs the 64 lowercase hexadecimal digits \`target\` answered with.`)
   }
-  const settings = parseToolSettings(selection, io.env, profile)
-  return {
-    name,
-    toolId,
-    cwd,
-    pin,
-    selected: selectTools(io.specs, settings, profile.toolsets),
-    directories: toolDirectories(settings),
-  }
+  return { name, toolId, cwd, pin, ...select(selection) }
 }
 
 function describeSpec(spec: ToolSpec) {
@@ -185,6 +196,7 @@ async function runTool(command: Extract<Command, { name: "run" }>, io: CliIo): P
       ownDir: io.ownDir,
       ...command.directories,
       programName: PROJECT.name,
+      options: command.options,
       signal: io.signal,
     }
     await checkPin(spec, args, ctx, command.pin, io.describeTimeoutMs)
@@ -209,6 +221,7 @@ async function targetOf(command: Extract<Command, { name: "target" }>, io: CliIo
       ownDir: io.ownDir,
       ...command.directories,
       programName: PROJECT.name,
+      options: command.options,
       signal: io.signal,
     }
     const t = promptTranslator(io.translations ?? {}, command.language)
@@ -261,7 +274,9 @@ const PERSON_COMMANDS: Partial<Record<string, (argv: string[], io: CommandIo) =>
  * language) of that description and the resources when there is a description.
  * `target` takes `--language <tag>`, else `<envPrefix>_LANGUAGE`, else `--harness-language <tag>` (the harness's own
  * display language) as the prompt language; none, or one without a table,
- * keeps English. Standard output carries only the JSON document; a
+ * keeps English. `list`, `run` and `target` also take the package's tool options,
+ * as flags or `<envPrefix>_<OPTION>` variables, and `run` and `target` hand their
+ * values to the tool as `options`. Standard output carries only the JSON document; a
  * mistake in the command line is one line on standard error and `EXIT_USAGE`.
  * `pair`, `sync`, `service` and `remove` are for a person setting up an
  * account (see `PERSON_COMMANDS`). Resolves to the exit code.
