@@ -6,7 +6,7 @@ import { join } from "node:path"
 import { fileURLToPath } from "node:url"
 import { forwardedVariables, settingVariables } from "../src/entry/settings"
 import { PROJECT } from "../src/project"
-import { CODEX_MANIFEST } from "./codex-env.mjs"
+import { CODEX_APPROVAL_MODE, CODEX_MANIFEST } from "./codex-env.mjs"
 import { PLUGIN_NAME } from "./package-name.mjs"
 import { DESCRIPTION_LIMIT, serverJson } from "./server-json.mjs"
 import { VERSION_FILES } from "./version-files.mjs"
@@ -84,13 +84,14 @@ describe("MCP configurations", () => {
     })
   })
 
-  test("Codex's legacy manifest launches dist/mcp.js from the plugin root, forwards every variable the server reads and allows long calls", () => {
+  test("Codex's legacy manifest launches dist/mcp.js from the plugin root, asks before every write, forwards every variable the server reads and allows long calls", () => {
     const manifest = readJson(CODEX_MANIFEST)
     expect(manifest.mcpServers).toEqual({
       [SERVER_NAME]: {
         command: "node",
         args: [MCP_ENTRY],
         cwd: ".",
+        default_tools_approval_mode: CODEX_APPROVAL_MODE,
         env_vars: forwardedVariables(),
         tool_timeout_sec: CODEX_TOOL_TIMEOUT_SEC,
       },
