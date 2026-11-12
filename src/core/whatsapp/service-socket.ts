@@ -1,5 +1,6 @@
 import { chmod, rm } from "node:fs/promises"
 import { createServer, type Socket } from "node:net"
+import { clearTimeout, setTimeout } from "node:timers"
 import { isAbortError, isToolError } from "../errors"
 import type { LabelPaths } from "./labels"
 import { maskNumbers } from "./mask"
@@ -16,6 +17,9 @@ const MAX_REQUEST_BYTES = 1_048_576
 
 /** How long a connection may stay silent before it has sent its request line. */
 const REQUEST_READ_TIMEOUT_MS = 10_000
+
+/** How long a stopping service waits for its connections to close before it drops those still open. */
+const CLOSE_GRACE_MS = 1_000
 
 /** The longest operation name quoted in a message. */
 const MAX_QUOTED_OP = 40
@@ -248,6 +252,14 @@ export async function listenOnServiceSocket(path: string, options: ServiceSocket
         const closed = new Promise<void>((resolve) => server.close(() => resolve()))
         await queue
         for (const socket of sockets) socket.end(() => socket.destroy())
+        // A connection whose caller already left may never report closing; the stop does not wait on it for long.
+        let timer: ReturnType<typeof setTimeout> | undefined
+        const grace = new Promise<void>((resolve) => {
+          timer = setTimeout(resolve, CLOSE_GRACE_MS).unref()
+        })
+        await Promise.race([closed, grace])
+        clearTimeout(timer)
+        for (const socket of sockets) socket.destroy()
         await closed
         await rm(path, { force: true })
       })()
