@@ -10,7 +10,7 @@
     {
       "name": "whatsapp-tools",
       "source": "./",
-      "description": "WhatsApp tools for coding agents: chats, messages, contacts, history, received files and sends.",
+      "description": "WhatsApp tools for coding agents: chats, contacts, history, received files, sends and actions.",
       "category": "development"
     }
   ]
