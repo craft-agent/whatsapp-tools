@@ -3,6 +3,7 @@ import { DESCRIBE_TIMEOUT_MS } from "../entry/description"
 import { approvalOf } from "../entry/pin"
 import { loadSkills } from "./skills"
 import {
+  harnessError,
   needsPermission,
   permissionMetadata,
   persistableResources,
@@ -46,6 +47,7 @@ function v2Tool(
           )
         }
         const approval = await approvalOf(spec, input, toolContext, DESCRIBE_TIMEOUT_MS, t)
+        if (approval.refused) throw harnessError(approval.refused)
         const { resources, description } = approval
         pin = approval.pin
         await ctx.permission.assert({
