@@ -23,13 +23,22 @@ function quoteBadLabel(value: string): string {
   return JSON.stringify(truncated)
 }
 
-/** Whether `text` is a valid label name. */
+/** The name kept for the grants directory, which shares the state root with the labels' directories. */
+export const RESERVED_LABEL = "grants"
+
+/** Whether `text` is a valid label name: it matches the pattern and is not the reserved name. */
 export function isLabel(text: string): boolean {
-  return typeof text === "string" && LABEL_PATTERN.test(text)
+  return typeof text === "string" && LABEL_PATTERN.test(text) && text !== RESERVED_LABEL
 }
 
 /** Returns the label, or throws `invalid_argument` stating the rule. */
 export function checkLabel(label: string): string {
+  if (label === RESERVED_LABEL) {
+    throw new ToolError(
+      "invalid_argument",
+      `Invalid label ${quoteBadLabel(label)}: the name is kept for the grants directory.`,
+    )
+  }
   if (!isLabel(label)) {
     throw new ToolError(
       "invalid_argument",

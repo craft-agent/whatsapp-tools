@@ -314,6 +314,22 @@ mirror's unread count, not necessarily the phone's mark. The skill is
 `whatsapp-tools:whatsapp-actions` in Claude Code and `whatsapp-tools:actions`
 in Hermes.
 
+### Grants (`grants`)
+
+Off by default. Delegates bounded writes for jobs where no person can answer.
+
+| Tool                    | What it does                                             | Class          |
+| ----------------------- | -------------------------------------------------------- | -------------- |
+| `whatsapp_grant_create` | ask a person to delegate one tool's writes within limits | administrative |
+| `whatsapp_grant_read`   | list grants and their use, or read the usage log         | read           |
+| `whatsapp_grant_revoke` | remove a grant so no more calls run under it             | overwrite      |
+
+Every write tool can be granted for its targets, calls per hour and expiry.
+A tool adds what a grant can also limit by declaring `bounds` and giving
+`measure(args, context)` in its spec; see the
+[conventions](docs/conventions.md#writes-no-one-is-there-to-approve).
+No tool of this package declares `bounds` yet.
+
 ## Adding a tool
 
 1. Write the spec in `src/core/<domain>/<verb>.ts` with `defineTool`: an ID
@@ -380,7 +396,8 @@ Where a write is asked about, and where it is not:
   a rule asks for it: add the `whatsapp_*` rule shown under [OpenCode](#opencode).
 - **Codex** asks before every write because of the plugin's approval mode.
   Under `codex exec` it refuses with "MCP tool call requires approval, but
-  approval policy is never".
+  approval policy is never". For bounded jobs, see
+  [Writes no one is there to approve](#writes-no-one-is-there-to-approve).
 - **Grok Build** under `grok -p` refuses a write it cannot ask about, unless it
   is allowed beforehand.
 - **Grok Build** calls the plugin's tools through its `use_tool` tool, and the
@@ -392,7 +409,8 @@ Where a write is asked about, and where it is not:
   names the plugin's server `whatsapp-tools_whatsapp-tools` (plugin,
   then server). `agy -p` refuses a tool it cannot ask about.
 - **Hermes** `hermes chat -q` refuses a write it cannot ask about; `hermes -z`
-  and `--yolo` skip approval, so writes then run unasked.
+  and `--yolo` skip approval, so writes then run unasked. For bounded jobs, see
+  [Writes no one is there to approve](#writes-no-one-is-there-to-approve).
 
 A call a tool's `gate` refuses never runs, whatever the answer. OpenCode and
 Hermes refuse it before they ask, so no prompt shows it; Hermes blocks it with
@@ -400,25 +418,96 @@ the tool's error. Claude Code, Codex, Grok Build and Antigravity draw their
 own prompt before the MCP server sees the call, so they may still ask about
 it; the server then refuses it.
 
+## Writes no one is there to approve
+
+A grant limits a job's writes to one tool, for at most 90 days. The person
+decides the rest: the targets (named ones, or `*` for any), the bounds the
+tool declares (one left out is no limit) and the calls per hour (left out,
+any number). Every call made under a grant is logged. A grant never
+overrides the host's permissions. The
+[conventions](docs/conventions.md#writes-no-one-is-there-to-approve) give the
+contract.
+
+1. In a session where a person answers, supply the key described under
+   [Settings](#settings), turn on the `grants` toolset alongside the job's
+   toolset, and ask the agent to delegate. It calls `whatsapp_grant_create`;
+   the prompt shows the tool, targets, rate, days, every bound the tool
+   declares (`no limit` for one left out) and the reason.
+   Approve once.
+2. Set the same key and `unattended` for the job only, for example
+   `WHATSAPP_TOOLS_UNATTENDED=true`. Otherwise grants are not checked.
+3. Let the host allow the write tool in that run, as below. The grant still
+   bounds each call.
+4. Revoke with `whatsapp_grant_revoke`, or list grants and their use with
+   `whatsapp_grant_read`.
+
+What lets a write reach the package when no one can answer, for example
+`whatsapp_message_send`:
+
+- **OpenCode** `opencode run` rejects every question unless an allow rule
+  names the tool (`"permission": { "whatsapp_message_send": "allow" }`) or the
+  run starts with `--auto`.
+- **Claude Code** `claude -p` needs the tool in `--allowedTools`, as
+  `mcp__plugin_whatsapp-tools_whatsapp-tools__whatsapp_message_send`.
+- **Codex** `codex exec` needs `approval_mode = "approve"` for that tool under
+  the plugin's MCP server in `config.toml`
+  (`[mcp_servers.<server>.tools.<tool>]`), since the plugin's default asks
+  before every write.
+- **Grok Build** `grok -p` needs both allow rules:
+  `--allow 'MCPTool(whatsapp-tools__whatsapp_message_send)'` and
+  `--allow 'MCPTool(whatsapp_message_send)'`, for the qualified and short names
+  described under [Reads and writes](#reads-and-writes).
+- **Antigravity** `agy -p` needs
+  `mcp(whatsapp-tools_whatsapp-tools/whatsapp_message_send)` in
+  `permissions.allow`.
+- **Hermes** `hermes chat -q` denies by `approvals.single_query_mode` unless
+  allowed. `-z` and `--yolo` skip approvals and run the write; the grant is
+  then the only bound.
+
+### Limits
+
+- A run with every approval skipped (Hermes `-z` or `--yolo`, an
+  always-approve mode, an explicit `allow` for `whatsapp_grant_create`, or a
+  global OpenCode V1 `allow`) shows no prompt. A grant created there is not a
+  person's answer, and it can be as wide as any target, no bound and no rate
+  for 90 days: create grants only where the harness asks.
+- An earlier copy of the grants directory put back whole is not detected.
+  Expiry, at most 90 days, bounds what it can restore.
+- Anyone who can read the key can sign grants. Keep it where the agent's
+  tools cannot read it.
+- The OpenCode V2 plugin forces a question for `whatsapp_grant_create`
+  through a hook; only hosts that offer that hook run it.
+
+The OpenCode V2 service and Hermes gateway keep the environment they started
+with; see [Settings](#settings) before changing the job's variables.
+
 ## Settings
 
 Every entry point takes the same settings. A flag wins over its environment
 variable, and an option or setting wins over the variable too, except in
 Hermes, noted below.
 
-| Setting         | Flag              | Variable                       | Meaning                                                                           |
-| --------------- | ----------------- | ------------------------------ | --------------------------------------------------------------------------------- |
-| `toolsets`      | `--toolsets`      | `WHATSAPP_TOOLS_TOOLSETS`      | the toolsets that are on, or `all`; default those `src/project.ts` names          |
-| `read_only`     | `--read-only`     | `WHATSAPP_TOOLS_READ_ONLY`     | registers no tool that writes; wins over every other setting                      |
-| `tools`         | `--tools`         | `WHATSAPP_TOOLS_TOOLS`         | single tools to add by ID, whatever their toolset                                 |
-| `exclude_tools` | `--exclude-tools` | `WHATSAPP_TOOLS_EXCLUDE_TOOLS` | single tools to remove by ID; wins over `tools` and `toolsets`                    |
-| `confirm`       | `--confirm`       | `WHATSAPP_TOOLS_CONFIRM`       | MCP server only: `harness` (default) or `elicitation`, as the conventions say     |
-| `language`      | `--language`      | `WHATSAPP_TOOLS_LANGUAGE`      | native plugins only: the approval prompt's language, such as `ja`                 |
-| `emoji`         | —                 | —                              | Hermes only: the emoji shown beside each toolset, by toolset name (`""` for none) |
-| `state_dir`     | `--state-dir`     | `WHATSAPP_TOOLS_STATE_DIR`     | `path`: where every label's state lives; default `$XDG_STATE_HOME/whatsapp-tools` |
-| `download_dir`  | `--download-dir`  | `WHATSAPP_TOOLS_DOWNLOAD_DIR`  | `path`: where received files are saved; default `~/Downloads/whatsapp-tools`      |
-| `send_dirs`     | `--send-dirs`     | `WHATSAPP_TOOLS_SEND_DIRS`     | `paths`: the directories files may be sent from, besides the working directory    |
-| `exclude_chats` | `--exclude-chats` | `WHATSAPP_TOOLS_EXCLUDE_CHATS` | `list`: chat JIDs every tool leaves out, as `whatsapp_chat_read` returns them     |
+| Setting         | Flag              | Variable                       | Meaning                                                                                                                           |
+| --------------- | ----------------- | ------------------------------ | --------------------------------------------------------------------------------------------------------------------------------- |
+| `toolsets`      | `--toolsets`      | `WHATSAPP_TOOLS_TOOLSETS`      | the toolsets that are on, or `all`; default those `src/project.ts` names                                                          |
+| `read_only`     | `--read-only`     | `WHATSAPP_TOOLS_READ_ONLY`     | registers no tool that writes; wins over every other setting                                                                      |
+| `unattended`    | `--unattended`    | `WHATSAPP_TOOLS_UNATTENDED`    | no person can answer: a write runs only under a grant that covers it; off by default                                              |
+| `grants_dir`    | `--grants-dir`    | `WHATSAPP_TOOLS_GRANTS_DIR`    | where grants and their use are kept; default `$XDG_STATE_HOME/whatsapp-tools/grants`, else `~/.local/state/whatsapp-tools/grants` |
+| `tools`         | `--tools`         | `WHATSAPP_TOOLS_TOOLS`         | single tools to add by ID, whatever their toolset                                                                                 |
+| `exclude_tools` | `--exclude-tools` | `WHATSAPP_TOOLS_EXCLUDE_TOOLS` | single tools to remove by ID; wins over `tools` and `toolsets`                                                                    |
+| `confirm`       | `--confirm`       | `WHATSAPP_TOOLS_CONFIRM`       | MCP server only: `harness` (default) or `elicitation`, as the conventions say                                                     |
+| `language`      | `--language`      | `WHATSAPP_TOOLS_LANGUAGE`      | native plugins only: the approval prompt's language, such as `ja`                                                                 |
+| `emoji`         | —                 | —                              | Hermes only: the emoji shown beside each toolset, by toolset name (`""` for none)                                                 |
+| `state_dir`     | `--state-dir`     | `WHATSAPP_TOOLS_STATE_DIR`     | `path`: where every label's state lives; default `$XDG_STATE_HOME/whatsapp-tools`                                                 |
+| `download_dir`  | `--download-dir`  | `WHATSAPP_TOOLS_DOWNLOAD_DIR`  | `path`: where received files are saved; default `~/Downloads/whatsapp-tools`                                                      |
+| `send_dirs`     | `--send-dirs`     | `WHATSAPP_TOOLS_SEND_DIRS`     | `paths`: the directories files may be sent from, besides the working directory                                                    |
+| `exclude_chats` | `--exclude-chats` | `WHATSAPP_TOOLS_EXCLUDE_CHATS` | `list`: chat JIDs every tool leaves out, as `whatsapp_chat_read` returns them                                                     |
+
+`WHATSAPP_TOOLS_GRANT_KEY` is a variable only, never a flag or a plugin
+option. Use at least 32 characters, for example from `openssl rand -hex 32`,
+stored where the host keeps secrets. Without it no write runs while
+unattended and no grant can be created. Codex forwards it alongside the
+settings' variables, as described below.
 
 Lists are comma-separated in a flag or a variable. `state_dir`, `download_dir`,
 `send_dirs` and `exclude_chats` are this package's own settings, listed in
@@ -546,9 +635,10 @@ binary). They never drive WhatsApp Web or read another client's data.
   catches up with its protocol, so keep it updated; after an update, restart
   the sync service so it runs the new release.
 - **Each linked device has a label**, 1 to 24 lowercase letters, digits and
-  `_` (`default` when pairing names none). A tool's `account` argument picks
-  the label; leave it out when only one device is paired. The account tool
-  instead lists every label when `account` is absent.
+  `_` (`default` when pairing names none); `grants` is reserved for the grants
+  directory. A tool's `account` argument picks the label; leave it out when
+  only one device is paired. The account tool instead lists every label when
+  `account` is absent.
 - **Each label keeps its state in one directory**, `<state_dir>/<label>/`
   (mode 700): wacli's store (the session keys, its mirror of your messages,
   downloaded media), the sync service's socket, and the copies of files being

@@ -7,9 +7,15 @@ import {
   settingsFromOptions,
   settingVariables,
 } from "./settings"
-import { failure, profile } from "./settings.testing"
+import { DEFAULT_GRANTS, failure, profile } from "./settings.testing"
 
-const DEFAULTS = { state_dir: expect.any(String), download_dir: expect.any(String), send_dirs: [], options: {} }
+const DEFAULTS = {
+  state_dir: expect.any(String),
+  download_dir: expect.any(String),
+  send_dirs: [],
+  options: {},
+  grants: DEFAULT_GRANTS,
+}
 
 const fromOptions = (options: Record<string, unknown> | undefined, env: Record<string, string | undefined> = {}) =>
   settingsFromOptions(options, env, profile)

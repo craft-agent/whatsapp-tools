@@ -13,6 +13,9 @@ provides_tools:
   - whatsapp_contact_read
   - whatsapp_file_save
   - whatsapp_file_send
+  - whatsapp_grant_create
+  - whatsapp_grant_read
+  - whatsapp_grant_revoke
   - whatsapp_history_backfill
   - whatsapp_message_delete
   - whatsapp_message_edit
@@ -26,6 +29,12 @@ config_schema:
   read_only:
     type: bool
     description: Registers no tool that writes. Wins over every other setting.
+  unattended:
+    type: bool
+    description: "No person can answer: writes run only under a grant that covers them."
+  grants_dir:
+    type: str
+    description: Where grants and their use are kept; default under the user's state directory.
   tools:
     type: list
     description: Single tools to add by id, whatever their toolset.

@@ -1,8 +1,10 @@
 import {
   ENGLISH,
   invoke,
+  isPersonOnly,
   isToolError,
   selectTools,
+  type GrantContext,
   type ToolContext,
   type ToolError,
   type ToolOptions,
@@ -39,6 +41,16 @@ export function persistableResources(resources: string[]): string[] {
   return resources.filter((resource) => resource !== ANY_RESOURCE)
 }
 
+/** The resources an "always" answer may persist for a tool's call: none for a person-only tool, which is asked every time. */
+export function savedResources(spec: object, resources: string[]): string[] {
+  return isPersonOnly(spec) ? [] : persistableResources(resources)
+}
+
+/** The ids of the tools only a person's answer to their own prompt may run. */
+export function personOnlyIds(specs: readonly ToolSpec[]): string[] {
+  return specs.filter(isPersonOnly).map((spec) => spec.id)
+}
+
 /** What the harness is told about a call it is asked to allow. */
 export function permissionMetadata(
   spec: Pick<ToolSpec, "title" | "intent" | "class">,
@@ -64,14 +76,21 @@ export type PluginDirectories = ToolDirectories & { programName: string }
 
 /**
  * The tools and resolved directories the plugin options (and the environment
- * behind them) select from `specs`, and the translator of the prompt language
- * they set over the plugin's translations.
+ * behind them) select from `specs`, the translator of the prompt language
+ * they set over the plugin's translations, the package's own settings and the
+ * grants' context.
  */
 export function selectedTools(
   specs: ToolSpec[],
   options: PluginOptions | undefined,
   deps: PluginDeps,
-): { tools: ToolSpec[]; directories: PluginDirectories; translator: Translator; options: ToolOptions } {
+): {
+  tools: ToolSpec[]
+  directories: PluginDirectories
+  translator: Translator
+  options: ToolOptions
+  grants: GrantContext
+} {
   const profile = deps.profile ?? PROJECT_PROFILE
   const settings = settingsFromOptions(options, deps.env ?? process.env, profile)
   return {
@@ -79,6 +98,7 @@ export function selectedTools(
     directories: { ...toolDirectories(settings), programName: PROJECT.name },
     translator: promptTranslator(deps.translations ?? {}, settings.language),
     options: settings.options,
+    grants: settings.grants,
   }
 }
 

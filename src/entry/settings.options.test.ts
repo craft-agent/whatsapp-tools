@@ -1,13 +1,19 @@
 import { describe, expect, test } from "bun:test"
 import { settingsFromOptions } from "./settings"
-import { failure, profile } from "./settings.testing"
+import { DEFAULT_GRANTS, failure, profile } from "./settings.testing"
 
 const fromOptions = (options: Record<string, unknown> | undefined, env: Record<string, string | undefined> = {}) =>
   settingsFromOptions(options, env, profile)
 
 describe("settingsFromOptions", () => {
   test("gives no setting for no options", () => {
-    const none = { state_dir: expect.any(String), download_dir: expect.any(String), send_dirs: [], options: {} }
+    const none = {
+      state_dir: expect.any(String),
+      download_dir: expect.any(String),
+      send_dirs: [],
+      options: {},
+      grants: DEFAULT_GRANTS,
+    }
     expect(fromOptions(undefined)).toEqual(none)
     expect(fromOptions({})).toEqual(none)
   })
@@ -40,6 +46,7 @@ describe("settingsFromOptions", () => {
         download_dir: "/custom/downloads",
         send_dirs: ["/custom/send", "/custom/more", "/custom/send"],
       },
+      grants: DEFAULT_GRANTS,
     })
     expect(fromOptions({ toolsets: "all" }).toolsets).toBe("all")
     expect(fromOptions({ toolsets: ["alpha", "all"] }).toolsets).toBe("all")
@@ -63,6 +70,7 @@ describe("settingsFromOptions", () => {
       download_dir: "/env/downloads",
       send_dirs: ["/env/a", "/env/b"],
       options: { state_dir: "/env/state", download_dir: "/env/downloads", send_dirs: ["/env/a", "/env/b"] },
+      grants: DEFAULT_GRANTS,
     })
     expect(
       fromOptions(
@@ -83,6 +91,7 @@ describe("settingsFromOptions", () => {
       download_dir: "/opt/downloads",
       send_dirs: ["/opt/send"],
       options: { state_dir: "/opt/state", download_dir: "/opt/downloads", send_dirs: ["/opt/send"] },
+      grants: DEFAULT_GRANTS,
     })
   })
 
@@ -93,6 +102,7 @@ describe("settingsFromOptions", () => {
       download_dir: "/home/user/Downloads/demo-tools",
       send_dirs: [],
       options: {},
+      grants: { ...DEFAULT_GRANTS, dir: "/home/user/.local/state/demo-tools/grants" },
     })
     expect(fromOptions({ send_dirs: ["/a", " ", "/b"] }, env).send_dirs).toEqual(["/a", "/b"])
   })

@@ -4,7 +4,7 @@ import { resolve } from "node:path"
 import { PROJECT } from "../project"
 import type { EntryProfile } from "./profile"
 import { forwardedVariables, parseSettings, parseToolOptions, parseToolSettings, settingVariables } from "./settings"
-import { failure, profile } from "./settings.testing"
+import { DEFAULT_GRANTS, failure, profile } from "./settings.testing"
 
 const parse = (argv: string[], env: Record<string, string | undefined> = {}) => parseSettings(argv, env, profile)
 const parseTool = (argv: string[], env: Record<string, string | undefined> = {}) =>
@@ -18,6 +18,8 @@ describe("settingVariables", () => {
       "DEMO_TOOLS",
       "DEMO_EXCLUDE_TOOLS",
       "DEMO_CONFIRM",
+      "DEMO_UNATTENDED",
+      "DEMO_GRANTS_DIR",
       "DEMO_STATE_DIR",
       "DEMO_DOWNLOAD_DIR",
       "DEMO_SEND_DIRS",
@@ -34,12 +36,20 @@ describe("settingVariables", () => {
 })
 
 describe("forwardedVariables", () => {
-  test("lists the settings' variables, then the tool variables", () => {
-    expect(forwardedVariables(profile, ["XDG_STATE_HOME"])).toEqual([...settingVariables(profile), "XDG_STATE_HOME"])
+  test("lists the settings' variables, the grant key's, then the tool variables", () => {
+    expect(forwardedVariables(profile, ["XDG_STATE_HOME"])).toEqual([
+      ...settingVariables(profile),
+      "DEMO_GRANT_KEY",
+      "XDG_STATE_HOME",
+    ])
   })
 
   test("uses the package's own prefix and toolVariables by default", () => {
-    expect(forwardedVariables()).toEqual([...settingVariables(), ...PROJECT.toolVariables])
+    expect(forwardedVariables()).toEqual([
+      ...settingVariables(),
+      `${PROJECT.envPrefix}_GRANT_KEY`,
+      ...PROJECT.toolVariables,
+    ])
   })
 })
 
@@ -51,6 +61,7 @@ describe("parseSettings", () => {
       download_dir: expect.any(String),
       send_dirs: [],
       options: {},
+      grants: DEFAULT_GRANTS,
     })
   })
 
@@ -91,6 +102,7 @@ describe("parseSettings", () => {
         download_dir: "/custom/downloads",
         send_dirs: ["/custom/a", resolve(homedir(), "b"), "/custom/a"],
       },
+      grants: DEFAULT_GRANTS,
     })
   })
 
@@ -120,6 +132,7 @@ describe("parseSettings", () => {
         download_dir: resolve(homedir(), "saved"),
         send_dirs: ["/custom/send"],
       },
+      grants: DEFAULT_GRANTS,
     })
   })
 
@@ -149,6 +162,7 @@ describe("parseSettings", () => {
         download_dir: "/env/downloads",
         send_dirs: ["/env/a", "/env/b"],
       },
+      grants: DEFAULT_GRANTS,
     })
   })
 
@@ -226,6 +240,7 @@ describe("parseSettings", () => {
         download_dir: "/flag/downloads",
         send_dirs: ["/flag/send"],
       },
+      grants: DEFAULT_GRANTS,
     })
   })
 
@@ -236,6 +251,7 @@ describe("parseSettings", () => {
       download_dir: expect.any(String),
       send_dirs: [],
       options: {},
+      grants: DEFAULT_GRANTS,
     })
   })
 
@@ -247,6 +263,7 @@ describe("parseSettings", () => {
       download_dir: "/home/user/Downloads/demo-tools",
       send_dirs: [],
       options: {},
+      grants: { ...DEFAULT_GRANTS, dir: "/home/user/.local/state/demo-tools/grants" },
     })
   })
 
@@ -360,6 +377,7 @@ describe("parseToolSettings", () => {
       download_dir: expect.any(String),
       send_dirs: [],
       options: {},
+      grants: DEFAULT_GRANTS,
     })
     expect(
       parseTool(
@@ -375,6 +393,7 @@ describe("parseToolSettings", () => {
       download_dir: "/tool/files",
       send_dirs: [],
       options: { state_dir: "/tool/state", download_dir: "/tool/files" },
+      grants: DEFAULT_GRANTS,
     })
   })
 
@@ -389,6 +408,7 @@ describe("parseToolSettings", () => {
       download_dir: expect.any(String),
       send_dirs: [],
       options: {},
+      grants: DEFAULT_GRANTS,
     })
   })
 })

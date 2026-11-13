@@ -1,5 +1,25 @@
 export { ToolError, isAbortError, isToolError, type ErrorCode, type ErrorDetails, type JsonValue } from "./errors"
 export { abortError, exec, type ExecOptions, type ExecResult } from "./exec"
+export {
+  MAX_GRANT_DAYS,
+  GRANTS_TOOLSET,
+  RATE_WINDOW_MS,
+  askPersonOnly,
+  grantBounds,
+  grantCheck,
+  grantRefusal,
+  grantTargets,
+  grantTools,
+  isPersonOnly,
+  matchGrant,
+  measureOf,
+  type Grant,
+  type GrantBoundValue,
+  type GrantCall,
+  type GrantContext,
+  type GrantMatch,
+  type GrantRefusal,
+} from "./grant"
 export { isWithin } from "./paths"
 export { ANY_TARGET, writeTargets } from "./targets"
 export {
@@ -13,15 +33,19 @@ export {
   outputJsonSchema,
   selectTools,
   toolMeta,
+  type BoundSpec,
   type CallDescription,
   type CallFact,
   type CallHeadline,
+  type CallMeasure,
   type CallText,
   type CallValue,
   type ConfirmRequest,
+  type MeasuredValue,
   type OptionSpec,
   type OptionType,
   type ToolAnnotations,
+  type ToolBounds,
   type ToolContext,
   type ToolOptionValue,
   type ToolOptions,
