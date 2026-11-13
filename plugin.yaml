@@ -53,6 +53,9 @@ config_schema:
     description: "The chats every tool leaves out: their JIDs as list returns them. List both JIDs of a person who has a phone JID and an …@lid. Defaults to none. Read by tools; the sync service still mirrors them, and no service restart is needed."
   language:
     description: The language of the approval card, such as ja. Defaults to Hermes's display language, else English.
+  require_plugins:
+    type: list
+    description: The Hermes plugins that must be loaded; while one is not, every write is refused before it is approved.
   emoji:
     type: dict
     description: 'The emoji shown beside each toolset, by toolset name; "" shows none. Merged over the package''s emoji.'
