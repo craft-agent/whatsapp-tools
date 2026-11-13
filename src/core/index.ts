@@ -1,5 +1,15 @@
 export { ToolError, isAbortError, isToolError, type ErrorCode, type ErrorDetails, type JsonValue } from "./errors"
 export { abortError, exec, type ExecOptions, type ExecResult } from "./exec"
+export {
+  MAX_GRANT_DAYS,
+  MAX_GRANT_RATE,
+  RATE_WINDOW_MS,
+  grantBounds,
+  grantTargets,
+  type Grant,
+  type GrantBoundValue,
+  type GrantRefusal,
+} from "./grant"
 export { isWithin } from "./paths"
 export { ANY_TARGET, writeTargets } from "./targets"
 export {
