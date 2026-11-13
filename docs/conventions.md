@@ -601,6 +601,9 @@ and every entry point checks them the same way.
   ending with a letter or a digit; pairing names it `default` when no label is
   given. A label is also a directory name, so the set is kept to what every
   file system takes as it is, and it is the same set signal-tools uses.
+  `grants` is reserved: the grants directory (`<state root>/grants` by
+  default) sits beside the labels' directories, so no label may take that
+  name, and listing the labels skips it.
 - **Each label keeps all of its state in one directory**,
   `<state root>/<label>/`, created with mode 700: the wacli store (the session
   keys, wacli's mirror of the messages, downloaded media, its lock and its

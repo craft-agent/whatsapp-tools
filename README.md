@@ -635,9 +635,10 @@ binary). They never drive WhatsApp Web or read another client's data.
   catches up with its protocol, so keep it updated; after an update, restart
   the sync service so it runs the new release.
 - **Each linked device has a label**, 1 to 24 lowercase letters, digits and
-  `_` (`default` when pairing names none). A tool's `account` argument picks
-  the label; leave it out when only one device is paired. The account tool
-  instead lists every label when `account` is absent.
+  `_` (`default` when pairing names none); `grants` is reserved for the grants
+  directory. A tool's `account` argument picks the label; leave it out when
+  only one device is paired. The account tool instead lists every label when
+  `account` is absent.
 - **Each label keeps its state in one directory**, `<state_dir>/<label>/`
   (mode 700): wacli's store (the session keys, its mirror of your messages,
   downloaded media), the sync service's socket, and the copies of files being
