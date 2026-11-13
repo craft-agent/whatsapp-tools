@@ -127,6 +127,22 @@ The plugin runs the Node it found when Hermes started. If a version manager
 removes that version while Hermes runs, a call looks for Node again; when it
 finds none, restart Hermes from a shell where `node` runs.
 
+When the package's writes depend on another Hermes plugin, such as a guard
+that blocks writes no one is there to approve, name it in `require_plugins`.
+Hermes keeps loading this plugin when that one fails to import or register,
+and treats a manifest's `requires_plugins` as advisory. With the setting,
+while a named plugin is not loaded, every write is refused before it is
+approved, even under `--yolo`, `approvals.mode: off` or a remembered answer,
+naming the plugin that is missing. Reads still run.
+
+```yaml
+plugins:
+  entries:
+    whatsapp-tools:
+      settings:
+        require_plugins: [write-guard]
+```
+
 ### Any other MCP host
 
 Add the server to the host's MCP configuration. Flags go in `args`:
@@ -487,21 +503,22 @@ Every entry point takes the same settings. A flag wins over its environment
 variable, and an option or setting wins over the variable too, except in
 Hermes, noted below.
 
-| Setting         | Flag              | Variable                       | Meaning                                                                                                                           |
-| --------------- | ----------------- | ------------------------------ | --------------------------------------------------------------------------------------------------------------------------------- |
-| `toolsets`      | `--toolsets`      | `WHATSAPP_TOOLS_TOOLSETS`      | the toolsets that are on, or `all`; default those `src/project.ts` names                                                          |
-| `read_only`     | `--read-only`     | `WHATSAPP_TOOLS_READ_ONLY`     | registers no tool that writes; wins over every other setting                                                                      |
-| `unattended`    | `--unattended`    | `WHATSAPP_TOOLS_UNATTENDED`    | no person can answer: a write runs only under a grant that covers it; off by default                                              |
-| `grants_dir`    | `--grants-dir`    | `WHATSAPP_TOOLS_GRANTS_DIR`    | where grants and their use are kept; default `$XDG_STATE_HOME/whatsapp-tools/grants`, else `~/.local/state/whatsapp-tools/grants` |
-| `tools`         | `--tools`         | `WHATSAPP_TOOLS_TOOLS`         | single tools to add by ID, whatever their toolset                                                                                 |
-| `exclude_tools` | `--exclude-tools` | `WHATSAPP_TOOLS_EXCLUDE_TOOLS` | single tools to remove by ID; wins over `tools` and `toolsets`                                                                    |
-| `confirm`       | `--confirm`       | `WHATSAPP_TOOLS_CONFIRM`       | MCP server only: `harness` (default) or `elicitation`, as the conventions say                                                     |
-| `language`      | `--language`      | `WHATSAPP_TOOLS_LANGUAGE`      | native plugins only: the approval prompt's language, such as `ja`                                                                 |
-| `emoji`         | —                 | —                              | Hermes only: the emoji shown beside each toolset, by toolset name (`""` for none)                                                 |
-| `state_dir`     | `--state-dir`     | `WHATSAPP_TOOLS_STATE_DIR`     | `path`: where every label's state lives; default `$XDG_STATE_HOME/whatsapp-tools`                                                 |
-| `download_dir`  | `--download-dir`  | `WHATSAPP_TOOLS_DOWNLOAD_DIR`  | `path`: where received files are saved; default `~/Downloads/whatsapp-tools`                                                      |
-| `send_dirs`     | `--send-dirs`     | `WHATSAPP_TOOLS_SEND_DIRS`     | `paths`: the directories files may be sent from, besides the working directory                                                    |
-| `exclude_chats` | `--exclude-chats` | `WHATSAPP_TOOLS_EXCLUDE_CHATS` | `list`: chat JIDs every tool leaves out, as `whatsapp_chat_read` returns them                                                     |
+| Setting           | Flag              | Variable                       | Meaning                                                                                                                           |
+| ----------------- | ----------------- | ------------------------------ | --------------------------------------------------------------------------------------------------------------------------------- |
+| `toolsets`        | `--toolsets`      | `WHATSAPP_TOOLS_TOOLSETS`      | the toolsets that are on, or `all`; default those `src/project.ts` names                                                          |
+| `read_only`       | `--read-only`     | `WHATSAPP_TOOLS_READ_ONLY`     | registers no tool that writes; wins over every other setting                                                                      |
+| `unattended`      | `--unattended`    | `WHATSAPP_TOOLS_UNATTENDED`    | no person can answer: a write runs only under a grant that covers it; off by default                                              |
+| `grants_dir`      | `--grants-dir`    | `WHATSAPP_TOOLS_GRANTS_DIR`    | where grants and their use are kept; default `$XDG_STATE_HOME/whatsapp-tools/grants`, else `~/.local/state/whatsapp-tools/grants` |
+| `tools`           | `--tools`         | `WHATSAPP_TOOLS_TOOLS`         | single tools to add by ID, whatever their toolset                                                                                 |
+| `exclude_tools`   | `--exclude-tools` | `WHATSAPP_TOOLS_EXCLUDE_TOOLS` | single tools to remove by ID; wins over `tools` and `toolsets`                                                                    |
+| `confirm`         | `--confirm`       | `WHATSAPP_TOOLS_CONFIRM`       | MCP server only: `harness` (default) or `elicitation`, as the conventions say                                                     |
+| `language`        | `--language`      | `WHATSAPP_TOOLS_LANGUAGE`      | native plugins only: the approval prompt's language, such as `ja`                                                                 |
+| `emoji`           | —                 | —                              | Hermes only: the emoji shown beside each toolset, by toolset name (`""` for none)                                                 |
+| `require_plugins` | —                 | —                              | Hermes only: the plugins that must be loaded; while one is not, every write is refused before it is approved                      |
+| `state_dir`       | `--state-dir`     | `WHATSAPP_TOOLS_STATE_DIR`     | `path`: where every label's state lives; default `$XDG_STATE_HOME/whatsapp-tools`                                                 |
+| `download_dir`    | `--download-dir`  | `WHATSAPP_TOOLS_DOWNLOAD_DIR`  | `path`: where received files are saved; default `~/Downloads/whatsapp-tools`                                                      |
+| `send_dirs`       | `--send-dirs`     | `WHATSAPP_TOOLS_SEND_DIRS`     | `paths`: the directories files may be sent from, besides the working directory                                                    |
+| `exclude_chats`   | `--exclude-chats` | `WHATSAPP_TOOLS_EXCLUDE_CHATS` | `list`: chat JIDs every tool leaves out, as `whatsapp_chat_read` returns them                                                     |
 
 `WHATSAPP_TOOLS_GRANT_KEY` is a variable only, never a flag or a plugin
 option. Use at least 32 characters, for example from `openssl rand -hex 32`,
