@@ -5,6 +5,7 @@ export {
   MAX_GRANT_RATE,
   RATE_WINDOW_MS,
   grantBounds,
+  grantCheck,
   grantRefusal,
   grantTargets,
   matchGrant,
@@ -12,6 +13,7 @@ export {
   type Grant,
   type GrantBoundValue,
   type GrantCall,
+  type GrantContext,
   type GrantMatch,
   type GrantRefusal,
 } from "./grant"
