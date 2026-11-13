@@ -3,7 +3,6 @@ export { abortError, exec, type ExecOptions, type ExecResult } from "./exec"
 export {
   MAX_GRANT_DAYS,
   GRANTS_TOOLSET,
-  MAX_GRANT_RATE,
   RATE_WINDOW_MS,
   askPersonOnly,
   grantBounds,
