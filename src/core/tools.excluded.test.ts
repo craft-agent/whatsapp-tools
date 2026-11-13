@@ -7,12 +7,10 @@ import { NOT_IN_MIRROR as NO_SUCH_HISTORY_CHAT } from "./history/backfill"
 import { whatsappMessageSend } from "./message/send"
 import { invoke, type ToolContext } from "./tool"
 
-const PERSON = "14155550123@s.whatsapp.net"
+import { ARGUMENTS, GROUP, HIDDEN, MESSAGE_ID, PERSON, SENDS, chatTools } from "./tools.excluded.testing"
+
 const DEVICE_PERSON = "14155550123:7@s.whatsapp.net"
-const HIDDEN = "98765432101234@lid"
-const GROUP = "120363012345678901@g.us"
 const OTHER = "14155550999@s.whatsapp.net"
-const MESSAGE_ID = "3EB0A1B2C3D4E5F6"
 
 const READ = { code: "not_found", message: NO_SUCH_CHAT }
 const ACTION = {
@@ -47,31 +45,14 @@ function withSetting(chats: unknown): ToolContext {
   return Object.assign(Object.create(ctx), { options: { exclude_chats: chats } })
 }
 
-/** Valid arguments of each tool that names a chat, besides `chat` itself. */
-const ARGUMENTS: Record<string, Record<string, unknown>> = {
-  whatsapp_chat_archive: { archived: true },
-  whatsapp_chat_mark: { read: true },
-  whatsapp_chat_mute: { mute: "always" },
-  whatsapp_chat_pin: { pinned: true },
-  whatsapp_chat_read: { method: "view" },
-  whatsapp_file_save: { id: MESSAGE_ID },
-  whatsapp_file_send: { files: [{ path: "note.txt" }] },
-  whatsapp_history_backfill: {},
-  whatsapp_message_delete: { id: MESSAGE_ID },
-  whatsapp_message_edit: { id: MESSAGE_ID, text: "changed" },
-  whatsapp_message_react: { id: MESSAGE_ID, emoji: "👍" },
-  whatsapp_message_send: { text: "hello" },
-}
-
 /** What each tool gives for an excluded chat, which is what it gives for a chat the mirror does not hold. */
 const UNKNOWN: Record<string, unknown> = {
   whatsapp_chat_read: READ,
   whatsapp_file_save: READ,
   whatsapp_history_backfill: HISTORY,
 }
-const SENDS = ["whatsapp_file_send", "whatsapp_message_send"]
 
-const tools = ALL_TOOLS.filter((spec) => "chat" in spec.input.shape)
+const tools = chatTools
 
 describe("chat exclusion gates", () => {
   test("every tool that names a chat has a gate and arguments here", () => {

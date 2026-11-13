@@ -6,7 +6,7 @@ import { formatLocalTime } from "../time"
 import type { CallFact, CallValue, ToolContext } from "../tool"
 import { pickLabel } from "../whatsapp/labels"
 import { CHECKED_NUMBER } from "../whatsapp/operations"
-import { PEOPLE_AND_GROUPS_ONLY } from "./recipient"
+import { PEOPLE_AND_GROUPS_ONLY, notInMirror, nothingToQuote } from "./recipient"
 import { MESSAGE_WORDS } from "./words"
 
 /** The chat a send goes to, as its prompt names it: its name, its `Chat` fact, and whether the mirror holds it yet. */
@@ -38,7 +38,7 @@ export async function describeChat(mirror: Mirror, jid: string): Promise<Describ
   } catch (error) {
     if (!isToolError(error) || error.code !== "not_found") throw error
     const number = chatNumber(jid)
-    if (number === undefined || !CHECKED_NUMBER.test(number)) throw error
+    if (number === undefined || !CHECKED_NUMBER.test(number)) throw notInMirror()
     return {
       name: number,
       fact: { label: MESSAGE_WORDS.chatLabel, value: { text: MESSAGE_WORDS.newPerson } },
@@ -77,7 +77,7 @@ export async function describeReply(
   replyTo: string | undefined,
 ): Promise<CallFact | undefined> {
   if (replyTo === undefined) return undefined
-  if (described.isNew) throw new ToolError("not_found", "A new person has no message to reply to.")
+  if (described.isNew) throw nothingToQuote()
   return replyFact(mirror, excluded, chat, replyTo)
 }
 

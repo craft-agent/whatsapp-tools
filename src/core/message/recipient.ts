@@ -120,6 +120,16 @@ async function requireMessage(mirror: Mirror, excluded: ReadonlySet<string>, cha
   }
 }
 
+/** The refusal of a send to a chat the mirror lacks that is not a phone number WhatsApp can be asked about. */
+export function notInMirror(): ToolError {
+  return new ToolError("not_found", NOT_IN_MIRROR)
+}
+
+/** The refusal of a reply in a chat the mirror lacks, which has no message to quote. */
+export function nothingToQuote(): ToolError {
+  return new ToolError("not_found", NOTHING_TO_QUOTE)
+}
+
 /**
  * Lets a person the mirror does not hold through only when WhatsApp says their number has an account, since wacli
  * sends to an unregistered number without a word. Only a phone JID can be checked, and there is nothing to quote.
@@ -131,8 +141,8 @@ async function requireRegistered(
   signal: AbortSignal | undefined,
 ): Promise<void> {
   const number = chatNumber(chat)
-  if (number === undefined || !CHECKED_NUMBER.test(number)) throw new ToolError("not_found", NOT_IN_MIRROR)
-  if (replyTo !== undefined) throw new ToolError("not_found", NOTHING_TO_QUOTE)
+  if (number === undefined || !CHECKED_NUMBER.test(number)) throw notInMirror()
+  if (replyTo !== undefined) throw nothingToQuote()
   let entry: CheckEntry | undefined
   try {
     entry = (await checkNumbers(paths, { method: "check", numbers: [number] }, signal)).numbers?.[0]
@@ -159,8 +169,8 @@ export function unknownRecipient(chat: string, replyTo: string | undefined): Too
   const refused = refusedServerError(chat)
   if (refused) return refused
   const number = chatNumber(chat)
-  if (number === undefined || !CHECKED_NUMBER.test(number)) return new ToolError("not_found", NOT_IN_MIRROR)
-  if (replyTo !== undefined) return new ToolError("not_found", NOTHING_TO_QUOTE)
+  if (number === undefined || !CHECKED_NUMBER.test(number)) return notInMirror()
+  if (replyTo !== undefined) return nothingToQuote()
   return new ToolError("upstream_error", NO_ANSWER)
 }
 
