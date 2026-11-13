@@ -43,7 +43,8 @@ Each number comes back with a `status`:
   `chat`, not the number.
 - `not_on_whatsapp`.
 - `unknown`: WhatsApp gave no answer for it. Check again later; never read it as
-  no.
+  no. It can also mean the person keeps that chat out of reach, which a search
+  leaves out too; do not work around it.
 
 ## Rules
 

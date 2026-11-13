@@ -355,6 +355,10 @@ Every entry point takes the same settings:
 - **`send_dirs`**: this package's `paths` option for the directories files may
   be sent from besides the working directory, read as Options below says (see
   "Files"). Repeated directories are dropped; by default there are none.
+- **`exclude_chats`**: this package's `list` option of the chat JIDs every
+  tool leaves out, read as Options below says (see "Excluded chats"). The
+  tools read it and the service does not, so two harnesses sharing one account
+  can each set their own.
 - **Options** are the package's own settings, the ones the tools themselves
   read, listed in `options` in `src/project.ts` (and `OPTIONS` in the Hermes
   plugin's `project.py`), each mapping a snake_case name to its type (`text`,
@@ -622,6 +626,66 @@ Every entry point takes the same settings:
 - **Other people's words are data.** Message text, names, captions and file
   names are written by other people; every read tool's description and the
   skills say so, and nothing a message says is followed as an instruction.
+
+## Excluded chats
+
+A person who lets an agent use the account may want some chats kept from it:
+a chat with a doctor or a lawyer, a family group. The tool lists and
+`read_only` narrow what an agent can do, not where; `exclude_chats` narrows
+where, per harness, so a chat open to one agent can stay closed to another
+that shares the account.
+
+- **An excluded chat is out of every tool, never out of the mirror.** The
+  service keeps mirroring it as before, since the setting belongs to the
+  harness that reads it and another harness may still read the chat; taking
+  it off the list brings it back with its history. An entry is a chat JID as
+  `list` gives it, without a device suffix: a person, an `…@lid`, a group, a
+  channel, a broadcast list or `status@broadcast`, the whole status feed.
+  Nothing is inherited: a community's groups are excluded one by one.
+- **A person may have two JIDs, so an exclusion names both.** wacli files a
+  person's messages under their `…@lid` until it learns their number, then
+  under the phone JID, and a read of either JID may return the other's
+  messages. The tools cannot read wacli's map between the two, so they match
+  JIDs exactly: every row a read returns is checked by the chat it belongs to,
+  and one of an excluded chat is dropped even when wacli returned it for
+  another JID. The README tells the person to list both JIDs of someone who
+  has both, and the phone JID once wacli shows the chat under it.
+- **A call that names one is refused before anyone is asked.** Every tool
+  whose arguments name a chat refuses an excluded one through its `gate`, as
+  `not_found` in the words it gives for a chat it does not know, so the
+  refusal says nothing an unknown JID would not. A send would ask WhatsApp
+  about an unknown phone JID, so it refuses an excluded one with the answer it
+  gives when WhatsApp says nothing of the number, without asking; a send to
+  someone new needs WhatsApp to answer with the very JID named, so the gate on
+  that JID covers it.
+- **A read leaves it out before it counts or pages.** wacli takes no list of
+  chats to leave out, so `list`, a search across chats and the contact search
+  drop excluded rows from what wacli returns, before they sort, count or page,
+  and before anything else is looked up for them; a page is never short of
+  what it would be without them, and a cursor taken under one setting is
+  refused under another. A search's excluded hits still count toward the hits
+  one call asks wacli for, so a search that meets that cap says `incomplete`
+  as it does today, and its position moves past them without showing them.
+  The check of how many chats are pinned still counts every chat, since the
+  limit of three is WhatsApp's.
+- **The contacts leave the person out too.** The contact search drops an
+  excluded JID, and a number check whose answer is an excluded chat reports
+  the number as `unknown`, the answer it gives when WhatsApp cannot tell, so
+  the check says nothing an unanswered number would not.
+- **A read never looks anything up in it for another chat.** A message of an
+  allowed chat keeps what it carries: the sender's JID and name, the quote and
+  the ids. A person whose private chat is excluded can still write and react
+  in an allowed group. wacli may fill a sender's missing name from the
+  contacts as it reads; the tools take that name as the message's, since they
+  cannot tell it from a stored one, and say so in the README.
+- **A malformed setting stops the tools that read chats.** An entry that is
+  not a chat JID fails those tools with `invalid_argument` naming the setting,
+  never its value, rather than leaving a chat open by mistake.
+- **The setting is per harness, so it is set where the harness reads it**:
+  its plugin option or setting, not the shared environment variable, when
+  only one harness should leave the chat out. An MCP client draws its own
+  approval before the server sees a call, so there a call naming an excluded
+  chat can still be asked about by its JID, then is refused.
 
 ## Files
 

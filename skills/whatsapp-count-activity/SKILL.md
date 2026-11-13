@@ -55,6 +55,9 @@ Read `whatsapp-chats` first for the tool; this skill says how a count is made.
   older messages with `whatsapp_history_backfill` (see `whatsapp-chats`), and
   read it again. Turn what stayed unreachable into an explicit bound ("at
   least N, more may exist"), not a silent drop or a guess.
+- **Chats kept out of reach.** The person may keep some chats out of the
+  tools. A count then covers the chats in reach, not the whole account: say
+  so, and do not try to find them.
 - **Who sent it.** `from: me` is the account, not a person: attribute it to the
   account unless another record says who sent it.
 - **A count is a snapshot.** Re-read a chat before acting on it; a chat filed

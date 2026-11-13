@@ -20,6 +20,10 @@ is `not_found` too, and a number WhatsApp did not answer for is an error:
 nothing is sent either way. The sync service must be running (see
 `whatsapp_account_read`).
 
+A chat that is unknown or kept out of reach by the person is refused the same
+way, and so is a number whose chat is kept out. Do not work around it by
+finding the target another way, the new-person path included.
+
 Send `text` exactly as the user wants it: surrounding blank space is trimmed,
 nothing else changes, and it is at most 4,000 characters. Never rephrase,
 shorten or add to it without saying so. Split a longer text into several sends

@@ -1,3 +1,4 @@
+import { excludedChats } from "../chat/excluded"
 import { ToolError } from "../errors"
 import { ANY_TARGET } from "../targets"
 import { defineTool, type ToolContext } from "../tool"
@@ -14,6 +15,7 @@ import {
   chatOf,
   deliveryFailure,
   replyToOf,
+  sendGate,
   uncertainMessage,
 } from "./recipient"
 import { describeChat, describeReply, openPromptMirror } from "./describe"
@@ -79,6 +81,7 @@ export const whatsappMessageSend = defineTool({
   input,
   output,
   targets: sendTargets,
+  gate: sendGate,
   async describe(args, ctx) {
     const chat = checkedChat(args.chat, TOOL_ID)
     const text = checkedText(args.text, TEXT_RULES)
@@ -86,7 +89,7 @@ export const whatsappMessageSend = defineTool({
     const mirror = await openPromptMirror(ctx, args.account)
 
     const described = await describeChat(mirror, chat)
-    const reply = await describeReply(mirror, chat, described, replyTo)
+    const reply = await describeReply(mirror, excludedChats(ctx), chat, described, replyTo)
     return {
       headline: { text: MESSAGE_WORDS.headline, values: { chat: described.name } },
       facts: [described.fact, ...(reply === undefined ? [] : [reply])],
@@ -101,7 +104,7 @@ export const whatsappMessageSend = defineTool({
     if (!stateDir) throw new ToolError("internal_error", "The entry point did not supply a state directory.")
     const paths = await pickLabel(stateDir, args.account)
 
-    await checkRecipient(paths, chat, replyTo, ctx.signal)
+    await checkRecipient(paths, excludedChats(ctx), chat, replyTo, ctx.signal)
     const accepted = await deliver(paths, chat, text, replyTo, ctx)
     return {
       chat,

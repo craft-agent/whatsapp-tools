@@ -1,3 +1,4 @@
+import { isExcluded } from "../chat/excluded"
 import { ToolError } from "../errors"
 import type { LabelPaths } from "../whatsapp/labels"
 import {
@@ -94,4 +95,19 @@ export async function checkNumbers(
   }
   const answers = new Map(results.data.map((result) => [digitsOf(result.phone), result]))
   return { numbers: numbers.map((number) => entryFor(number, answers)), note: CHECK_NOTE }
+}
+
+/**
+ * `checked` with every number whose chat is excluded reported as `unknown`, the answer for a number WhatsApp gave
+ * none for, so that the check says nothing an unanswered number would not. Order and the other entries are kept.
+ */
+export function withoutExcluded(checked: ContactReadOutput, excluded: ReadonlySet<string>): ContactReadOutput {
+  return {
+    ...checked,
+    numbers: checked.numbers?.map((entry) =>
+      entry.chat !== undefined && isExcluded(excluded, entry.chat)
+        ? { number: entry.number, status: "unknown" }
+        : entry,
+    ),
+  }
 }

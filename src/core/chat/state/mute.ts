@@ -3,7 +3,7 @@ import { defineTool, type CallFact } from "../../tool"
 import { CHAT_MUTE_OP, MUTE_DURATION_MS, type MuteChoice } from "../../whatsapp/chat-state"
 import { openPromptMirror } from "../../message/describe"
 import { checkedChat } from "../../message/recipient"
-import { actionChat, actionTargets } from "../../message/target"
+import { actionChat, actionGate, actionTargets } from "../../message/target"
 import { openMirror } from "../mirror"
 import { ACCEPTED_NOTE, muteInput, muteOutput, type ChatMuteOutput } from "./schema"
 import { requestChange, statePaths } from "./state"
@@ -47,6 +47,7 @@ export const whatsappChatMute = defineTool({
   input: muteInput,
   output: muteOutput,
   targets: actionTargets(TOOL_ID),
+  gate: actionGate,
   async describe(args, ctx) {
     const chat = checkedChat(args.chat, TOOL_ID)
     const { name, fact } = await actionChat(await openPromptMirror(ctx, args.account), chat)

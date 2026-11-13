@@ -5,7 +5,11 @@
  *    "messages": [ { ChatJID, MsgID, Timestamp, … } ], "polls": [ { chat_jid, msg_id, question, … } ],
  *    "calls": [ { chat_jid, msg_id, timestamp, … } ],
  *    "contacts": [ { jid, phone, name, alias, system_name, updated_at } ],
- *    "check": { "<digits>": { registered, responded?, jid? } } }`
+ *    "check": { "<digits>": { registered, responded?, jid? } },
+ *    "aliases": [ [ "<phone JID>", "<lid>" ] ] }`
+ *
+ * `aliases` lists the JIDs of one person: as in wacli, a read of one chat's messages, search hits, context, polls or
+ * calls covers the others too.
  *
  * Its full-text mode only stands in for wacli's ordering: it matches each word as a substring, where FTS5 matches
  * whole tokens or their prefixes, so a test must not rely on a match inside a word.
@@ -65,8 +69,14 @@ function secondOf(text) {
   return Math.floor(Date.parse(text) / MS_PER_SECOND)
 }
 
+/** The JIDs a read of `chat` covers: the chat itself, then the other JIDs of its person among `aliases`. */
+function chatJids(chat, aliases) {
+  const group = aliases.find((jids) => jids.includes(chat)) ?? []
+  return [chat, ...group.filter((jid) => jid !== chat)]
+}
+
 /** The rows within the exclusive bounds `--after` and `--before` in whole seconds, with their arrival order. */
-function within(args, rows, timeOf) {
+function within(args, rows, timeOf, aliases) {
   const after = flagValue(args, "--after")
   const before = flagValue(args, "--before")
   const chat = flagValue(args, "--chat")
@@ -74,7 +84,7 @@ function within(args, rows, timeOf) {
   const beforeSecond = before === undefined ? undefined : secondOf(before)
   return rows
     .map((row, order) => ({ row, order, second: secondOf(timeOf(row)) }))
-    .filter(({ row }) => chat === undefined || (row.ChatJID ?? row.chat_jid) === chat)
+    .filter(({ row }) => chat === undefined || chatJids(chat, aliases).includes(row.ChatJID ?? row.chat_jid))
     .filter(
       ({ second }) =>
         (afterSecond === undefined || second > afterSecond) && (beforeSecond === undefined || second < beforeSecond),
@@ -82,8 +92,8 @@ function within(args, rows, timeOf) {
 }
 
 /** The rows within the bounds, newest first unless `--asc`, at most `--limit` of them. */
-function window(args, rows, timeOf) {
-  const kept = within(args, rows, timeOf)
+function window(args, rows, timeOf, aliases) {
+  const kept = within(args, rows, timeOf, aliases)
   const direction = args.includes("--asc") ? 1 : -1
   kept.sort((a, b) => direction * (a.second - b.second || a.order - b.order))
   return kept.slice(0, limitOf(args)).map(({ row }) => row)
@@ -112,7 +122,7 @@ function holds(message, chats, needle) {
  * `fts: true`. `has_more` says there were more hits than the limit.
  */
 function messagesSearch(args, mirror) {
-  const { messages = [], chats = [], relevance } = mirror
+  const { messages = [], chats = [], relevance, aliases = [] } = mirror
   const dash = args.indexOf("--")
   const flags = flagsOf(args)
   const query = dash < 0 ? "" : (args[dash + 1] ?? "")
@@ -124,7 +134,7 @@ function messagesSearch(args, mirror) {
     const place = relevanceMap.get(message.MsgID)
     return place === undefined ? relevance.length : place
   }
-  const hits = within(flags, messages, (row) => row.Timestamp)
+  const hits = within(flags, messages, (row) => row.Timestamp, aliases)
     .filter(({ row }) => !row.deleted_at && needles.every((needle) => holds(row, chats, needle)))
     .sort((a, b) => rank(a.row) - rank(b.row) || b.second - a.second || b.order - a.order)
   const limit = limitOf(flags)
@@ -139,17 +149,19 @@ function messagesSearch(args, mirror) {
 /**
  * `messages context --chat j --id i [--before n] [--after n]`: the message and up to n rows before and after it in
  * the chat (by second, then arrival), oldest first, as a bare list; the rows that hold nothing readable included.
- * A message the chat does not have fails as wacli does.
+ * A message the chat does not have fails as wacli does. Like wacli, it tries the JIDs of the chat's person one at
+ * a time and reads the rows of the first that holds the message.
  */
-function messagesContext(args, messages) {
+function messagesContext(args, messages, aliases) {
   const chat = flagValue(args, "--chat")
   const id = flagValue(args, "--id")
-  const rows = messages
+  const filed = messages
     .map((row, order) => ({ row, order, second: secondOf(row.Timestamp) }))
-    .filter(({ row }) => row.ChatJID === chat)
     .sort((a, b) => a.second - b.second || a.order - b.order)
+  const holder = chatJids(chat, aliases).find((jid) => filed.some(({ row }) => row.ChatJID === jid && row.MsgID === id))
+  if (holder === undefined) return failure("sql: no rows in result set")
+  const rows = filed.filter(({ row }) => row.ChatJID === holder)
   const index = rows.findIndex(({ row }) => row.MsgID === id)
-  if (index < 0) return failure("sql: no rows in result set")
   const before = Number(flagValue(args, "--before") ?? DEFAULT_CONTEXT)
   const after = Number(flagValue(args, "--after") ?? DEFAULT_CONTEXT)
   return success(rows.slice(Math.max(0, index - before), index + after + 1).map(({ row }) => row))
@@ -265,7 +277,7 @@ function historyCoverage(args, mirror) {
  */
 function answer(args, mirror, readOnly = false) {
   const command = `${args[0]} ${args[1]}`
-  const { chats = [], messages = [], polls = [], calls = [], contacts = [], check = {} } = mirror
+  const { chats = [], messages = [], polls = [], calls = [], contacts = [], check = {}, aliases = [] } = mirror
   switch (command) {
     case "chats list":
       return chatsList(args, chats)
@@ -274,7 +286,7 @@ function answer(args, mirror, readOnly = false) {
       return chat ? success(chat) : failure("sql: no rows in result set")
     }
     case "messages list": {
-      const page = window(args, messages, (row) => row.Timestamp)
+      const page = window(args, messages, (row) => row.Timestamp, aliases)
       return success({
         messages: page.length > 0 ? page : null,
         fts: false,
@@ -285,15 +297,15 @@ function answer(args, mirror, readOnly = false) {
     case "messages search":
       return messagesSearch(args, mirror)
     case "messages context":
-      return messagesContext(args, messages)
+      return messagesContext(args, messages, aliases)
     case "polls list": {
       const chat = flagValue(args, "--chat")
-      const kept = polls.filter((poll) => chat === undefined || poll.chat_jid === chat)
+      const kept = polls.filter((poll) => chat === undefined || chatJids(chat, aliases).includes(poll.chat_jid))
       const limit = Number(flagValue(args, "--limit") ?? DEFAULT_LIMIT)
       return success({ polls: limit === 0 ? kept : kept.slice(0, limit) })
     }
     case "calls list": {
-      const page = window(args, calls, (row) => row.timestamp)
+      const page = window(args, calls, (row) => row.timestamp, aliases)
       return success({ calls: page.length > 0 ? page : null })
     }
     case "contacts search":

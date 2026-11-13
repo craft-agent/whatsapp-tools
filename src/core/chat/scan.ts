@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto"
 import { MS_PER_SECOND } from "../time"
+import { isExcluded } from "./excluded"
 import type { Mirror } from "./mirror"
 import { isUnreadable, messageSecond, type WacliMessage } from "./rows"
 
@@ -25,8 +26,11 @@ export function idDigest(id: string): string {
  */
 export type Position = { second: number; ids: string[] }
 
-/** A row a scan took, in the order it took them, by the digest of its id. */
-export type Taken = { id: string; second: number; readable: boolean }
+/**
+ * A row a scan took, in the order it took them, by the digest of its id. A row of an excluded chat is neither
+ * readable nor unreadable: it moves the position past it like any row, is never shown and is never counted.
+ */
+export type Taken = { id: string; second: number; readable: boolean; excluded: boolean }
 
 /** What a scan found. */
 export type Scan = {
@@ -92,7 +96,7 @@ export function pageProgress(
 ): { stopped: boolean; unreadable: number; position: Position | undefined } {
   const stopped = shown < total
   const taken = stopped ? takenThrough(all, shown) : all
-  const unreadable = taken.filter((row) => !row.readable).length
+  const unreadable = taken.filter((row) => !row.readable && !row.excluded).length
   const position = positionAfter(from, taken)
   return { stopped, unreadable, position }
 }
@@ -101,9 +105,11 @@ export function pageProgress(
  * Takes up to `limit` readable messages, newest first, from where `from` stands, with the unreadable rows between
  * them. It reads wacli in growing chunks, each from the second the last one ended at (`before` that second + 1)
  * and skipping the ids already taken at it. It stops without taking the readable row after the last one it keeps,
- * so that `more` is exact, and does not stop earlier at unreadable rows.
+ * so that `more` is exact, and does not stop earlier at unreadable rows. A row that wacli files under an `excluded`
+ * chat (another JID of the person asked for) is taken like an unreadable one, so the position moves past it, but is
+ * never kept or counted as unreadable.
  */
-export async function scanMessages(mirror: Mirror, request: ScanRequest): Promise<Scan> {
+export async function scanMessages(mirror: Mirror, excluded: ReadonlySet<string>, request: ScanRequest): Promise<Scan> {
   const { chat, limit, afterSecond } = request
   const rows: WacliMessage[] = []
   const taken: Taken[] = []
@@ -121,10 +127,11 @@ export async function scanMessages(mirror: Mirror, request: ScanRequest): Promis
       const second = messageSecond(row)
       const id = idDigest(row.MsgID)
       if (position?.second === second && position.ids.has(id)) continue
-      const readable = !isUnreadable(row)
+      const hidden = isExcluded(excluded, row.ChatJID)
+      const readable = !hidden && !isUnreadable(row)
       if (taken.length >= SCAN_LIMIT || (readable && rows.length >= limit)) return { rows, taken, more: true }
       if (readable) rows.push(row)
-      taken.push({ id, second, readable })
+      taken.push({ id, second, readable, excluded: hidden })
       if (position?.second === second) position.ids.add(id)
       else position = { second, ids: new Set([id]) }
     }

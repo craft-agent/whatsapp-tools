@@ -1,6 +1,6 @@
 import { mkdirSync, rmSync } from "node:fs"
 import { ToolError } from "../errors"
-import { invoke } from "../tool"
+import { invoke, type ToolContext } from "../tool"
 import { MS_PER_SECOND } from "../time"
 import { labelPaths } from "../whatsapp/labels"
 import { shortTempDir } from "../whatsapp/sync.testing"
@@ -84,13 +84,16 @@ export type ChatFixture = {
   fake: FakeWacli
   stateDir: string
   /** The mirror the fake reads from; `sync` publishes a change to it. */
-  mirror: Required<Omit<FakeMirror, "relevance" | "contacts" | "check">> & Pick<FakeMirror, "relevance">
+  mirror: Required<Omit<FakeMirror, "relevance" | "contacts" | "check" | "aliases">> &
+    Pick<FakeMirror, "relevance" | "aliases">
   /** Adds chats to the mirror. */
   addChats(...chats: Record<string, unknown>[]): void
   /** Adds messages to the mirror, in the order they arrive. */
   add(...messages: MessageInit[]): void
   /** Publishes `mirror` to the fake. */
   sync(): void
+  /** Sets the `exclude_chats` setting the tool runs with from now on. */
+  exclude(...chats: string[]): void
   /** Runs the tool and returns its result. */
   read(args: unknown): Promise<ChatReadOutput>
   /** Runs the tool and returns the error it throws. */
@@ -114,7 +117,8 @@ export async function createChatFixture(): Promise<ChatFixture> {
   const sync = () => fake.setMirror(mirror)
   sync()
 
-  const read = (args: unknown) => invoke(whatsappChatRead, args, { cwd: stateDir, stateDir })
+  let options: ToolContext["options"]
+  const read = (args: unknown) => invoke(whatsappChatRead, args, { cwd: stateDir, stateDir, options })
   const failure = async (args: unknown) => {
     try {
       await read(args)
@@ -137,6 +141,9 @@ export async function createChatFixture(): Promise<ChatFixture> {
       sync()
     },
     sync,
+    exclude(...chats) {
+      options = { exclude_chats: chats }
+    },
     read,
     failure,
     async pages(chat, args = {}) {

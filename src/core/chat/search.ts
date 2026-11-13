@@ -3,6 +3,7 @@ import { ToolError } from "../errors"
 import { clampLimit, encodeCursor, fingerprint, fitItems, notACursor, readCursor } from "../pages"
 import { parseTimeArgument } from "../time"
 import { mapConcurrently } from "./concurrent"
+import { excludedDigest, isExcluded } from "./excluded"
 import { chatHeader } from "./header"
 import { chatKind, parseChatJid } from "./jid"
 import { readKinds } from "./kinds"
@@ -43,9 +44,11 @@ function newestFirst(a: WacliHit, b: WacliHit): number {
 /**
  * Takes up to `limit` readable hits, newest first, from where `from` stands: the ids already taken at its second
  * are skipped. It stops without taking the readable hit after the last one it keeps, so that `more` is exact; when
- * it runs through every hit wacli returned, `more` is whether wacli held more than it returned.
+ * it runs through every hit wacli returned, `more` is whether wacli held more than it returned. A hit in an `excluded`
+ * chat is taken like an unreadable one, so that the position moves past it and it counts toward what wacli was asked
+ * for, but it is never kept or counted as unreadable.
  */
-function takeHits(found: SearchHits, from: Position | undefined, limit: number): Taking {
+function takeHits(found: SearchHits, excluded: ReadonlySet<string>, from: Position | undefined, limit: number): Taking {
   const done = new Set(from?.ids)
   const rows: WacliHit[] = []
   const taken: Taken[] = []
@@ -53,10 +56,11 @@ function takeHits(found: SearchHits, from: Position | undefined, limit: number):
     const second = messageSecond(hit)
     const id = idDigest(hitKey(hit))
     if (from?.second === second && done.has(id)) continue
-    const readable = !isUnreadable(hit)
+    const hidden = isExcluded(excluded, hit.ChatJID)
+    const readable = !hidden && !isUnreadable(hit)
     if (readable && rows.length >= limit) return { rows, taken, more: true }
     if (readable) rows.push(hit)
-    taken.push({ id, second, readable })
+    taken.push({ id, second, readable, excluded: hidden })
   }
   return { rows, taken, more: found.more }
 }
@@ -79,9 +83,14 @@ async function chatsOf(
  * chat or all, between `after` and `before` (both exclusive), newest first, each with its chat. wacli may rank hits
  * by relevance and caps what it returns, so each call asks it for the window's hits, sorts them by time and pages
  * them by the tool's own position (second and id digests, as `view` does), never wacli's cursor. When wacli ranked
- * the hits and held more than the cap, newer hits may be missing from the window and the result is `incomplete`.
+ * the hits and held more than the cap, newer hits may be missing from the window and the result is `incomplete`. Hits
+ * in an `excluded` chat are dropped before anything else is looked up for them.
  */
-export async function searchMessages(mirror: Mirror, args: ChatReadInput): Promise<ChatReadOutput> {
+export async function searchMessages(
+  mirror: Mirror,
+  excluded: ReadonlySet<string>,
+  args: ChatReadInput,
+): Promise<ChatReadOutput> {
   const text = args.query?.trim() ?? ""
   if (text === "") {
     throw new ToolError("invalid_argument", "query is required for search: the text to find in messages.")
@@ -90,7 +99,14 @@ export async function searchMessages(mirror: Mirror, args: ChatReadInput): Promi
   const limit = clampLimit(args.limit, LIMITS.search, "limit")
   const after = args.after === undefined ? undefined : parseTimeArgument(args.after, "after")
   const before = args.before === undefined ? undefined : parseTimeArgument(args.before, "before")
-  const filter = fingerprint(mirror.label, text, requested ?? null, after ?? null, before ?? null)
+  const filter = fingerprint(
+    mirror.label,
+    text,
+    requested ?? null,
+    after ?? null,
+    before ?? null,
+    excludedDigest(excluded),
+  )
   const cursor = args.cursor === undefined ? undefined : readCursor(args.cursor, "cursor", searchCursor)
   if (cursor && cursor.filter !== filter) throw notACursor("cursor")
 
@@ -105,14 +121,14 @@ export async function searchMessages(mirror: Mirror, args: ChatReadInput): Promi
     afterSecond: secondAfter(after),
     beforeSecond: from ? from.second + 1 : secondBefore(before),
   })
-  const scan = takeHits(found, from, limit)
+  const scan = takeHits(found, excluded, from, limit)
 
   const jids = [...new Set(scan.rows.map((row) => row.ChatJID))]
   const chats = await chatsOf(mirror, jids, known)
   const kinds = new Map(
     await mapConcurrently(jids, CHAT_CONCURRENCY, async (jid) => {
       const rows = scan.rows.filter((row) => row.ChatJID === jid)
-      return [jid, await readKinds(mirror, jid, rows)] as const
+      return [jid, await readKinds(mirror, excluded, jid, rows)] as const
     }),
   )
   const entries = scan.rows.map((row) => {

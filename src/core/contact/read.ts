@@ -1,9 +1,10 @@
+import { excludedChats } from "../chat/excluded"
 import { ToolError } from "../errors"
 import { defineTool } from "../tool"
 import { pickLabel } from "../whatsapp/labels"
 import { MAX_CHECKED_NUMBERS } from "../whatsapp/operations"
 import { checkArguments } from "./arguments"
-import { checkNumbers } from "./check"
+import { checkNumbers, withoutExcluded } from "./check"
 import { input, METHODS, NAMES_NOTE, output, SEARCH_LIMIT } from "./schema"
 import { searchContacts } from "./search"
 
@@ -22,16 +23,20 @@ export const whatsappContactRead = defineTool({
   class: "read",
   input,
   output,
+  gate(_args, ctx) {
+    excludedChats(ctx)
+  },
   async execute(args, ctx) {
     checkArguments(args)
     const stateDir = ctx.stateDir
     if (!stateDir) throw new ToolError("internal_error", "The entry point did not supply a state directory.")
+    const excluded = excludedChats(ctx)
     const paths = await pickLabel(stateDir, args.account)
     switch (args.method) {
       case "search":
-        return searchContacts(paths, args, ctx.signal)
+        return searchContacts(paths, excluded, args, ctx.signal)
       case "check":
-        return checkNumbers(paths, args, ctx.signal)
+        return withoutExcluded(await checkNumbers(paths, args, ctx.signal), excluded)
     }
   },
 })
