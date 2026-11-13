@@ -19,6 +19,10 @@ the device was paired: a chat the user had before may show only a few older
 messages, and an empty result does not prove nothing was said. Every tool takes
 `account`; leave it out when only one label is paired.
 
+The person may keep some chats out of reach: such a chat appears in no list or
+search, and a call naming it fails as an unknown chat would. Do not work around
+it, by searching for it, asking for its JID or trying the person's other JID.
+
 ## Methods
 
 - `list` finds chats, newest activity first. `query` matches part of a name or

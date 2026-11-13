@@ -418,19 +418,20 @@ Hermes, noted below.
 | `state_dir`     | `--state-dir`     | `WHATSAPP_TOOLS_STATE_DIR`     | `path`: where every label's state lives; default `$XDG_STATE_HOME/whatsapp-tools` |
 | `download_dir`  | `--download-dir`  | `WHATSAPP_TOOLS_DOWNLOAD_DIR`  | `path`: where received files are saved; default `~/Downloads/whatsapp-tools`      |
 | `send_dirs`     | `--send-dirs`     | `WHATSAPP_TOOLS_SEND_DIRS`     | `paths`: the directories files may be sent from, besides the working directory    |
+| `exclude_chats` | `--exclude-chats` | `WHATSAPP_TOOLS_EXCLUDE_CHATS` | `list`: chat JIDs every tool leaves out, as `whatsapp_chat_read` returns them     |
 
-Lists are comma-separated in a flag or a variable. `state_dir`, `download_dir`
-and `send_dirs` are this package's own settings, listed in `options` in
-`src/project.ts` and read the same way. A `path` is trimmed; `~` and `~/…`
-(also with the platform separator) stand for the home directory (`HOME` when
-it is absolute, else the account's). It must then be absolute and reaches the
-tool normalized, without a filesystem check. A blank path counts as unset,
-so the default applies. `paths` is a list of such paths, comma-separated in a
-flag or variable and an array of strings in a plugin option. Blank items are
-dropped, and a list with none left counts as unset. Repeated send directories
-are dropped. Bounds check only a given value, not an unset option. Refused
-values are `invalid_argument`, naming the flag, variable or option and what it
-must be.
+Lists are comma-separated in a flag or a variable. `state_dir`, `download_dir`,
+`send_dirs` and `exclude_chats` are this package's own settings, listed in
+`options` in `src/project.ts` and read the same way. A `path` is trimmed; `~`
+and `~/…` (also with the platform separator) stand for the home directory
+(`HOME` when it is absolute, else the account's). It must then be absolute and
+reaches the tool normalized, without a filesystem check. A blank path counts
+as unset, so the default applies. `paths` is a list of such paths,
+comma-separated in a flag or variable and an array of strings in a plugin
+option. Blank items are dropped, and a list with none left counts as unset.
+Repeated send directories are dropped. Bounds check only a given value, not an
+unset option. Refused values are `invalid_argument`, naming the flag, variable
+or option and what it must be.
 Hermes passes paths and lists to the command line, which checks the paths and
 bounds. Where each harness reads them:
 
@@ -485,6 +486,54 @@ bounds. Where each harness reads them:
   env_vars = ["WHATSAPP_TOOLS_TOOLSETS"]
   tool_timeout_sec = 330
   ```
+
+`exclude_chats` keeps the named chats out of every tool, by JID exactly as
+`list` returns it (no device suffix). Lists, searches and the contact search
+leave them out, and `status@broadcast` is the whole status feed. A number
+check whose answer is an excluded chat reports `unknown`: that means
+unavailable through the tools, not that the number is off WhatsApp. A call
+naming an excluded chat is refused in the same words as an unknown chat, and a
+send to an excluded phone JID gets the "WhatsApp gave no answer" refusal, as an
+unchecked number would. Every row a read returns is checked by the chat it
+belongs to. A community's groups are excluded one by one, and the pin limit of
+three still counts excluded pinned chats. A malformed entry fails the tools
+with `invalid_argument`.
+
+A person may have a phone JID and an `…@lid`, and the tools match JIDs exactly,
+so list both for someone who has both, and the phone JID once wacli shows the
+chat under it. Messages of an allowed chat keep the sender's JID and name,
+quotes and ids; wacli may fill a missing sender name from the contacts as it
+reads. The sync service keeps mirroring the excluded chats.
+
+Set it per harness, in that harness's plugin option or setting, not the shared
+`WHATSAPP_TOOLS_EXCLUDE_CHATS` variable when only one harness should leave a
+chat out. For OpenCode V2, in `opencode.json`:
+
+```json
+{
+  "plugins": [
+    {
+      "package": "@craftsamo/whatsapp-tools@<version>",
+      "options": { "exclude_chats": ["<jid>@g.us"] }
+    }
+  ]
+}
+```
+
+For Hermes, in `config.yaml` (quote each JID):
+
+```yaml
+plugins:
+  entries:
+    whatsapp-tools:
+      settings:
+        exclude_chats:
+          - "<jid>@g.us"
+```
+
+OpenCode and Hermes refuse a call naming an excluded chat before asking, and
+the MCP clients may still ask first, as [Reads and writes](#reads-and-writes)
+says.
 
 ### Accounts and the sync service
 
