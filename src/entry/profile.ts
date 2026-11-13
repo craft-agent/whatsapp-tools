@@ -1,4 +1,4 @@
-import type { OptionSpec, Toolsets } from "../core"
+import { GRANTS_TOOLSET, type OptionSpec, type Toolsets } from "../core"
 import { PROJECT } from "../project"
 
 /** What an entry point takes from the package's identity: its name, the prefix of its settings' environment variables, its toolsets and the types of its tool options, with their bounds. */
@@ -13,6 +13,6 @@ export type EntryProfile = {
 export const PROJECT_PROFILE: EntryProfile = {
   name: PROJECT.name,
   envPrefix: PROJECT.envPrefix,
-  toolsets: { names: PROJECT.toolsets, defaults: PROJECT.defaultToolsets },
+  toolsets: { names: [...PROJECT.toolsets, GRANTS_TOOLSET], defaults: PROJECT.defaultToolsets },
   options: PROJECT.options,
 }
