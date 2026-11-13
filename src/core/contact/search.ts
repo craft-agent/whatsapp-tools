@@ -1,4 +1,5 @@
 import { z } from "zod"
+import { excludedDigest, isExcluded } from "../chat/excluded"
 import { chatNumber } from "../chat/jid"
 import { chatNameFields } from "../chat/names"
 import { ToolError } from "../errors"
@@ -66,20 +67,23 @@ function readQuery(query: string | undefined): string {
 /**
  * The `search` method: the contacts of the account's mirror whose name, number or JID holds `query`, by name. wacli
  * cannot page contacts, so the tool reads every match and pages them by a keyset cursor over (name, JID): a contact
- * that appears between pages is not shown twice, and none is skipped.
+ * that appears between pages is not shown twice, and none is skipped. The `excluded` chats are dropped before the
+ * contacts sort or page.
  */
 export async function searchContacts(
   paths: LabelPaths,
+  excluded: ReadonlySet<string>,
   args: ContactReadInput,
   signal: AbortSignal | undefined,
 ): Promise<ContactReadOutput> {
   const query = readQuery(args.query)
   const limit = clampLimit(args.limit, SEARCH_LIMIT, "limit")
-  const filter = fingerprint(paths.label, query)
+  const filter = fingerprint(paths.label, query, excludedDigest(excluded))
   const after = args.cursor === undefined ? undefined : readCursor(args.cursor, "cursor", searchCursor)
   if (after && after.filter !== filter) throw notACursor("cursor")
 
-  const entries = distinct((await readContacts(paths, query, signal)).map(contactEntry)).sort((a, b) =>
+  const contacts = (await readContacts(paths, query, signal)).filter((contact) => !isExcluded(excluded, contact.jid))
+  const entries = distinct(contacts.map(contactEntry)).sort((a, b) =>
     comparePositions({ key: sortKey(a), id: a.id }, { key: sortKey(b), id: b.id }),
   )
   const remaining = after

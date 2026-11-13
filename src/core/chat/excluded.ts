@@ -1,4 +1,5 @@
 import { ToolError } from "../errors"
+import { fingerprint } from "../pages"
 import type { ToolContext } from "../tool"
 import { parseChatJid } from "./jid"
 
@@ -35,6 +36,11 @@ export function isExcluded(excluded: ReadonlySet<string>, jid: string): boolean 
   } catch {
     return false
   }
+}
+
+/** A digest of the excluded chats in a fixed order, so that a cursor binds the set and never carries a JID of it. */
+export function excludedDigest(excluded: ReadonlySet<string>): string {
+  return fingerprint([...excluded].sort())
 }
 
 /**

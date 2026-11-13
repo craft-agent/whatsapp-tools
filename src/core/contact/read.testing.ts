@@ -27,15 +27,16 @@ export function wacliContact(jid: string, name: string, extra: Record<string, un
   }
 }
 
-/** Runs the tool on `stateDir` and returns its result. */
-export function readContacts(stateDir: string, args: unknown): Promise<ContactReadOutput> {
-  return invoke(whatsappContactRead, args, { cwd: stateDir, stateDir })
+/** Runs the tool on `stateDir`, with the `exclude_chats` setting `excluded` if given, and returns its result. */
+export function readContacts(stateDir: string, args: unknown, excluded?: string[]): Promise<ContactReadOutput> {
+  const options = excluded && { exclude_chats: excluded }
+  return invoke(whatsappContactRead, args, { cwd: stateDir, stateDir, options })
 }
 
 /** Runs the tool on `stateDir` and returns the error it throws. */
-export async function failureOf(stateDir: string, args: unknown): Promise<ToolError> {
+export async function failureOf(stateDir: string, args: unknown, excluded?: string[]): Promise<ToolError> {
   try {
-    await readContacts(stateDir, args)
+    await readContacts(stateDir, args, excluded)
   } catch (error) {
     if (error instanceof ToolError) return error
     throw error
@@ -49,6 +50,8 @@ export type ContactFixture = {
   stateDir: string
   /** Sets the contacts the fake searches through. */
   setContacts(...contacts: Record<string, unknown>[]): void
+  /** Sets the `exclude_chats` setting the tool runs with from now on. */
+  exclude(...chats: string[]): void
   read(args: unknown): Promise<ContactReadOutput>
   failure(args: unknown): Promise<ToolError>
   close(): Promise<void>
@@ -62,12 +65,16 @@ export async function createContactFixture(): Promise<ContactFixture> {
   const originalPath = process.env.PATH
   process.env.PATH = fake.env.PATH
   resetWacliCache()
+  let excluded: string[] | undefined
   return {
     fake,
     stateDir,
     setContacts: (...contacts) => fake.setMirror({ contacts }),
-    read: (args) => readContacts(stateDir, args),
-    failure: (args) => failureOf(stateDir, args),
+    exclude(...chats) {
+      excluded = chats
+    },
+    read: (args) => readContacts(stateDir, args, excluded),
+    failure: (args) => failureOf(stateDir, args, excluded),
     async close() {
       if (originalPath === undefined) delete process.env.PATH
       else process.env.PATH = originalPath
