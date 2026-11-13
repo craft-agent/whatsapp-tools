@@ -7,9 +7,19 @@ import {
   type ClientCapabilities,
   type ElicitResult,
 } from "@modelcontextprotocol/sdk/types.js"
+import { tmpdir } from "node:os"
+import { join } from "node:path"
 import { pathToFileURL } from "node:url"
 import { z } from "zod"
-import { confirmWrite, defineTool, type ToolContext, type ToolSpec, type Toolsets, type WriteClass } from "../core"
+import {
+  confirmWrite,
+  defineTool,
+  type GrantContext,
+  type ToolContext,
+  type ToolSpec,
+  type Toolsets,
+  type WriteClass,
+} from "../core"
 import type { EntrySettings } from "../entry/settings"
 import { createServer, type ServerOptions } from "./server"
 
@@ -57,12 +67,20 @@ export function failing(id: string, error: Error): ToolSpec {
   })
 }
 
+/** Grants that are off: nothing reads this directory. */
+export const NO_GRANTS: GrantContext = {
+  unattended: false,
+  dir: join(tmpdir(), "mcp-test-grants-unused"),
+  key: undefined,
+}
+
 export const settings = (overrides: Partial<EntrySettings> = {}): EntrySettings => ({
   confirm: "harness",
   state_dir: "/default/state",
   download_dir: "/default/downloads",
   send_dirs: [],
   options: {},
+  grants: NO_GRANTS,
   ...overrides,
 })
 

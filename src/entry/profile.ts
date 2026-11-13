@@ -1,7 +1,7 @@
 import { GRANTS_TOOLSET, type OptionSpec, type Toolsets } from "../core"
 import { PROJECT } from "../project"
 
-/** What an entry point takes from the package's identity: its name, the prefix of its settings' environment variables, its toolsets and the types of its tool options, with their bounds. */
+/** What an entry point takes from the package's identity: its name (the state directory's), the prefix of its settings' environment variables, its toolsets and the types of its tool options, with their bounds. */
 export type EntryProfile = {
   name: string
   envPrefix: string

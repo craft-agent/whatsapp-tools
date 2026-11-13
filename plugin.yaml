@@ -13,6 +13,9 @@ provides_tools:
   - whatsapp_contact_read
   - whatsapp_file_save
   - whatsapp_file_send
+  - whatsapp_grant_create
+  - whatsapp_grant_read
+  - whatsapp_grant_revoke
   - whatsapp_history_backfill
   - whatsapp_message_delete
   - whatsapp_message_edit
