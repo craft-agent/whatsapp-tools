@@ -1,4 +1,5 @@
 import { chatKind, chatNumber } from "../chat/jid"
+import { findMessageRow } from "../chat/message-row"
 import { openMirror, type Mirror } from "../chat/mirror"
 import { ToolError, isToolError } from "../errors"
 import { formatLocalTime } from "../time"
@@ -70,18 +71,27 @@ export async function openPromptMirror(
 /** The `Reply to` fact of a send's `replyTo`, or undefined when it replies to nothing; a new person has no message to reply to. */
 export async function describeReply(
   mirror: Mirror,
+  excluded: ReadonlySet<string>,
   chat: string,
   described: DescribedChat,
   replyTo: string | undefined,
 ): Promise<CallFact | undefined> {
   if (replyTo === undefined) return undefined
   if (described.isNew) throw new ToolError("not_found", "A new person has no message to reply to.")
-  return replyFact(mirror, chat, replyTo)
+  return replyFact(mirror, excluded, chat, replyTo)
 }
 
-/** The `Reply to` fact of a message of the chat: who wrote it and when. The quoted text is never shown. */
-export async function replyFact(mirror: Mirror, chat: string, replyTo: string): Promise<CallFact> {
-  const row = (await mirror.context(chat, replyTo, 0, 0)).find((message) => message.MsgID === replyTo)
+/**
+ * The `Reply to` fact of a message of the chat: who wrote it and when. The quoted text is never shown. A message
+ * wacli files under an `excluded` chat is not found.
+ */
+export async function replyFact(
+  mirror: Mirror,
+  excluded: ReadonlySet<string>,
+  chat: string,
+  replyTo: string,
+): Promise<CallFact> {
+  const row = await findMessageRow(mirror, excluded, chat, replyTo)
   if (!row) throw new ToolError("not_found", "No message with this id in this chat to reply to.")
   const time = promptTime(Date.parse(row.Timestamp))
   const value: CallValue = row.FromMe

@@ -1,3 +1,4 @@
+import { excludedChats } from "../../chat/excluded"
 import { chatKind } from "../../chat/jid"
 import { messageKind, readKinds } from "../../chat/kinds"
 import { openMirror, type Mirror } from "../../chat/mirror"
@@ -53,16 +54,25 @@ function requestOf(args: MessageReactInput): ReactRequest {
 }
 
 /** Refuses a call row and a poll vote or an added option, which are not messages anyone reacts to; a poll itself is one. */
-async function requireReactable(mirror: Mirror, chat: string, row: WacliMessage): Promise<void> {
-  const kind = messageKind(row, await readKinds(mirror, chat, [row]))
+async function requireReactable(
+  mirror: Mirror,
+  excluded: ReadonlySet<string>,
+  chat: string,
+  row: WacliMessage,
+): Promise<void> {
+  const kind = messageKind(row, await readKinds(mirror, excluded, chat, [row]))
   if (kind !== undefined && kind !== "poll") throw new ToolError("invalid_argument", NOT_REACTABLE)
 }
 
 /** Reads the mirror for the chat and the message, and refuses what the reaction would be refused for. */
-async function targetOf(mirror: Mirror, { chat, id }: ReactRequest): Promise<ReactTarget> {
+async function targetOf(
+  mirror: Mirror,
+  excluded: ReadonlySet<string>,
+  { chat, id }: ReactRequest,
+): Promise<ReactTarget> {
   const described = await actionChat(mirror, chat)
-  const row = await actionMessage(mirror, chat, id)
-  await requireReactable(mirror, chat, row)
+  const row = await actionMessage(mirror, excluded, chat, id)
+  await requireReactable(mirror, excluded, chat, row)
   const sender = reactionSender(row, chat, chatKind("", chat) === "group" ? "group" : "person")
   return { ...described, row, sender }
 }
@@ -144,7 +154,7 @@ export const whatsappMessageReact = defineTool({
   async describe(args, ctx) {
     const request = requestOf(args)
     const mirror = await openPromptMirror(ctx, args.account)
-    const target = await targetOf(mirror, request)
+    const target = await targetOf(mirror, excludedChats(ctx), request)
     return {
       headline: headlineOf(request.emoji, target.name),
       facts: [
@@ -160,7 +170,7 @@ export const whatsappMessageReact = defineTool({
     if (!stateDir) throw new ToolError("internal_error", "The entry point did not supply a state directory.")
     const paths = await pickLabel(stateDir, args.account)
 
-    const target = await targetOf(openMirror(paths, ctx.signal), request)
+    const target = await targetOf(openMirror(paths, ctx.signal), excludedChats(ctx), request)
     const accepted = await requestReaction(paths, request, await senderOf(target.sender, paths, ctx), ctx)
     return {
       chat: request.chat,

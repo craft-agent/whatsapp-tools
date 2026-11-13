@@ -2,7 +2,7 @@ import { dirname, join } from "node:path"
 import { z } from "zod"
 import { DEFAULT_LIMITS, type ArchiveLimits } from "../archive/limits"
 import { ArchiveRefused } from "../archive/refused"
-import { refuseExcludedChat } from "../chat/excluded"
+import { excludedChats, refuseExcludedChat } from "../chat/excluded"
 import { parseChatJid } from "../chat/jid"
 import { findMessageFile, parseMessageId } from "../chat/message-file"
 import { NO_SUCH_CHAT, openMirror } from "../chat/mirror"
@@ -159,7 +159,7 @@ export function createFileSave(host: Partial<FileSaveHost> = {}) {
       const id = parseMessageId(args.id)
       const mirror = openMirror(await pickLabel(stateDir, args.account), ctx.signal)
       const chatName = chatDisplayName(chat, (await mirror.chat(chat)).name)
-      const message = await findMessageFile(mirror, chat, id)
+      const message = await findMessageFile(mirror, excludedChats(ctx), chat, id)
       const file = safeFileName(message.name, fallbackName(message.kind, id, message.type))
       const { sender } = message
       const from: CallFact["value"] = sender.fromMe
@@ -187,7 +187,7 @@ export function createFileSave(host: Partial<FileSaveHost> = {}) {
       const downloadDir = await checkDownloadDir(ctx, parts)
       const folderPath = join(downloadDir, ...parts)
 
-      const message = await findMessageFile(openMirror(paths, ctx.signal), chat, id)
+      const message = await findMessageFile(openMirror(paths, ctx.signal), excludedChats(ctx), chat, id)
       const name = safeFileName(message.name, fallbackName(message.kind, id, message.type))
       const claim: FileClaim = { name, type: message.type }
 

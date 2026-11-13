@@ -1,5 +1,6 @@
 import { realpath } from "node:fs/promises"
 import { resolve } from "node:path"
+import { excludedChats } from "../../chat/excluded"
 import { ToolError } from "../../errors"
 import { describeChat, describeReply, openPromptMirror } from "../../message/describe"
 import {
@@ -108,7 +109,7 @@ export function createFileSend(timing: Partial<FileSendTiming> = {}) {
 
       // The chat is told before any file is read, so a call it refuses costs no hashing.
       const described = await describeChat(mirror, chat)
-      const reply = await describeReply(mirror, chat, described, replyTo)
+      const reply = await describeReply(mirror, excludedChats(ctx), chat, described, replyTo)
       const files = await describeFiles(args.files, ctx, { asDocument: args.as_document === true })
       if (caption !== undefined && files[0]!.kind.as === "audio") {
         throw new ToolError("invalid_argument", CAPTION_ON_AUDIO)
@@ -133,7 +134,7 @@ export function createFileSend(timing: Partial<FileSendTiming> = {}) {
         if (caption !== undefined && outgoing[0]!.kind.as === "audio") {
           throw new ToolError("invalid_argument", CAPTION_ON_AUDIO)
         }
-        await checkRecipient(paths, chat, replyTo, ctx.signal)
+        await checkRecipient(paths, excludedChats(ctx), chat, replyTo, ctx.signal)
         const accepted = await sendInOrder(outgoing, {
           paths,
           chat,

@@ -1,3 +1,4 @@
+import { excludedChats } from "../../chat/excluded"
 import { messageKind, readKinds } from "../../chat/kinds"
 import { openMirror, type Mirror } from "../../chat/mirror"
 import type { WacliMessage } from "../../chat/rows"
@@ -54,19 +55,28 @@ function requestOf(args: MessageEditInput): EditRequest {
 }
 
 /** Refuses a message that is not plain text: media, a poll, a vote or a call. */
-async function requireText(mirror: Mirror, chat: string, row: WacliMessage): Promise<void> {
+async function requireText(
+  mirror: Mirror,
+  excluded: ReadonlySet<string>,
+  chat: string,
+  row: WacliMessage,
+): Promise<void> {
   if (row.MediaType !== "" || row.Text === "") throw new ToolError("invalid_argument", NOT_TEXT)
-  if (messageKind(row, await readKinds(mirror, chat, [row])) !== undefined) {
+  if (messageKind(row, await readKinds(mirror, excluded, chat, [row])) !== undefined) {
     throw new ToolError("invalid_argument", NOT_TEXT)
   }
 }
 
 /** Reads the mirror for the chat and the message, and refuses what the edit would be refused for; `forbidden` past the window. */
-async function targetOf(mirror: Mirror, { chat, id, text }: EditRequest): Promise<EditTarget> {
+async function targetOf(
+  mirror: Mirror,
+  excluded: ReadonlySet<string>,
+  { chat, id, text }: EditRequest,
+): Promise<EditTarget> {
   const described = await actionChat(mirror, chat)
-  const row = await actionMessage(mirror, chat, id)
+  const row = await actionMessage(mirror, excluded, chat, id)
   ownMessage(row, EDIT_WINDOW_MS, EDIT_WINDOW)
-  await requireText(mirror, chat, row)
+  await requireText(mirror, excluded, chat, row)
   if (text === row.Text.trim()) throw new ToolError("invalid_argument", SAME_TEXT)
   return { ...described, row }
 }
@@ -113,7 +123,7 @@ export const whatsappMessageEdit = defineTool({
   async describe(args, ctx) {
     const request = requestOf(args)
     const mirror = await openPromptMirror(ctx, args.account)
-    const { name, fact, row } = await targetOf(mirror, request)
+    const { name, fact, row } = await targetOf(mirror, excludedChats(ctx), request)
     return {
       headline: { text: EDIT_WORDS.headline, values: { chat: name } },
       facts: [
@@ -130,7 +140,7 @@ export const whatsappMessageEdit = defineTool({
     if (!stateDir) throw new ToolError("internal_error", "The entry point did not supply a state directory.")
     const paths = await pickLabel(stateDir, args.account)
 
-    await targetOf(openMirror(paths, ctx.signal), request)
+    await targetOf(openMirror(paths, ctx.signal), excludedChats(ctx), request)
     const accepted = await requestEdit(paths, request, ctx)
     return {
       chat: request.chat,

@@ -28,6 +28,8 @@ export type WacliChat = z.infer<typeof wacliChat>
 
 /** One message as `wacli messages list` prints it: Go field names, except the tagged ones. */
 export const wacliMessage = z.object({
+  /** The chat the row is filed under, which may be another JID of the person asked for; empty when wacli printed none. */
+  ChatJID: text,
   MsgID: z.string(),
   SenderJID: text,
   SenderName: text,
@@ -66,11 +68,17 @@ export const wacliSearchPage = z.object({
   page: z.object({ has_more: z.boolean() }),
 })
 
-/** One poll as `wacli polls list` prints it. */
-export const wacliPoll = z.object({ msg_id: z.string(), question: text })
+/** One poll as `wacli polls list` prints it, with the chat it is filed under (empty when wacli printed none). */
+export const wacliPoll = z.object({ chat_jid: text, msg_id: z.string(), question: text })
 
-/** One call event as `wacli calls list` prints it. */
-export const wacliCall = z.object({ msg_id: text })
+/** One poll as wacli prints it. */
+export type WacliPoll = z.infer<typeof wacliPoll>
+
+/** One call event as `wacli calls list` prints it, with the chat it is filed under (empty when wacli printed none). */
+export const wacliCall = z.object({ chat_jid: text, msg_id: text })
+
+/** One call event as wacli prints it. */
+export type WacliCall = z.infer<typeof wacliCall>
 
 /** The second (Unix time) a message was sent in, which is as finely as wacli stores it. */
 export function messageSecond(row: WacliMessage): number {

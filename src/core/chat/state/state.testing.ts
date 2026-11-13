@@ -1,6 +1,6 @@
 import { mkdirSync } from "node:fs"
 import { ToolError } from "../../errors"
-import { invoke, type ToolSpec } from "../../tool"
+import { invoke, type ToolContext, type ToolSpec } from "../../tool"
 import { serviceOperations } from "../../whatsapp/operations"
 import type { ServiceOperations } from "../../whatsapp/service-socket"
 import {
@@ -40,6 +40,8 @@ export type StateTest = {
   fixture: SyncFixture
   /** Sets what the fake answers: the `mirror` (three unpinned chats by default) and the `change`. */
   setUp(setup?: StateSetup): void
+  /** Sets the `exclude_chats` setting the tools run with from now on. */
+  exclude(...chats: string[]): void
   /** Starts the sync service, with the operations of the CLI unless `operations` replaces them, and sets up the fake. */
   serve(setup?: StateSetup & { operations?: ServiceOperations }): Promise<void>
   /** Runs `tool` and returns its result. */
@@ -81,11 +83,15 @@ export async function createStateTest(): Promise<StateTest> {
   }
   const changeCalls: StateTest["changeCalls"] = async () =>
     (await fixture.fake.calls()).filter((call) => WRITE_ACTIONS.some((action) => chatsArgv(call)[1] === action))
+  let options: ToolContext["options"]
   const call = (tool: ToolSpec<any, any>, args: unknown, signal?: AbortSignal) =>
-    invoke(tool, args, { cwd: fixture.stateDir, stateDir: fixture.stateDir, signal })
+    invoke(tool, args, { cwd: fixture.stateDir, stateDir: fixture.stateDir, signal, options })
   return {
     fixture,
     setUp,
+    exclude(...chats) {
+      options = { exclude_chats: chats }
+    },
     async serve({ operations = serviceOperations(), ...setup } = {}) {
       service = await startService(fixture, operations)
       setUp(setup)

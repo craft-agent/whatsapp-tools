@@ -22,6 +22,7 @@ import { MESSAGE_WORDS } from "./words"
 
 const ID = "3EB0A1B2C3D4E5F6"
 const WINDOW_MS = 15 * MS_PER_MINUTE
+const NO_CHATS_EXCLUDED: ReadonlySet<string> = new Set()
 
 let f: ChatFixture
 let mirror: Mirror
@@ -50,7 +51,7 @@ async function failureOf(run: () => unknown): Promise<ToolError> {
 async function rowWith(change: Record<string, unknown>): Promise<WacliMessage> {
   f.addChats(wacliChat({ jid: ALICE }))
   f.add({ id: ID, chat: ALICE, at: at(1), Text: "hello", ...change })
-  return actionMessage(mirror, ALICE, ID)
+  return actionMessage(mirror, NO_CHATS_EXCLUDED, ALICE, ID)
 }
 
 describe("messageIdOf", () => {
@@ -118,7 +119,7 @@ describe("actionMessage", () => {
 
   test("is not_found for an id the chat does not have", async () => {
     f.addChats(wacliChat({ jid: ALICE }))
-    const error = await failureOf(() => actionMessage(mirror, ALICE, "NOSUCHMESSAGE"))
+    const error = await failureOf(() => actionMessage(mirror, NO_CHATS_EXCLUDED, ALICE, "NOSUCHMESSAGE"))
     expect(error.code).toBe("not_found")
   })
 
@@ -154,14 +155,14 @@ describe("ownMessage", () => {
   test("lets through the user's message sent within the window, up to its last moment", async () => {
     f.addChats(wacliChat({ jid: ALICE }))
     f.add({ id: ID, chat: ALICE, FromMe: true, Text: "hello", ...sentAgo(WINDOW_MS) })
-    const held = await actionMessage(mirror, ALICE, ID)
+    const held = await actionMessage(mirror, NO_CHATS_EXCLUDED, ALICE, ID)
     expect(() => ownMessage(held, WINDOW_MS, "15 minutes", NOW)).not.toThrow()
   })
 
   test("is forbidden once the window has passed, saying the limit and that nothing was changed", async () => {
     f.addChats(wacliChat({ jid: ALICE }))
     f.add({ id: ID, chat: ALICE, FromMe: true, Text: "hello", ...sentAgo(WINDOW_MS) })
-    const held = await actionMessage(mirror, ALICE, ID)
+    const held = await actionMessage(mirror, NO_CHATS_EXCLUDED, ALICE, ID)
     const error = await failureOf(() => ownMessage(held, WINDOW_MS, "15 minutes", NOW + 1))
     expect(error.code).toBe("forbidden")
     expect(error.message).toContain("15 minutes")

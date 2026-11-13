@@ -1,3 +1,4 @@
+import { excludedChats } from "../../chat/excluded"
 import { messageKind, readKinds } from "../../chat/kinds"
 import { openMirror, type Mirror } from "../../chat/mirror"
 import type { WacliMessage } from "../../chat/rows"
@@ -43,11 +44,15 @@ function requestOf(args: MessageDeleteInput): DeleteRequest {
 }
 
 /** Reads the mirror for the chat and the message, and refuses what the deletion would be refused for; `forbidden` past the window. */
-async function targetOf(mirror: Mirror, { chat, id }: DeleteRequest): Promise<DeleteTarget> {
+async function targetOf(
+  mirror: Mirror,
+  excluded: ReadonlySet<string>,
+  { chat, id }: DeleteRequest,
+): Promise<DeleteTarget> {
   const described = await actionChat(mirror, chat)
-  const row = await actionMessage(mirror, chat, id)
+  const row = await actionMessage(mirror, excluded, chat, id)
   ownMessage(row, DELETE_WINDOW_MS, DELETE_WINDOW)
-  if (messageKind(row, await readKinds(mirror, chat, [row])) === "call") {
+  if (messageKind(row, await readKinds(mirror, excluded, chat, [row])) === "call") {
     throw new ToolError("invalid_argument", NOT_DELETABLE)
   }
   return { ...described, row }
@@ -107,7 +112,7 @@ export const whatsappMessageDelete = defineTool({
   async describe(args, ctx) {
     const request = requestOf(args)
     const mirror = await openPromptMirror(ctx, args.account)
-    const { name, fact, row } = await targetOf(mirror, request)
+    const { name, fact, row } = await targetOf(mirror, excludedChats(ctx), request)
     return {
       headline: { text: DELETE_WORDS.headline, values: { chat: name } },
       facts: [
@@ -124,7 +129,7 @@ export const whatsappMessageDelete = defineTool({
     if (!stateDir) throw new ToolError("internal_error", "The entry point did not supply a state directory.")
     const paths = await pickLabel(stateDir, args.account)
 
-    const target = await targetOf(openMirror(paths, ctx.signal), request)
+    const target = await targetOf(openMirror(paths, ctx.signal), excludedChats(ctx), request)
     await confirmWrite({ id: TOOL_ID, class: WRITE_CLASS }, ctx, confirmationOf(target, request.chat))
     const accepted = await requestDeletion(paths, request, ctx)
     return {

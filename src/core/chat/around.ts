@@ -1,12 +1,13 @@
 import { ToolError } from "../errors"
 import { fitItems } from "../pages"
+import { isExcluded } from "./excluded"
 import { chatHeader } from "./header"
 import { chatKind, parseChatJid } from "./jid"
 import { readKinds } from "./kinds"
 import { toMessageEntry } from "./message"
 import { cuttableMessage } from "./message-cut"
 import { DATA_NOTE, type MessageEntry } from "./message-schema"
-import type { Mirror } from "./mirror"
+import { NO_MESSAGE_IN_CHAT, type Mirror } from "./mirror"
 import { isUnreadable, type WacliMessage } from "./rows"
 import { AROUND_COUNT, type ChatReadInput, type ChatReadOutput } from "./schema"
 
@@ -51,9 +52,15 @@ function nearest(rows: readonly WacliMessage[], count: number): { kept: WacliMes
  * `unreadable_rows`, and the nearest readable messages are kept; an `id` that names such a row is `not_found`, since
  * there is no message to read around. When the messages do not fit in a result the anchor stays and the messages
  * farthest from it go, alternately from the two sides, counted in `trimmed_before` and `trimmed_after`. There is no
- * cursor: ask again around the message at the edge to read further.
+ * cursor: ask again around the message at the edge to read further. A row that wacli files under an `excluded` JID of
+ * the same person is not the chat's: as the anchor it is a message the chat does not hold, and as context it is left
+ * out, uncounted.
  */
-export async function aroundMessage(mirror: Mirror, args: ChatReadInput): Promise<ChatReadOutput> {
+export async function aroundMessage(
+  mirror: Mirror,
+  excluded: ReadonlySet<string>,
+  args: ChatReadInput,
+): Promise<ChatReadOutput> {
   const requested = parseChatJid(args.chat, "chat", "around")
   const id = args.id
   if (id === undefined || id === "") {
@@ -67,17 +74,19 @@ export async function aroundMessage(mirror: Mirror, args: ChatReadInput): Promis
   const index = rows.findIndex((row) => row.MsgID === id)
   const anchor = rows[index]
   if (!anchor) throw new ToolError("upstream_error", "wacli returned a context without the message asked for.")
+  if (isExcluded(excluded, anchor.ChatJID)) throw new ToolError("not_found", NO_MESSAGE_IN_CHAT)
   if (isUnreadable(anchor)) {
     throw new ToolError(
       "not_found",
       "No message with this id in this chat: that row holds nothing wacli could read, so it is not a message.",
     )
   }
-  const older = nearest(rows.slice(0, index).reverse(), beforeCount)
-  const newer = nearest(rows.slice(index + 1), afterCount)
+  const held = (row: WacliMessage) => !isExcluded(excluded, row.ChatJID)
+  const older = nearest(rows.slice(0, index).reverse().filter(held), beforeCount)
+  const newer = nearest(rows.slice(index + 1).filter(held), afterCount)
 
   const context = { id: chat.jid, kind: chatKind(chat.kind, chat.jid) }
-  const kinds = await readKinds(mirror, requested, [anchor, ...older.kept, ...newer.kept])
+  const kinds = await readKinds(mirror, excluded, requested, [anchor, ...older.kept, ...newer.kept])
   const anchorEntry = toMessageEntry(anchor, context, kinds)
   const olderEntries = older.kept.map((row) => toMessageEntry(row, context, kinds))
   const newerEntries = newer.kept.map((row) => toMessageEntry(row, context, kinds))

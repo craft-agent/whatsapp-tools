@@ -2,6 +2,7 @@ import { z } from "zod"
 import { clampLimit, encodeCursor, fingerprint, fitItems, notACursor, readCursor, type Cuttable } from "../pages"
 import { MS_PER_SECOND, formatLocalTime } from "../time"
 import { mapConcurrently } from "./concurrent"
+import { excludedDigest, isExcluded } from "./excluded"
 import { chatHeader } from "./header"
 import { chatKind } from "./jid"
 import { readKinds } from "./kinds"
@@ -60,29 +61,44 @@ function chatEntry(chat: WacliChat, nowSecond: number): ChatEntry {
   return entry
 }
 
-/** The newest row of the chat that is not an unreadable one, among its latest rows, or null. */
-async function lastMessage(mirror: Mirror, chat: WacliChat): Promise<MessageEntry | null> {
+/**
+ * The newest row of the chat that is not an unreadable one, among its latest rows, or null. A row wacli files under
+ * an excluded JID of the same person is not the chat's.
+ */
+async function lastMessage(
+  mirror: Mirror,
+  excluded: ReadonlySet<string>,
+  chat: WacliChat,
+): Promise<MessageEntry | null> {
   const rows = await mirror.messages({ chat: chat.jid, limit: LAST_MESSAGE_ROWS })
-  const row = rows.find((candidate) => !isUnreadable(candidate))
+  const row = rows.find((candidate) => !isUnreadable(candidate) && !isExcluded(excluded, candidate.ChatJID))
   if (!row) return null
-  const kinds = await readKinds(mirror, chat.jid, [row])
+  const kinds = await readKinds(mirror, excluded, chat.jid, [row])
   return toMessageEntry(row, { id: chat.jid, kind: chatKind(chat.kind, chat.jid) }, kinds)
 }
 
 /**
  * The `list` method: chats newest activity first, optionally those whose name or JID holds `query`, or that are
  * unread, each with its last real message on request. wacli cannot page chats, so the tool reads them all and pages
- * them by a keyset cursor over (activity, JID): a chat that gains a message between pages is not shown twice.
+ * them by a keyset cursor over (activity, JID): a chat that gains a message between pages is not shown twice. The
+ * `excluded` chats are dropped before they sort or page, so a page is as full as it would be without them.
  */
-export async function listChats(mirror: Mirror, args: ChatReadInput, now: number): Promise<ChatReadOutput> {
+export async function listChats(
+  mirror: Mirror,
+  excluded: ReadonlySet<string>,
+  args: ChatReadInput,
+  now: number,
+): Promise<ChatReadOutput> {
   const limit = clampLimit(args.limit, LIMITS.list, "limit")
   const query = args.query?.trim() ?? ""
   const unread = args.unread === true
-  const filter = fingerprint(mirror.label, query, unread, args.last === true)
+  const filter = fingerprint(mirror.label, query, unread, args.last === true, excludedDigest(excluded))
   const after = args.cursor === undefined ? undefined : readCursor(args.cursor, "cursor", listCursor)
   if (after && after.filter !== filter) throw notACursor("cursor")
 
-  const chats = (await mirror.chats({ query, unread })).sort(byActivity)
+  const chats = (await mirror.chats({ query, unread }))
+    .filter((chat) => !isExcluded(excluded, chat.jid))
+    .sort(byActivity)
   const remaining = after
     ? chats.filter((chat) => activity(chat) < after.second || (activity(chat) === after.second && chat.jid > after.jid))
     : chats
@@ -90,7 +106,7 @@ export async function listChats(mirror: Mirror, args: ChatReadInput, now: number
   const nowSecond = Math.floor(now / MS_PER_SECOND)
   const entries = page.map((chat) => chatEntry(chat, nowSecond))
   if (args.last) {
-    const last = await mapConcurrently(page, LAST_MESSAGE_CONCURRENCY, (chat) => lastMessage(mirror, chat))
+    const last = await mapConcurrently(page, LAST_MESSAGE_CONCURRENCY, (chat) => lastMessage(mirror, excluded, chat))
     entries.forEach((entry, index) => (entry.last_message = last[index]))
   }
 

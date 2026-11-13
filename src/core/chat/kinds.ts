@@ -1,3 +1,4 @@
+import { isExcluded } from "./excluded"
 import type { MessageKind } from "./message-schema"
 import type { Mirror } from "./mirror"
 import { messageSecond, type WacliMessage } from "./rows"
@@ -37,21 +38,32 @@ function looksLikeCall(row: WacliMessage): boolean {
 /**
  * Asks wacli which of `rows`, all of one chat, are polls and calls. A row only counts when wacli's list holds its
  * id; one that merely reads like a poll or a call is asked about, never believed, and a page with none costs no
- * extra read.
+ * extra read. A poll or call that wacli files under an `excluded` chat (another JID of the person asked for) is
+ * not one of these.
  */
-export async function readKinds(mirror: Mirror, chat: string, rows: readonly WacliMessage[]): Promise<MessageKinds> {
+export async function readKinds(
+  mirror: Mirror,
+  excluded: ReadonlySet<string>,
+  chat: string,
+  rows: readonly WacliMessage[],
+): Promise<MessageKinds> {
   const calls = rows.filter(looksLikeCall)
   const seconds = calls.map(messageSecond)
-  return {
-    polls: rows.some(looksLikePoll) ? await mirror.polls(chat) : new Map(),
-    calls:
-      calls.length > 0
-        ? await mirror.calls(
+  const allowed = (filedUnder: string) => !isExcluded(excluded, filedUnder)
+  const polls = rows.some(looksLikePoll) ? (await mirror.polls(chat)).filter((poll) => allowed(poll.chat_jid)) : []
+  const events =
+    calls.length > 0
+      ? (
+          await mirror.calls(
             chat,
             Math.min(...seconds) - WINDOW_PADDING_SECONDS,
             Math.max(...seconds) + WINDOW_PADDING_SECONDS,
           )
-        : new Set(),
+        ).filter((call) => allowed(call.chat_jid))
+      : []
+  return {
+    polls: new Map(polls.map((poll) => [poll.msg_id, poll.question])),
+    calls: new Set(events.map((call) => call.msg_id).filter((id) => id !== "")),
   }
 }
 

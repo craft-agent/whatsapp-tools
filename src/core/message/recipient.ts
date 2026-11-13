@@ -1,5 +1,6 @@
 import { refuseExcludedChat } from "../chat/excluded"
 import { chatKind, chatNumber, parseChatJid, type ChatKind } from "../chat/jid"
+import { findMessageRow } from "../chat/message-row"
 import { openMirror, type Mirror } from "../chat/mirror"
 import { checkNumbers } from "../contact/check"
 import type { CheckEntry } from "../contact/schema"
@@ -112,10 +113,9 @@ export function serviceNotRunning(error: ToolError): ToolError {
   )
 }
 
-/** `not_found` unless the mirror holds the message `id` of `chat`. */
-async function requireMessage(mirror: Mirror, chat: string, id: string): Promise<void> {
-  const rows = await mirror.context(chat, id, 0, 0)
-  if (!rows.some((row) => row.MsgID === id)) {
+/** `not_found` unless the mirror holds the message `id` of `chat`, and wacli files it under no `excluded` chat. */
+async function requireMessage(mirror: Mirror, excluded: ReadonlySet<string>, chat: string, id: string): Promise<void> {
+  if (!(await findMessageRow(mirror, excluded, chat, id))) {
     throw new ToolError("not_found", "No message with this id in this chat to reply to. Nothing was sent.")
   }
 }
@@ -172,6 +172,7 @@ export function sendGate(args: { chat: string; reply_to?: string }, ctx: Pick<To
 /** Checks that the chat is one a send goes to, and that the message to reply to is in it; a new person is checked with WhatsApp. */
 export async function checkRecipient(
   paths: LabelPaths,
+  excluded: ReadonlySet<string>,
   chat: string,
   replyTo: string | undefined,
   signal: AbortSignal | undefined,
@@ -185,7 +186,7 @@ export async function checkRecipient(
     return requireRegistered(paths, chat, replyTo, signal)
   }
   if (!SEND_KINDS.has(kind)) throw new ToolError("invalid_argument", PEOPLE_AND_GROUPS_ONLY)
-  if (replyTo !== undefined) await requireMessage(mirror, chat, replyTo)
+  if (replyTo !== undefined) await requireMessage(mirror, excluded, chat, replyTo)
 }
 
 /** What a send of `subject` (`message` or `file`) that may have left is told as. */

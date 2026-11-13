@@ -11,9 +11,11 @@ import {
   wacliMessage,
   wacliPoll,
   wacliSearchPage,
+  type WacliCall,
   type WacliChat,
   type WacliHit,
   type WacliMessage,
+  type WacliPoll,
 } from "./rows"
 
 /** The most chats one `chats list` read returns, which is more than any account holds. */
@@ -55,7 +57,10 @@ export type Mirror = {
   chats(filter: { query?: string; unread?: boolean; pinned?: boolean }): Promise<WacliChat[]>
   /** One chat, or `not_found`. */
   chat(jid: string): Promise<WacliChat>
-  /** The newest messages of a chat first, bounded in whole seconds (exclusive). */
+  /**
+   * The newest messages of a chat first, bounded in whole seconds (exclusive). Each row says the chat it is filed
+   * under, which may be another JID of the person asked for; so does each row of `context`.
+   */
   messages(query: MessageQuery): Promise<WacliMessage[]>
   /** The messages whose text, captions, file names or names hold `text`, in wacli's order. */
   search(query: SearchQuery): Promise<SearchHits>
@@ -64,10 +69,10 @@ export type Mirror = {
    * and `after` after it, the unreadable ones included. `not_found` when the chat has no such message.
    */
   context(chat: string, id: string, before: number, after: number): Promise<WacliMessage[]>
-  /** The polls of a chat: the questions by the id of the message that holds each. */
-  polls(chat: string): Promise<Map<string, string>>
-  /** The ids of the messages of a chat that hold a call, among the call events between two seconds (exclusive). */
-  calls(chat: string, afterSecond: number, beforeSecond: number): Promise<Set<string>>
+  /** The polls of a chat, each with the chat it is filed under, which may be another JID of the person asked for. */
+  polls(chat: string): Promise<WacliPoll[]>
+  /** The call events of a chat between two seconds (exclusive), each with the chat it is filed under, as `polls` has. */
+  calls(chat: string, afterSecond: number, beforeSecond: number): Promise<WacliCall[]>
 }
 
 /** A Unix second as the RFC 3339 time wacli reads, kept inside the years it can write. */
@@ -82,6 +87,11 @@ function parse<S extends z.ZodType>(schema: S, data: unknown, what: string): z.o
   return parsed.data
 }
 
+/** The row of a read of `chat`, filed under `chat` when wacli printed no chat JID for it. */
+function filedUnder(chat: string, row: WacliMessage): WacliMessage {
+  return row.ChatJID === "" ? { ...row, ChatJID: chat } : row
+}
+
 /** The list at `key` of the object wacli printed; wacli prints `null` for an empty one. */
 function listAt(data: unknown, key: string, what: string): unknown[] {
   return parse(z.object({ [key]: z.array(z.unknown()).nullable() }), data, what)[key] ?? []
@@ -89,6 +99,9 @@ function listAt(data: unknown, key: string, what: string): unknown[] {
 
 /** What a read says of a chat the mirror does not hold, which an excluded chat is told as. */
 export const NO_SUCH_CHAT = "No chat with this JID in this account's mirror. Use list to find the chat's JID."
+
+/** What a read says of a message the chat does not hold, which a message of an excluded chat is told as. */
+export const NO_MESSAGE_IN_CHAT = "No message with this id in this chat."
 
 /** What `read` returns, or `not_found` saying `message` when wacli answered that it has no such row. */
 async function orNotFound<T>(read: () => Promise<T>, message: string): Promise<T> {
@@ -124,7 +137,9 @@ export function openMirror(paths: LabelPaths, signal: AbortSignal | undefined): 
       const args = ["messages", "list", "--chat", chat, "--limit", String(limit)]
       if (afterSecond !== undefined) args.push("--after", wacliTime(afterSecond))
       if (beforeSecond !== undefined) args.push("--before", wacliTime(beforeSecond))
-      return listAt(await read(args), "messages", "a message list").map((row) => parse(wacliMessage, row, "a message"))
+      return listAt(await read(args), "messages", "a message list").map((row) =>
+        filedUnder(chat, parse(wacliMessage, row, "a message")),
+      )
     },
     async search({ text, chat, limit, afterSecond, beforeSecond }) {
       const args = ["messages", "search", "--limit", String(limit)]
@@ -150,20 +165,25 @@ export function openMirror(paths: LabelPaths, signal: AbortSignal | undefined): 
         String(after),
       ]
       return orNotFound(
-        async () => parse(z.array(wacliMessage), await read(args), "a message context"),
-        "No message with this id in this chat.",
+        async () =>
+          parse(z.array(wacliMessage), await read(args), "a message context").map((row) => filedUnder(chat, row)),
+        NO_MESSAGE_IN_CHAT,
       )
     },
     async polls(chat) {
       const data = await read(["polls", "list", "--chat", chat, "--limit", String(ALL_POLLS)])
-      const polls = listAt(data, "polls", "a poll list").map((row) => parse(wacliPoll, row, "a poll"))
-      return new Map(polls.map((poll) => [poll.msg_id, poll.question]))
+      return listAt(data, "polls", "a poll list").map((row) => {
+        const poll = parse(wacliPoll, row, "a poll")
+        return { ...poll, chat_jid: poll.chat_jid || chat }
+      })
     },
     async calls(chat, afterSecond, beforeSecond) {
       const args = ["calls", "list", "--chat", chat, "--limit", String(CALLS_LIMIT)]
       args.push("--after", wacliTime(afterSecond), "--before", wacliTime(beforeSecond))
-      const calls = listAt(await read(args), "calls", "a call list").map((row) => parse(wacliCall, row, "a call"))
-      return new Set(calls.map((call) => call.msg_id).filter((id) => id !== ""))
+      return listAt(await read(args), "calls", "a call list").map((row) => {
+        const call = parse(wacliCall, row, "a call")
+        return { ...call, chat_jid: call.chat_jid || chat }
+      })
     },
   }
 }

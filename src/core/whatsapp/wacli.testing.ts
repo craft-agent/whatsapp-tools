@@ -56,6 +56,8 @@ export type FakeMirror = {
    * with no entry is left out of WhatsApp's answer.
    */
   check?: Record<string, { registered: boolean; responded?: boolean; jid?: string }>
+  /** Groups of JIDs that are one person (a phone JID and an `…@lid`): a read of one covers the rows filed under the others. */
+  aliases?: string[][]
   /** Makes `messages search` answer as wacli's full-text search: hits in this order of message ids, `fts: true`. */
   relevance?: string[]
 }

@@ -1,5 +1,6 @@
 import { ToolError } from "../errors"
 import { MESSAGE_ID_FORM } from "../whatsapp/media"
+import { findMessageRow } from "./message-row"
 import type { Mirror } from "./mirror"
 
 /** wacli's media types of a message that carries a place, not a file. */
@@ -32,12 +33,17 @@ export function parseMessageId(text: string): string {
 
 /**
  * The file the message `id` of `chat` carries, read from the mirror. A chat or message the mirror does not have is
- * `not_found`, and so is a message that carries no file (a text, a place, a row wacli could not read).
+ * `not_found`, and so is a message that carries no file (a text, a place, a row wacli could not read) and one wacli
+ * files under an `excluded` chat.
  */
-export async function findMessageFile(mirror: Mirror, chat: string, id: string): Promise<MessageFile> {
+export async function findMessageFile(
+  mirror: Mirror,
+  excluded: ReadonlySet<string>,
+  chat: string,
+  id: string,
+): Promise<MessageFile> {
   await mirror.chat(chat)
-  const rows = await mirror.context(chat, id, 0, 0)
-  const row = rows.find((candidate) => candidate.MsgID === id)
+  const row = await findMessageRow(mirror, excluded, chat, id)
   if (!row) throw new ToolError("upstream_error", "wacli returned a context without the message asked for.")
   const kind = row.MediaType.trim()
   if (kind === "" || PLACE_MEDIA_TYPES.has(kind.toLowerCase())) throw new ToolError("not_found", NO_FILE)

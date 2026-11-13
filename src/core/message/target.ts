@@ -1,5 +1,6 @@
 import { refuseExcludedChat } from "../chat/excluded"
 import { chatKind } from "../chat/jid"
+import { findMessageRow } from "../chat/message-row"
 import type { Mirror } from "../chat/mirror"
 import { isUnreadable, type WacliMessage } from "../chat/rows"
 import { ToolError, isToolError } from "../errors"
@@ -67,10 +68,16 @@ export async function actionChat(mirror: Mirror, chat: string): Promise<ActionCh
 
 /**
  * The row of the message `id` of `chat` that an action works on: one the mirror holds, readable and not deleted,
- * and not a reaction. `not_found` for a message that is missing, unreadable or deleted, `invalid_argument` for a reaction.
+ * and not a reaction. `not_found` for a message that is missing, unreadable or deleted, or that wacli files under an
+ * `excluded` chat, `invalid_argument` for a reaction.
  */
-export async function actionMessage(mirror: Mirror, chat: string, id: string): Promise<WacliMessage> {
-  const row = (await mirror.context(chat, id, 0, 0)).find((candidate) => candidate.MsgID === id)
+export async function actionMessage(
+  mirror: Mirror,
+  excluded: ReadonlySet<string>,
+  chat: string,
+  id: string,
+): Promise<WacliMessage> {
+  const row = await findMessageRow(mirror, excluded, chat, id)
   if (!row || isUnreadable(row)) {
     throw new ToolError("not_found", NO_SUCH_MESSAGE)
   }

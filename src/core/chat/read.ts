@@ -3,7 +3,7 @@ import { defineTool } from "../tool"
 import { pickLabel } from "../whatsapp/labels"
 import { checkArguments } from "./arguments"
 import { aroundMessage } from "./around"
-import { refuseExcludedChat } from "./excluded"
+import { excludedChats, refuseExcludedChat } from "./excluded"
 import { listChats } from "./list"
 import { NO_SUCH_CHAT, openMirror } from "./mirror"
 import { input, AROUND_COUNT, LAST_MESSAGE_ROWS, LIMITS, METHODS, output } from "./schema"
@@ -38,16 +38,17 @@ export const whatsappChatRead = defineTool({
     const stateDir = ctx.stateDir
     if (!stateDir) throw new ToolError("internal_error", "The entry point did not supply a state directory.")
     const now = Date.now()
+    const excluded = excludedChats(ctx)
     const mirror = openMirror(await pickLabel(stateDir, args.account), ctx.signal)
     switch (args.method) {
       case "list":
-        return listChats(mirror, args, now)
+        return listChats(mirror, excluded, args, now)
       case "view":
-        return viewChat(mirror, args)
+        return viewChat(mirror, excluded, args)
       case "search":
-        return searchMessages(mirror, args)
+        return searchMessages(mirror, excluded, args)
       case "around":
-        return aroundMessage(mirror, args)
+        return aroundMessage(mirror, excluded, args)
     }
   },
 })
