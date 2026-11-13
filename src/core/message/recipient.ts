@@ -1,8 +1,10 @@
+import { refuseExcludedChat } from "../chat/excluded"
 import { chatKind, chatNumber, parseChatJid, type ChatKind } from "../chat/jid"
 import { openMirror, type Mirror } from "../chat/mirror"
 import { checkNumbers } from "../contact/check"
 import type { CheckEntry } from "../contact/schema"
 import { ToolError, isAbortError, isToolError } from "../errors"
+import type { ToolContext } from "../tool"
 import type { LabelPaths } from "../whatsapp/labels"
 import { MESSAGE_ID_FORM } from "../whatsapp/media"
 import { CHECKED_NUMBER } from "../whatsapp/operations"
@@ -59,10 +61,16 @@ function serverOf(jid: string): string {
   return jid.slice(jid.lastIndexOf("@") + 1)
 }
 
+/** The refusal of a chat a send never goes to by its server alone (a channel, a broadcast list, the status feed); undefined for any other. */
+export function refusedServerError(chat: string): ToolError | undefined {
+  return REFUSED_SERVERS.has(serverOf(chat)) ? new ToolError("invalid_argument", PEOPLE_AND_GROUPS_ONLY) : undefined
+}
+
 /** The chat JID `given` names, refused unless it is one a send goes to by its server alone (not a channel or a broadcast list), before anything is read. */
 export function checkedChat(given: string | undefined, toolId: string): string {
   const chat = chatOf(given, toolId)
-  if (REFUSED_SERVERS.has(serverOf(chat))) throw new ToolError("invalid_argument", PEOPLE_AND_GROUPS_ONLY)
+  const refused = refusedServerError(chat)
+  if (refused) throw refused
   return chat
 }
 
@@ -140,6 +148,25 @@ async function requireRegistered(
       "WhatsApp knows this number under another chat. Send to the `chat` whatsapp_contact_read check gives for it. Nothing was sent.",
     )
   }
+}
+
+/**
+ * What a send to the chat gives when the mirror does not hold it and WhatsApp cannot vouch for the number: the order of
+ * `requireRegistered`, ending in the no-answer error where it would ask WhatsApp. An excluded chat is refused with it,
+ * without asking.
+ */
+export function unknownRecipient(chat: string, replyTo: string | undefined): ToolError {
+  const refused = refusedServerError(chat)
+  if (refused) return refused
+  const number = chatNumber(chat)
+  if (number === undefined || !CHECKED_NUMBER.test(number)) return new ToolError("not_found", NOT_IN_MIRROR)
+  if (replyTo !== undefined) return new ToolError("not_found", NOTHING_TO_QUOTE)
+  return new ToolError("upstream_error", NO_ANSWER)
+}
+
+/** The `gate` of a send tool: refuses an excluded chat as `unknownRecipient` does, and a malformed setting. */
+export function sendGate(args: { chat: string; reply_to?: string }, ctx: Pick<ToolContext, "options">): void {
+  refuseExcludedChat(ctx, args.chat, (chat) => unknownRecipient(chat, args.reply_to))
 }
 
 /** Checks that the chat is one a send goes to, and that the message to reply to is in it; a new person is checked with WhatsApp. */

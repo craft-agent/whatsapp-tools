@@ -1,7 +1,7 @@
 import { ToolError } from "../../errors"
 import { openPromptMirror } from "../../message/describe"
 import { checkedChat } from "../../message/recipient"
-import { actionChat, actionTargets } from "../../message/target"
+import { actionChat, actionGate, actionTargets } from "../../message/target"
 import { formatLocalTime } from "../../time"
 import { defineTool, type CallFact } from "../../tool"
 import { CHAT_MARK_OP, chatMarkAnswer, type ChatMarkAnswer } from "../../whatsapp/chat-state"
@@ -61,6 +61,7 @@ export const whatsappChatMark = defineTool({
   input: markInput,
   output: markOutput,
   targets: actionTargets(TOOL_ID),
+  gate: actionGate,
   async describe(args, ctx) {
     const request = requestOf(args)
     const { name, fact } = await actionChat(await openPromptMirror(ctx, args.account), request.chat)

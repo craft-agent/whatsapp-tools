@@ -24,7 +24,8 @@
         "WHATSAPP_TOOLS_CONFIRM",
         "WHATSAPP_TOOLS_STATE_DIR",
         "WHATSAPP_TOOLS_DOWNLOAD_DIR",
-        "WHATSAPP_TOOLS_SEND_DIRS"
+        "WHATSAPP_TOOLS_SEND_DIRS",
+        "WHATSAPP_TOOLS_EXCLUDE_CHATS"
       ],
       "tool_timeout_sec": 330
     }

@@ -1,3 +1,4 @@
+import { excludedChats } from "../chat/excluded"
 import { ToolError } from "../errors"
 import { defineTool } from "../tool"
 import { pickLabel } from "../whatsapp/labels"
@@ -22,6 +23,9 @@ export const whatsappContactRead = defineTool({
   class: "read",
   input,
   output,
+  gate(_args, ctx) {
+    excludedChats(ctx)
+  },
   async execute(args, ctx) {
     checkArguments(args)
     const stateDir = ctx.stateDir

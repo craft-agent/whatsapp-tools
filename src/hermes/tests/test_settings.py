@@ -84,7 +84,10 @@ class SettingsFlagsTest(unittest.TestCase):
 
 class OptionFlagsTest(unittest.TestCase):
     def test_the_package_declares_its_directory_settings(self) -> None:
-        self.assertEqual(project.OPTIONS, {"state_dir": "path", "download_dir": "path", "send_dirs": "paths"})
+        self.assertEqual(
+            project.OPTIONS,
+            {"state_dir": "path", "download_dir": "path", "send_dirs": "paths", "exclude_chats": "list"},
+        )
 
     def test_each_kind_becomes_a_flag(self) -> None:
         options = {"note_text": "text", "note_pinned": "boolean", "note_count": "number", "note_tags": "list"}

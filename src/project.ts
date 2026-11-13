@@ -19,6 +19,8 @@ export const PROJECT = {
     state_dir: "path",
     download_dir: "path",
     send_dirs: "paths",
+    /** The chats every tool leaves out: their JIDs, as `list` returns them; the sync service still mirrors them. */
+    exclude_chats: "list",
   } as Readonly<Record<string, OptionSpec>>,
   /** The environment variables the tools read besides the settings, which Codex forwards to the server after them. */
   toolVariables: [] as readonly string[],

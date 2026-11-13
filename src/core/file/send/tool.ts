@@ -2,7 +2,15 @@ import { realpath } from "node:fs/promises"
 import { resolve } from "node:path"
 import { ToolError } from "../../errors"
 import { describeChat, describeReply, openPromptMirror } from "../../message/describe"
-import { checkRecipient, checkedChat, checkedText, chatOf, replyToOf, type TextRules } from "../../message/recipient"
+import {
+  checkRecipient,
+  checkedChat,
+  checkedText,
+  chatOf,
+  replyToOf,
+  sendGate,
+  type TextRules,
+} from "../../message/recipient"
 import { MAX_FILES } from "../../outgoing/limits"
 import { ANY_TARGET } from "../../targets"
 import { defineTool, type ToolContext } from "../../tool"
@@ -91,6 +99,7 @@ export function createFileSend(timing: Partial<FileSendTiming> = {}) {
     input,
     output,
     targets: sendTargets,
+    gate: sendGate,
     async describe(args, ctx) {
       const chat = checkedChat(args.chat, TOOL_ID)
       const caption = args.text?.trim() ? checkedText(args.text, CAPTION_RULES) : undefined

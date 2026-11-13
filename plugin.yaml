@@ -39,6 +39,9 @@ config_schema:
   send_dirs:
     type: list
     description: The directories files may be sent from, besides the working directory; absolute paths, or ones starting with ~, without commas. Defaults to none.
+  exclude_chats:
+    type: list
+    description: "The chats every tool leaves out: their JIDs as list returns them. List both JIDs of a person who has a phone JID and an …@lid. Defaults to none. Read by tools; the sync service still mirrors them, and no service restart is needed."
   language:
     description: The language of the approval card, such as ja. Defaults to Hermes's display language, else English.
   emoji:

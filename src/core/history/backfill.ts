@@ -1,4 +1,5 @@
 import { env } from "node:process"
+import { refuseExcludedChat } from "../chat/excluded"
 import { parseChatJid } from "../chat/jid"
 import { openMirror } from "../chat/mirror"
 import { ToolError } from "../errors"
@@ -17,7 +18,8 @@ import { HISTORY_WORDS } from "./words"
 /** What names the tool that lists the chats, in the message that asks for a JID. */
 const CHAT_FINDER = "whatsapp_chat_read list"
 
-const NOT_IN_MIRROR = `No chat with this JID in this account's mirror. Find it with ${CHAT_FINDER}.`
+/** What the tool says of a chat the mirror does not hold, which an excluded chat is told as. */
+export const NOT_IN_MIRROR = `No chat with this JID in this account's mirror. Find it with ${CHAT_FINDER}.`
 
 const NO_MESSAGE =
   "The mirror holds no message of this chat to ask from, and history starts at pairing: wait for a message to arrive in the chat, then ask again."
@@ -53,6 +55,9 @@ export const whatsappHistoryBackfill = defineTool({
   input,
   output,
   targets: backfillTargets,
+  gate(args, ctx) {
+    refuseExcludedChat(ctx, args.chat, () => new ToolError("not_found", NOT_IN_MIRROR))
+  },
   async describe(args, ctx) {
     const chat = chatOf(args)
     const stateDir = ctx.stateDir

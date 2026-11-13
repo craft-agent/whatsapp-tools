@@ -2,9 +2,10 @@ import { dirname, join } from "node:path"
 import { z } from "zod"
 import { DEFAULT_LIMITS, type ArchiveLimits } from "../archive/limits"
 import { ArchiveRefused } from "../archive/refused"
+import { refuseExcludedChat } from "../chat/excluded"
 import { parseChatJid } from "../chat/jid"
 import { findMessageFile, parseMessageId } from "../chat/message-file"
-import { openMirror } from "../chat/mirror"
+import { NO_SUCH_CHAT, openMirror } from "../chat/mirror"
 import { ToolError, isAbortError, isToolError } from "../errors"
 import { chatDisplayName } from "../message/describe"
 import { cutText } from "../pages"
@@ -138,6 +139,9 @@ export function createFileSave(host: Partial<FileSaveHost> = {}) {
     class: "add",
     input,
     output,
+    gate(args, ctx) {
+      refuseExcludedChat(ctx, args.chat, () => new ToolError("not_found", NO_SUCH_CHAT))
+    },
     async targets(args, ctx) {
       if (!ctx.stateDir || !ctx.downloadDir) return [ANY_TARGET]
       try {

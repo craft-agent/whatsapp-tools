@@ -4,7 +4,7 @@ import { defineTool } from "../../tool"
 import { CHAT_PIN_OP } from "../../whatsapp/chat-state"
 import { openPromptMirror } from "../../message/describe"
 import { checkedChat } from "../../message/recipient"
-import { actionChat, actionTargets, type ActionChat } from "../../message/target"
+import { actionChat, actionGate, actionTargets, type ActionChat } from "../../message/target"
 import { openMirror, type Mirror } from "../mirror"
 import { ACCEPTED_NOTE, PIN_LIMIT, pinInput, pinOutput, type ChatPinOutput } from "./schema"
 import { requestChange, statePaths } from "./state"
@@ -49,6 +49,7 @@ export const whatsappChatPin = defineTool({
   input: pinInput,
   output: pinOutput,
   targets: actionTargets(TOOL_ID),
+  gate: actionGate,
   async describe(args, ctx) {
     const chat = checkedChat(args.chat, TOOL_ID)
     const { name, fact } = await targetOf(await openPromptMirror(ctx, args.account), chat, args.pinned)

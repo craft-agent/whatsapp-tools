@@ -10,7 +10,7 @@ import { MESSAGE_TEXT_MAX_CHARACTERS } from "../../whatsapp/send"
 import { callService } from "../../whatsapp/service-client"
 import { promptTime, openPromptMirror } from "../describe"
 import { checkedChat, checkedText, deliveryFailure, messageIdOf, type TextRules } from "../recipient"
-import { actionChat, actionMessage, actionTargets, ownMessage, type ActionChat } from "../target"
+import { actionChat, actionGate, actionMessage, actionTargets, ownMessage, type ActionChat } from "../target"
 import { MESSAGE_WORDS } from "../words"
 import {
   EDIT_NOTE,
@@ -109,6 +109,7 @@ export const whatsappMessageEdit = defineTool({
   input,
   output,
   targets: actionTargets(TOOL_ID),
+  gate: actionGate,
   async describe(args, ctx) {
     const request = requestOf(args)
     const mirror = await openPromptMirror(ctx, args.account)

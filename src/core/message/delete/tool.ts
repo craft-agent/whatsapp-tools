@@ -10,7 +10,7 @@ import { pickLabel, type LabelPaths } from "../../whatsapp/labels"
 import { callService } from "../../whatsapp/service-client"
 import { openPromptMirror, promptTime } from "../describe"
 import { checkedChat, deliveryFailure, messageIdOf } from "../recipient"
-import { actionChat, actionMessage, actionTargets, ownMessage, type ActionChat } from "../target"
+import { actionChat, actionGate, actionMessage, actionTargets, ownMessage, type ActionChat } from "../target"
 import { MESSAGE_WORDS } from "../words"
 import {
   DELETE_NOTE,
@@ -103,6 +103,7 @@ export const whatsappMessageDelete = defineTool({
   input,
   output,
   targets: actionTargets(TOOL_ID),
+  gate: actionGate,
   async describe(args, ctx) {
     const request = requestOf(args)
     const mirror = await openPromptMirror(ctx, args.account)

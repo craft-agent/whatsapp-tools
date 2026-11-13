@@ -14,6 +14,7 @@ import {
   chatOf,
   deliveryFailure,
   replyToOf,
+  sendGate,
   uncertainMessage,
 } from "./recipient"
 import { describeChat, describeReply, openPromptMirror } from "./describe"
@@ -79,6 +80,7 @@ export const whatsappMessageSend = defineTool({
   input,
   output,
   targets: sendTargets,
+  gate: sendGate,
   async describe(args, ctx) {
     const chat = checkedChat(args.chat, TOOL_ID)
     const text = checkedText(args.text, TEXT_RULES)

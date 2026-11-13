@@ -3,8 +3,9 @@ import { defineTool } from "../tool"
 import { pickLabel } from "../whatsapp/labels"
 import { checkArguments } from "./arguments"
 import { aroundMessage } from "./around"
+import { refuseExcludedChat } from "./excluded"
 import { listChats } from "./list"
-import { openMirror } from "./mirror"
+import { NO_SUCH_CHAT, openMirror } from "./mirror"
 import { input, AROUND_COUNT, LAST_MESSAGE_ROWS, LIMITS, METHODS, output } from "./schema"
 import { searchMessages } from "./search"
 import { viewChat } from "./view"
@@ -28,6 +29,10 @@ export const whatsappChatRead = defineTool({
   class: "read",
   input,
   output,
+  gate(args, ctx) {
+    const named = args.method === "list" ? undefined : args.chat
+    refuseExcludedChat(ctx, named, () => new ToolError("not_found", NO_SUCH_CHAT))
+  },
   async execute(args, ctx) {
     checkArguments(args)
     const stateDir = ctx.stateDir

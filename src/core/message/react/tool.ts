@@ -12,7 +12,7 @@ import { callService } from "../../whatsapp/service-client"
 import { chatDisplayName, openPromptMirror, promptTime } from "../describe"
 import { checkedEmoji } from "../emoji"
 import { checkedChat, deliveryFailure, messageIdOf } from "../recipient"
-import { actionChat, actionMessage, actionTargets, type ActionChat } from "../target"
+import { actionChat, actionGate, actionMessage, actionTargets, type ActionChat } from "../target"
 import { MESSAGE_WORDS } from "../words"
 import { REACT_NOTE, input, output, type MessageReactInput, type MessageReactOutput } from "./schema"
 import { OWN_JID, reactionSender, type ReactionSender } from "./sender"
@@ -140,6 +140,7 @@ export const whatsappMessageReact = defineTool({
   input,
   output,
   targets: actionTargets(TOOL_ID),
+  gate: actionGate,
   async describe(args, ctx) {
     const request = requestOf(args)
     const mirror = await openPromptMirror(ctx, args.account)

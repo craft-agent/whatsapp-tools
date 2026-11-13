@@ -3,7 +3,7 @@ import { defineTool } from "../../tool"
 import { CHAT_ARCHIVE_OP } from "../../whatsapp/chat-state"
 import { openPromptMirror } from "../../message/describe"
 import { checkedChat } from "../../message/recipient"
-import { actionChat, actionTargets } from "../../message/target"
+import { actionChat, actionGate, actionTargets } from "../../message/target"
 import { openMirror } from "../mirror"
 import { ACCEPTED_NOTE, ARCHIVE_NOTE, archiveInput, archiveOutput, type ChatArchiveOutput } from "./schema"
 import { requestChange, statePaths } from "./state"
@@ -30,6 +30,7 @@ export const whatsappChatArchive = defineTool({
   input: archiveInput,
   output: archiveOutput,
   targets: actionTargets(TOOL_ID),
+  gate: actionGate,
   async describe(args, ctx) {
     const chat = checkedChat(args.chat, TOOL_ID)
     const { name, fact } = await actionChat(await openPromptMirror(ctx, args.account), chat)

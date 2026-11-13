@@ -87,6 +87,9 @@ function listAt(data: unknown, key: string, what: string): unknown[] {
   return parse(z.object({ [key]: z.array(z.unknown()).nullable() }), data, what)[key] ?? []
 }
 
+/** What a read says of a chat the mirror does not hold, which an excluded chat is told as. */
+export const NO_SUCH_CHAT = "No chat with this JID in this account's mirror. Use list to find the chat's JID."
+
 /** What `read` returns, or `not_found` saying `message` when wacli answered that it has no such row. */
 async function orNotFound<T>(read: () => Promise<T>, message: string): Promise<T> {
   try {
@@ -114,7 +117,7 @@ export function openMirror(paths: LabelPaths, signal: AbortSignal | undefined): 
     async chat(jid) {
       return orNotFound(
         async () => parse(wacliChat, await read(["chats", "show", "--jid", jid]), "a chat"),
-        "No chat with this JID in this account's mirror. Use list to find the chat's JID.",
+        NO_SUCH_CHAT,
       )
     },
     async messages({ chat, limit, afterSecond, beforeSecond }) {
